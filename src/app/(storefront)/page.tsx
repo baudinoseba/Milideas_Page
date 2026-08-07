@@ -194,22 +194,32 @@ export default async function HomePage() {
       {colecciones.length > 0 && (
         <FadeIn delay={150}>
         <section id="lanzamiento" className="scroll-mt-24 space-y-8">
-          <div className="flex items-end justify-between border-b border-border/60 pb-4">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between border-b border-border/60 pb-5">
             <div>
               <span className="text-xs font-semibold uppercase tracking-wider text-barro font-sans">
-                Piezas disponibles de la colección
+                Piezas disponibles del lanzamiento
               </span>
               <h2 className="mt-1 text-2xl font-medium text-chocolate font-serif sm:text-3xl">
                 {nombreColeccion}
               </h2>
             </div>
-            <Link
-              href="/colecciones"
-              className="text-sm font-semibold text-terracota transition-colors hover:text-chocolate inline-flex items-center gap-1 font-sans"
-            >
-              <span>Ver todas las colecciones</span>
-              <span>→</span>
-            </Link>
+
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+              <Link
+                href="/colecciones"
+                className="inline-flex items-center gap-1.5 rounded-full border border-terracota/30 bg-terracota/10 px-4 py-2 text-xs font-semibold text-terracota hover:bg-terracota hover:text-white transition-all shadow-xs"
+              >
+                <span>✨ Explorar colección completa</span>
+                <span>→</span>
+              </Link>
+              <Link
+                href="/catalogo"
+                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-4 py-2 text-xs font-semibold text-chocolate hover:bg-arena/60 transition-all shadow-xs"
+              >
+                <span>🏺 Revisar catálogo actual</span>
+                <span>→</span>
+              </Link>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-6">
