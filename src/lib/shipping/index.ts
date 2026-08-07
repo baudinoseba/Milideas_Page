@@ -4,11 +4,13 @@ export function calcularCostoEnvio(
   zona: Pick<ZonaLogistica, "precio_agencia" | "precio_domicilio">,
   tipoEnvio: TipoEnvio,
 ): number {
+  if (tipoEnvio === "taller") return 0;
   return tipoEnvio === "agencia" ? zona.precio_agencia : zona.precio_domicilio;
 }
 
 export function getTipoEnvioLabel(tipo: TipoEnvio): string {
-  return tipo === "agencia" ? "Retiro en agencia" : "Envío a domicilio";
+  if (tipo === "taller") return "Retiro en Taller (Sunchales - Sin cargo)";
+  return tipo === "agencia" ? "Sucursal Vía Cargo" : "Envío a Domicilio (Vía Cargo)";
 }
 
 /**
@@ -19,6 +21,13 @@ export function calcularTarifaPorProvincia(
   provincia: string,
   tipoEnvio: TipoEnvio,
 ): { precio: number; regionNombre: string } {
+  if (tipoEnvio === "taller") {
+    return {
+      precio: 0,
+      regionNombre: "Retiro en Taller (Florentino Ameghino 1576, Sunchales, Santa Fe)",
+    };
+  }
+
   if (!provincia) {
     return {
       precio: tipoEnvio === "agencia" ? 17000 : 25000,
@@ -111,6 +120,14 @@ export function obtenerCostoAutomaticoProximidad(
   tipoEnvio: TipoEnvio,
   zonasExistentes: ZonaLogistica[],
 ): { precio: number; regionNombre: string; esPersonalizada: boolean } {
+  if (tipoEnvio === "taller") {
+    return {
+      precio: 0,
+      regionNombre: "Retiro en Taller (Florentino Ameghino 1576, Sunchales, Santa Fe)",
+      esPersonalizada: false,
+    };
+  }
+
   // Check if city or province matches a specific custom zone in DB
   const ciudadNorm = ciudad.trim().toLowerCase();
   const provNorm = provincia.trim().toLowerCase();

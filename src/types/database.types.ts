@@ -361,7 +361,7 @@ export type Database = {
     Enums: {
       estado_pedido: "pendiente_pago" | "confirmado" | "enviado" | "cancelado";
       metodo_pago: "transferencia" | "mercadopago" | "efectivo";
-      tipo_envio: "agencia" | "domicilio";
+      tipo_envio: "agencia" | "domicilio" | "taller";
     };
     CompositeTypes: Record<string, never>;
   };

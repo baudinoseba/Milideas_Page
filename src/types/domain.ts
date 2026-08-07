@@ -2,7 +2,7 @@ import type { Tables, Enums } from "./database.types";
 
 export type EstadoPedido = Enums<"estado_pedido">;
 export type MetodoPago = Enums<"metodo_pago">;
-export type TipoEnvio = Enums<"tipo_envio">;
+export type TipoEnvio = Enums<"tipo_envio"> | "taller";
 
 export type Producto = Tables<"productos">;
 export type ProductoImagen = Tables<"producto_imagenes">;

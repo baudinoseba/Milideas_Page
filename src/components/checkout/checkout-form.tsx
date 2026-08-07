@@ -10,12 +10,13 @@ import { Select } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
 import { Toast } from "@/components/ui/modal";
 import { formatPrecio } from "@/lib/pricing";
-import { calcularCostoEnvio, obtenerCostoAutomaticoProximidad } from "@/lib/shipping";
+import { calcularCostoEnvio, obtenerCostoAutomaticoProximidad, getTipoEnvioLabel } from "@/lib/shipping";
 import { crearPedidoAction, loginAction } from "@/lib/actions";
 import { useCartStore } from "@/stores/cart-store";
 import { CheckoutSteps } from "@/components/checkout/checkout-steps";
 import { TerminosModal } from "@/components/checkout/terminos-modal";
 import { CartReservationTimer } from "@/components/cart/cart-reservation-timer";
+import { WhatsAppIcon } from "@/components/ui/whatsapp-icon";
 import type { MetodoPago, TipoEnvio, ZonaLogistica, Perfil } from "@/types";
 
 const PROVINCIAS_ARGENTINAS = [
@@ -256,6 +257,9 @@ export function CheckoutForm({
       } else if (cpClean.length < 4) {
         newErrors.codigoPostal = "Mínimo 4 caracteres";
       }
+    } else if (step3Data.tipoEnvio === "agencia") {
+      if (!step3Data.provincia) newErrors.provincia = "Provincia requerida";
+      if (!step3Data.ciudad.trim()) newErrors.ciudad = "Ciudad requerida";
     }
     setStep3Errors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -598,35 +602,53 @@ export function CheckoutForm({
                   Opción de entrega
                 </h2>
 
-                {/* Delivery Options Buttons */}
-                <div className="grid gap-4 sm:grid-cols-2">
+                {/* Delivery Options Buttons (3 Options) */}
+                <div className="grid gap-4 sm:grid-cols-3">
                   <button
                     type="button"
                     onClick={() => setStep3Data({ ...step3Data, tipoEnvio: "domicilio" })}
-                    className={`flex flex-col text-left p-4 rounded-lg border-2 transition-all duration-200 ${
+                    className={`flex flex-col text-left p-4 rounded-xl border-2 transition-all duration-200 ${
                       step3Data.tipoEnvio === "domicilio"
-                        ? "border-primary bg-primary/[0.02]"
+                        ? "border-primary bg-primary/[0.04] shadow-xs"
                         : "border-border hover:border-border/80"
                     }`}
                   >
-                    <span className="font-semibold text-foreground">A DOMICILIO</span>
-                    <span className="mt-1 text-xs text-muted">
-                      Entregamos en el domicilio que nos indiques
+                    <span className="font-semibold text-foreground text-xs sm:text-sm">🏠 A DOMICILIO</span>
+                    <span className="mt-1 text-[11px] text-muted leading-snug">
+                      Envío a tu casa por Vía Cargo
                     </span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => setStep3Data({ ...step3Data, tipoEnvio: "agencia" })}
-                    className={`flex flex-col text-left p-4 rounded-lg border-2 transition-all duration-200 ${
+                    className={`flex flex-col text-left p-4 rounded-xl border-2 transition-all duration-200 ${
                       step3Data.tipoEnvio === "agencia"
-                        ? "border-primary bg-primary/[0.02]"
+                        ? "border-primary bg-primary/[0.04] shadow-xs"
                         : "border-border hover:border-border/80"
                     }`}
                   >
-                    <span className="font-semibold text-foreground">RETIRO EN AGENCIA / TIENDA</span>
-                    <span className="mt-1 text-xs text-muted">
-                      Podés retirar en la sucursal de correo más cercana
+                    <span className="font-semibold text-foreground text-xs sm:text-sm">📦 SUCURSAL VÍA CARGO</span>
+                    <span className="mt-1 text-[11px] text-muted leading-snug">
+                      Retirás en agencia de tu localidad
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setStep3Data({ ...step3Data, tipoEnvio: "taller" })}
+                    className={`flex flex-col text-left p-4 rounded-xl border-2 transition-all duration-200 ${
+                      step3Data.tipoEnvio === "taller"
+                        ? "border-primary bg-primary/[0.04] shadow-xs"
+                        : "border-border hover:border-border/80"
+                    }`}
+                  >
+                    <span className="font-semibold text-foreground text-xs sm:text-sm flex items-center justify-between gap-1">
+                      <span>📍 RETIRO EN TALLER</span>
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 shrink-0">SIN CARGO</span>
+                    </span>
+                    <span className="mt-1 text-[11px] text-muted leading-snug">
+                      Sunchales, Santa Fe (Ameghino 1576)
                     </span>
                   </button>
                 </div>
@@ -781,41 +803,90 @@ export function CheckoutForm({
                 {/* Retiro Agencia Form */}
                 {step3Data.tipoEnvio === "agencia" && (
                   <div className="pt-4 border-t border-border/60 space-y-4">
-                    <div>
-                      <Label htmlFor="agenciaZona">Agencia / Punto de Retiro</Label>
-                      <Select
-                        id="agenciaZona"
-                        value={step3Data.zonaLogisticaId}
-                        onChange={(e) => setStep3Data({ ...step3Data, zonaLogisticaId: e.target.value })}
-                        required
-                      >
-                        {zonas.filter(z => z.precio_agencia > 0).map((z) => (
-                          <option key={z.id} value={z.id}>
-                            {z.zona_nombre} ({formatPrecio(z.precio_agencia)})
-                          </option>
-                        ))}
-                      </Select>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div>
+                        <Label htmlFor="provinciaAgencia">Provincia de Destino</Label>
+                        <Select
+                          id="provinciaAgencia"
+                          value={step3Data.provincia}
+                          onChange={(e) => setStep3Data({ ...step3Data, provincia: e.target.value })}
+                          className={step3Errors.provincia ? "border-red-500" : ""}
+                        >
+                          <option value="">Seleccionar provincia...</option>
+                          {PROVINCIAS_ARGENTINAS.map((prov) => (
+                            <option key={prov} value={prov}>
+                              {prov}
+                            </option>
+                          ))}
+                        </Select>
+                        {step3Errors.provincia && (
+                          <p className="mt-1 text-xs text-red-500">{step3Errors.provincia}</p>
+                        )}
+                      </div>
+
+                      <div>
+                        <Label htmlFor="ciudadAgencia">Ciudad / Localidad</Label>
+                        <Input
+                          id="ciudadAgencia"
+                          placeholder="Ej. Rosario, Bariloche, Córdoba"
+                          value={step3Data.ciudad}
+                          onChange={(e) => setStep3Data({ ...step3Data, ciudad: e.target.value })}
+                          className={step3Errors.ciudad ? "border-red-500" : ""}
+                        />
+                        {step3Errors.ciudad && (
+                          <p className="mt-1 text-xs text-red-500">{step3Errors.ciudad}</p>
+                        )}
+                      </div>
                     </div>
-                    <div className="rounded-lg bg-secondary/30 p-3 text-xs text-muted select-none border border-border/60">
-                      ℹ️ Retirarás en la sucursal de correo de la zona seleccionada. Se te notificará por WhatsApp/Email cuando esté listo para retiro.
+
+                    <div>
+                      <Label>Cotización Estimada de Retiro en Agencia Vía Cargo</Label>
+                      <div className="flex h-10 w-full items-center justify-between rounded-md border border-border/80 bg-arena/40 px-3 text-xs font-semibold text-chocolate shadow-sm">
+                        <span>{autoShipping.regionNombre}</span>
+                        <span className="text-terracota font-serif font-bold text-sm">{formatPrecio(costoEnvio)}</span>
+                      </div>
+                    </div>
+
+                    <div className="rounded-xl bg-amber-50 dark:bg-amber-950/40 p-3.5 text-xs text-amber-950 dark:text-amber-200 border border-amber-300 dark:border-amber-700/60 leading-relaxed font-sans font-medium">
+                      ℹ️ Retirarás en la sucursal de Vía Cargo de tu localidad o ciudad seleccionada. El punto exacto de retiro se terminará coordinando directamente por WhatsApp con la vendedora.
                     </div>
                   </div>
                 )}
 
-                {/* 🚚 Transport Provider & Mandatory Disclaimer */}
-                <div className="rounded-2xl border-2 border-amber-400 bg-amber-50 dark:bg-amber-950/40 p-4 text-xs space-y-2.5 shadow-xs">
-                  <div className="flex items-center gap-2 font-bold text-amber-950 dark:text-amber-200 text-xs sm:text-sm">
-                    <span className="text-base">🚚</span>
-                    <span>Empresa de Transporte: Vía Cargo</span>
+                {/* Retiro en Taller Form */}
+                {step3Data.tipoEnvio === "taller" && (
+                  <div className="pt-4 border-t border-border/60 space-y-4">
+                    <div className="rounded-2xl border-2 border-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 p-4 text-xs space-y-2 text-emerald-950 dark:text-emerald-100 shadow-xs">
+                      <div className="flex items-center gap-2 font-bold text-sm text-emerald-900 dark:text-emerald-200">
+                        <span>📍</span>
+                        <span>Dirección del Taller para Retiro Físico</span>
+                      </div>
+                      <p className="text-xs font-bold text-chocolate dark:text-white">
+                        Florentino Ameghino 1576, Sunchales, Santa Fe, Argentina.
+                      </p>
+                      <p className="text-xs leading-relaxed text-emerald-900/90 dark:text-emerald-200 font-sans font-medium">
+                        El retiro es totalmente <strong>SIN CARGO ($0)</strong>. Al confirmar tu pedido, coordinaremos directamente con vos por WhatsApp el día y horario en que pasás a buscar tus piezas por el taller.
+                      </p>
+                    </div>
                   </div>
-                  <p className="leading-relaxed font-sans text-xs font-medium text-amber-900 dark:text-amber-200">
-                    "Los valores de cotización son únicamente informativos y están sujetos a variaciones según cargo por manejo, peso y/o medidas reales registradas en el momento de la venta. El valor del servicio contraentrega tiene un costo adicional que no está contemplado en esta cotización. El valor del envío puede variar en el momento de la entrega en el punto de venta."
-                  </p>
-                  <div className="pt-2 border-t border-amber-300 dark:border-amber-700/60 text-xs font-semibold text-amber-950 dark:text-amber-300 space-y-1">
-                    <p>• La cotización mostrada es un valor aproximado para tu zona y está a cargo del comprador.</p>
-                    <p>• El precio final y punto exacto de despacho se terminará acordando directamente con la vendedora.</p>
+                )}
+
+                {/* 🚚 Transport Provider & Mandatory Disclaimer (Vía Cargo) */}
+                {step3Data.tipoEnvio !== "taller" && (
+                  <div className="rounded-2xl border-2 border-amber-400 bg-amber-50 dark:bg-amber-950/40 p-4 text-xs space-y-2.5 shadow-xs">
+                    <div className="flex items-center gap-2 font-bold text-amber-950 dark:text-amber-200 text-xs sm:text-sm">
+                      <span className="text-base">🚚</span>
+                      <span>Empresa de Transporte: Vía Cargo</span>
+                    </div>
+                    <p className="leading-relaxed font-sans text-xs font-medium text-amber-900 dark:text-amber-200">
+                      "Los valores de cotización son únicamente informativos y están sujetos a variaciones según cargo por manejo, peso y/o medidas reales registradas en el momento de la venta. El valor del servicio contraentrega tiene un costo adicional que no está contemplado en esta cotización. El valor del envío puede variar en el momento de la entrega en el punto de venta."
+                    </p>
+                    <div className="pt-2 border-t border-amber-300 dark:border-amber-700/60 text-xs font-semibold text-amber-950 dark:text-amber-300 space-y-1">
+                      <p>• La cotización mostrada es un valor aproximado para tu zona y está a cargo del comprador.</p>
+                      <p>• El precio final y punto exacto de despacho se terminará acordando directamente con la vendedora.</p>
+                    </div>
                   </div>
-                </div>
+                )}
 
                 <div className="flex gap-3 pt-2">
                   <Button variant="outline" onClick={() => setStep(2)} className="flex-1 sm:flex-initial">
@@ -884,14 +955,11 @@ export function CheckoutForm({
               {/* Payment Section */}
               <form onSubmit={handleSubmit} className="space-y-6">
                 <Card className="space-y-5 border-[#25D366]/30 bg-[#25D366]/5">
-                  <div className="flex items-center justify-between border-b border-border pb-2">
+                  <div className="flex items-center justify-between border-b border-border/80 pb-3">
                     <h2 className="text-lg font-medium text-foreground flex items-center gap-2">
-                      <span>💬</span>
+                      <WhatsAppIcon className="w-6 h-6 text-[#25D366]" />
                       <span>Coordinación y Pago por WhatsApp</span>
                     </h2>
-                    <svg className="w-6 h-6 text-[#25D366] fill-current" viewBox="0 0 24 24">
-                      <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.513 2.262 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.5-5.729-1.452L0 24zm6.59-4.846c1.6.95 3.197 1.451 4.811 1.452 5.518 0 10.006-4.486 10.01-10.002.002-2.673-1.03-5.184-2.906-7.06C16.634 1.66 14.12 1.61 11.45 1.61 6.435 1.61 1.95 6.096 1.947 11.61c0 1.696.442 3.352 1.28 4.8l-.996 3.636 3.823-.992zm11.084-7.472c-.3-.149-1.772-.875-2.046-.975-.276-.1-.476-.15-.676.15-.2.3-.775.975-.95 1.174-.175.2-.35.225-.65.075-3.037-1.512-4.662-2.686-5.88-4.781-.313-.537-.038-.828.188-1.127.202-.27.45-.525.675-.787.225-.262.3-.45.45-.75.15-.3.075-.562-.037-.812-.113-.25-.95-2.288-1.3-3.125-.342-.826-.688-.713-.95-.713-.244-.006-.525-.006-.806-.006-.28 0-.737.106-1.125.525-.387.419-1.475 1.438-1.475 3.506 0 2.069 1.506 4.069 1.712 4.344.207.275 2.969 4.532 7.194 6.356 1.006.431 1.794.688 2.406.881 1.013.325 1.931.281 2.656.175.806-.119 1.775-.725 2.025-1.388.25-.662.25-1.238.175-1.387-.075-.15-.275-.25-.575-.4z" />
-                    </svg>
                   </div>
 
                   <div className="p-4 rounded-xl bg-white/80 dark:bg-black/30 border border-border/80 text-xs text-muted leading-relaxed space-y-2">
