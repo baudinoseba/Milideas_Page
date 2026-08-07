@@ -28,6 +28,7 @@ interface EncargosCartState {
   addEncargoItem: (item: Omit<ItemEncargoCart, "id">) => void;
   removeItem: (id: string) => void;
   updateQuantity: (id: string, cantidad: number) => void;
+  updateItem: (oldId: string, item: Omit<ItemEncargoCart, "id">) => void;
   clearCart: () => void;
 
   toggleCart: () => void;
@@ -78,6 +79,15 @@ export const useEncargosCartStore = create<EncargosCartState>()(
             ? state.items.filter((i) => i.id !== id)
             : state.items.map((i) => (i.id === id ? { ...i, cantidad } : i)),
         })),
+
+      updateItem: (oldId, newItem) => {
+        const itemKey = `${newItem.productoId}-${newItem.medidaSeleccionada || ""}-${newItem.conMarco ? "marco" : "nomarco"}-${newItem.esPersonalizado ? "custom" : "std"}-${newItem.detallePersonalizacion || ""}`;
+        set((state) => ({
+          items: state.items.map((i) =>
+            i.id === oldId ? { ...newItem, id: itemKey } : i,
+          ),
+        }));
+      },
 
       clearCart: () => set({ items: [] }),
 

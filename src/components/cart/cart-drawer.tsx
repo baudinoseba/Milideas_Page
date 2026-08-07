@@ -475,6 +475,36 @@ ${emailContacto ? `*Email:* ${emailContacto}\n` : ""}${entregaText}
                                   </p>
                                 )}
                               </div>
+
+                              {/* Price breakdown badge */}
+                              <div className="mt-2 text-[10px] bg-arena/30 rounded-lg p-2 border border-border/40 space-y-0.5">
+                                <div className="flex justify-between text-muted">
+                                  <span>Precio Base (x{it.cantidad}):</span>
+                                  <span>{formatPrecio(it.precioBase * it.cantidad)}</span>
+                                </div>
+                                {it.recargoPersonalizado > 0 && (
+                                  <div className="flex justify-between text-terracota">
+                                    <span>Personalización (+15%):</span>
+                                    <span>+{formatPrecio(it.recargoPersonalizado * it.cantidad)}</span>
+                                  </div>
+                                )}
+                                {it.adicionalMedida > 0 && (
+                                  <div className="flex justify-between text-muted">
+                                    <span>Adicional Medida:</span>
+                                    <span>+{formatPrecio(it.adicionalMedida * it.cantidad)}</span>
+                                  </div>
+                                )}
+                                {it.adicionalMarco > 0 && (
+                                  <div className="flex justify-between text-emerald-600 dark:text-emerald-400">
+                                    <span>Marco Madera Artesanal:</span>
+                                    <span>+{formatPrecio(it.adicionalMarco * it.cantidad)}</span>
+                                  </div>
+                                )}
+                                <div className="flex justify-between font-bold text-chocolate border-t border-border/40 pt-1 text-xs">
+                                  <span>Subtotal:</span>
+                                  <span>{formatPrecio(it.precioUnitarioFinal * it.cantidad)}</span>
+                                </div>
+                              </div>
                             </div>
 
                             <div className="flex items-center justify-between pt-2">
@@ -522,6 +552,42 @@ ${emailContacto ? `*Email:* ${emailContacto}\n` : ""}${entregaText}
                           {encargosError}
                         </div>
                       )}
+
+                      {/* Summary Breakdown Card */}
+                      <div className="rounded-2xl border border-admin-accent/30 bg-arena/20 p-4 space-y-3">
+                        <div className="flex items-center justify-between border-b border-border/40 pb-2">
+                          <h4 className="text-xs font-semibold uppercase tracking-wider text-chocolate font-serif">
+                            📋 Desglose de Costos ({totalEncargosCount} ítems)
+                          </h4>
+                        </div>
+
+                        <div className="space-y-2 text-xs divide-y divide-border/30">
+                          {encargoItems.map((it) => (
+                            <div key={it.id} className="pt-2 first:pt-0 space-y-1">
+                              <div className="flex justify-between font-semibold text-chocolate">
+                                <span>{it.nombre} x {it.cantidad}</span>
+                                <span>{formatPrecio(it.precioUnitarioFinal * it.cantidad)}</span>
+                              </div>
+                              <div className="text-[11px] text-muted space-y-0.5 pl-2 border-l-2 border-admin-accent/40">
+                                <p>· Base: {formatPrecio(it.precioBase)} / unitario</p>
+                                {it.medidaSeleccionada && <p>· Medida: {it.medidaSeleccionada} (+{formatPrecio(it.adicionalMedida)})</p>}
+                                {it.conMarco && <p>· Marco Madera (+{formatPrecio(it.adicionalMarco)})</p>}
+                                {it.esPersonalizado && (
+                                  <p className="text-terracota font-medium">
+                                    · Personalización (+15%): +{formatPrecio(it.recargoPersonalizado)}
+                                    {it.detallePersonalizacion ? ` ("${it.detallePersonalizacion}")` : ""}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className="border-t border-border/60 pt-2 flex justify-between items-baseline font-bold text-chocolate text-sm">
+                          <span>TOTAL ESTIMADO:</span>
+                          <span className="text-base font-serif text-admin-accent">{formatPrecio(totalEncargosPrice)}</span>
+                        </div>
+                      </div>
 
                       <div className="space-y-3">
                         <h4 className="text-xs font-semibold uppercase tracking-wider text-muted font-sans">
