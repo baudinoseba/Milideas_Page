@@ -38,12 +38,14 @@ export function ProductCard({ producto }: { producto: ProductoConImagenes }) {
             )}
           </div>
 
-          {/* Urgency indicator */}
-          {producto.stock_disponible > 0 && producto.stock_disponible <= 2 && (
+          {/* Stock quantity indicator */}
+          {producto.stock_disponible > 0 && (
             <div className="absolute bottom-2.5 left-2.5 right-2.5 z-10">
               <span className="inline-flex w-full items-center justify-center gap-1.5 rounded-full bg-chocolate/90 px-3 py-1.5 text-[11px] font-medium text-crema-cruda shadow-sm backdrop-blur-md">
-                <span className="h-1.5 w-1.5 rounded-full bg-amarillo-sol animate-pulse" />
-                {producto.stock_disponible === 1 ? "¡Última unidad!" : `Solo quedan ${producto.stock_disponible}`}
+                <span className={`h-1.5 w-1.5 rounded-full ${producto.stock_disponible === 1 ? "bg-amarillo-sol animate-pulse" : "bg-verde-menta"}`} />
+                {producto.stock_disponible === 1
+                  ? "¡Última unidad disponible!"
+                  : `📦 ${producto.stock_disponible} unidades disponibles`}
               </span>
             </div>
           )}

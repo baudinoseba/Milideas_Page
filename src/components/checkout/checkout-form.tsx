@@ -598,9 +598,94 @@ export function CheckoutForm({
           {step === 3 && (
             <div className="space-y-6 animate-fade-in">
               <Card className="space-y-5">
-                <h2 className="text-lg font-medium border-b border-border pb-2 text-foreground">
-                  Opción de entrega
-                </h2>
+                {/* User's Default Saved Address Banner */}
+                {perfilState?.direccion_calle && (
+                  <div className="rounded-2xl border-2 border-primary/30 bg-primary/[0.03] p-4 space-y-3 shadow-xs">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-base">🏠</span>
+                        <h3 className="font-semibold text-xs sm:text-sm text-foreground">
+                          Dirección predeterminada de tu cuenta
+                        </h3>
+                      </div>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-arena text-chocolate border border-barro-claro/40">
+                        Guardada en tu perfil
+                      </span>
+                    </div>
+
+                    <p className="text-xs text-muted font-sans leading-snug">
+                      <strong>{perfilState.direccion_calle} {perfilState.direccion_numero || ""}</strong>
+                      {perfilState.direccion_piso ? `, Piso ${perfilState.direccion_piso}` : ""}
+                      {perfilState.direccion_depto ? ` Depto ${perfilState.direccion_depto}` : ""}
+                      {` — ${perfilState.direccion_ciudad || ""}, ${perfilState.direccion_provincia || ""}`}
+                      {perfilState.direccion_codigo_postal ? ` (CP ${perfilState.direccion_codigo_postal})` : ""}
+                    </p>
+
+                    {/* Sunchales Detection */}
+                    {(perfilState.direccion_ciudad?.toLowerCase().includes("sunchales") ||
+                      perfilState.direccion_provincia?.toLowerCase().includes("sunchales")) && (
+                      <div className="rounded-xl bg-emerald-50 dark:bg-emerald-950/40 p-3 text-xs text-emerald-950 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-700/60 flex flex-wrap items-center justify-between gap-2">
+                        <span className="leading-snug">
+                          📍 Vemos que estás en <strong>Sunchales</strong>. Podés retirar <strong>GRATIS ($0)</strong> en nuestro taller en Ameghino 1576.
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setStep3Data({ ...step3Data, tipoEnvio: "taller" })}
+                          className="px-3 py-1 text-xs font-bold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shrink-0"
+                        >
+                          Elegir Retiro en Taller
+                        </button>
+                      </div>
+                    )}
+
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      <Button
+                        type="button"
+                        variant="primary"
+                        onClick={() => {
+                          setStep3Data({
+                            ...step3Data,
+                            calle: perfilState.direccion_calle ?? "",
+                            numero: perfilState.direccion_numero ?? "",
+                            piso: perfilState.direccion_piso ?? "",
+                            depto: perfilState.direccion_depto ?? "",
+                            ciudad: perfilState.direccion_ciudad ?? "",
+                            provincia: perfilState.direccion_provincia ?? "",
+                            codigoPostal: perfilState.direccion_codigo_postal ?? "",
+                            referencia: perfilState.direccion_referencia ?? "",
+                          });
+                          setToastMessage("Dirección predeterminada cargada en el formulario");
+                          setToastType("info");
+                        }}
+                        className="text-xs"
+                      >
+                        ✓ Usar esta dirección guardada
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          setStep3Data({
+                            ...step3Data,
+                            calle: "",
+                            numero: "",
+                            piso: "",
+                            depto: "",
+                            ciudad: "",
+                            provincia: "",
+                            codigoPostal: "",
+                            referencia: "",
+                          });
+                          setToastMessage("Campos limpiados para ingresar otra dirección");
+                          setToastType("info");
+                        }}
+                        className="text-xs"
+                      >
+                        ✍️ Usar otra dirección distinta
+                      </Button>
+                    </div>
+                  </div>
+                )}
 
                 {/* Delivery Options Buttons (3 Options) */}
                 <div className="grid gap-4 sm:grid-cols-3">
@@ -936,8 +1021,10 @@ export function CheckoutForm({
                     </button>
                   </div>
                   <div className="text-xs text-muted space-y-1">
-                    <p><span className="font-medium text-foreground">Tipo:</span> {step3Data.tipoEnvio === "domicilio" ? "A Domicilio (Vía Cargo)" : "Retiro en Agencia (Vía Cargo)"}</p>
-                    {step3Data.tipoEnvio === "domicilio" ? (
+                    <p><span className="font-medium text-foreground">Tipo:</span> {step3Data.tipoEnvio === "taller" ? "Retiro en Taller (Sin Cargo)" : step3Data.tipoEnvio === "domicilio" ? "A Domicilio (Vía Cargo)" : "Sucursal Vía Cargo"}</p>
+                    {step3Data.tipoEnvio === "taller" ? (
+                      <p><span className="font-medium text-foreground">Dirección de Retiro:</span> Florentino Ameghino 1576, Sunchales, Santa Fe</p>
+                    ) : step3Data.tipoEnvio === "domicilio" ? (
                       <>
                         <p><span className="font-medium text-foreground">Calle:</span> {step3Data.calle} {step3Data.numero} {step3Data.piso ? `, Piso ${step3Data.piso}` : ""} {step3Data.depto ? `, Depto ${step3Data.depto}` : ""}</p>
                         <p><span className="font-medium text-foreground">Ubicación:</span> {step3Data.ciudad}, {step3Data.provincia} ({step3Data.codigoPostal})</p>
@@ -945,9 +1032,11 @@ export function CheckoutForm({
                     ) : (
                       <p><span className="font-medium text-foreground">Agencia/Zona:</span> {autoShipping.regionNombre}</p>
                     )}
-                    <p className="text-[11px] text-amber-700 dark:text-amber-300 font-medium pt-1">
-                      🚚 Transporte: Vía Cargo (Costo estimado a cargo del comprador, sujeto a variación por peso/volumen real).
-                    </p>
+                    {step3Data.tipoEnvio !== "taller" && (
+                      <p className="text-[11px] text-amber-700 dark:text-amber-300 font-medium pt-1">
+                        🚚 Transporte: Vía Cargo (Costo estimado a cargo del comprador, sujeto a variación por peso/volumen real).
+                      </p>
+                    )}
                   </div>
                 </Card>
               </div>

@@ -22,15 +22,15 @@ export function ProductGallery({ imagenes }: { imagenes: ProductoImagen[] }) {
 
   return (
     <div className="space-y-3">
-      {/* Main image with fade transition and uncropped containment */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-crema-cruda to-arena/60 aspect-[4/5] sm:h-[440px] flex items-center justify-center p-4">
+      {/* Main image — Full container coverage with rounded corners */}
+      <div className="relative overflow-hidden rounded-3xl bg-surface aspect-square w-full border border-border/60 shadow-md">
         <OptimizedImage
           key={current.id}
           src={current.url_imagen}
           alt="Imagen del producto"
           aspectRatio="none"
-          objectFit="contain"
-          className="animate-fade-in h-full w-full"
+          objectFit="cover"
+          className="animate-fade-in h-full w-full object-cover rounded-3xl"
           priority
         />
       </div>

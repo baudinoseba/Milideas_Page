@@ -1,5 +1,6 @@
 import { ProductCard } from "@/components/product/product-card";
 import { getCategorias, getProductos } from "@/lib/supabase/queries";
+import { BackButton } from "@/components/ui/back-button";
 import Link from "next/link";
 import { cn } from "@/lib/utils/cn";
 
@@ -21,6 +22,10 @@ export default async function CatalogoPage({
 
   return (
     <div className="space-y-6 pb-12">
+      <div className="pt-1">
+        <BackButton fallbackHref="/">Volver al inicio</BackButton>
+      </div>
+
       {/* Page header */}
       <div className="space-y-1.5 border-b border-border/60 pb-4">
         <h1 className="text-3xl font-medium font-serif text-chocolate sm:text-4xl">Catálogo del Taller</h1>

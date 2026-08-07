@@ -1,5 +1,6 @@
 import { ProductCard } from "@/components/product/product-card";
 import { getProductos } from "@/lib/supabase/queries";
+import { BackButton } from "@/components/ui/back-button";
 import Link from "next/link";
 import { cn } from "@/lib/utils/cn";
 
@@ -18,6 +19,10 @@ export default async function ColeccionesPage({
 
   return (
     <div>
+      <div className="mb-4">
+        <BackButton fallbackHref="/">Volver al inicio</BackButton>
+      </div>
+
       <div className="mb-10 space-y-3 border-b border-border/60 pb-6">
         <span className="text-xs font-semibold uppercase tracking-wider text-barro font-sans">
           Nuestros lanzamientos

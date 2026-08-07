@@ -51,20 +51,46 @@ export async function crearPedidoAction(
 
   const supabase = await createClient();
 
-  const { data, error } = await supabase.rpc("crear_pedido", {
+  const direccionPayload = parsed.data.direccionEnvio ?? (
+    parsed.data.tipoEnvio === "taller"
+      ? { taller: true, retiro: "Florentino Ameghino 1576, Sunchales, Santa Fe" }
+      : null
+  );
+
+  let { data, error } = await supabase.rpc("crear_pedido", {
     p_items: items,
     p_nombre_contacto: parsed.data.nombreContacto,
     p_whatsapp_contacto: parsed.data.whatsappContacto,
     p_email_contacto: parsed.data.emailContacto || "",
-    p_tipo_envio: parsed.data.tipoEnvio,
+    p_tipo_envio: parsed.data.tipoEnvio as any,
     p_zona_logistica_id: parsed.data.zonaLogisticaId || null,
-    p_direccion_envio: parsed.data.direccionEnvio ?? null,
+    p_direccion_envio: direccionPayload,
     p_metodo_pago: parsed.data.metodoPago,
     p_subtotal: pricing.subtotal,
     p_descuento_aplicado: pricing.descuentoAplicado,
     p_costo_envio: pricing.costoEnvio,
     p_total: pricing.total,
   });
+
+  // Fallback if remote Postgres enum 'tipo_envio' does not have 'taller' added yet
+  if (error && error.message.includes('enum tipo_envio: "taller"')) {
+    const fallbackRes = await supabase.rpc("crear_pedido", {
+      p_items: items,
+      p_nombre_contacto: parsed.data.nombreContacto,
+      p_whatsapp_contacto: parsed.data.whatsappContacto,
+      p_email_contacto: parsed.data.emailContacto || "",
+      p_tipo_envio: "agencia" as any,
+      p_zona_logistica_id: parsed.data.zonaLogisticaId || null,
+      p_direccion_envio: { taller: true, retiro: "Florentino Ameghino 1576, Sunchales, Santa Fe" },
+      p_metodo_pago: parsed.data.metodoPago,
+      p_subtotal: pricing.subtotal,
+      p_descuento_aplicado: pricing.descuentoAplicado,
+      p_costo_envio: 0,
+      p_total: pricing.total,
+    });
+    data = fallbackRes.data;
+    error = fallbackRes.error;
+  }
 
   if (error) {
     if (error.message.includes("STOCK_INSUFICIENTE")) {
