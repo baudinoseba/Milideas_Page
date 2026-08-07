@@ -10,7 +10,7 @@ import { Select } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
 import { Toast } from "@/components/ui/modal";
 import { formatPrecio } from "@/lib/pricing";
-import { calcularCostoEnvio } from "@/lib/shipping";
+import { calcularCostoEnvio, obtenerCostoAutomaticoProximidad } from "@/lib/shipping";
 import { crearPedidoAction, loginAction } from "@/lib/actions";
 import { useCartStore } from "@/stores/cart-store";
 import { CheckoutSteps } from "@/components/checkout/checkout-steps";
@@ -111,9 +111,14 @@ export function CheckoutForm({
   const clearCart = useCartStore((s) => s.clearCart);
   const toRpcItems = useCartStore((s) => s.toRpcItems);
 
-  // Dynamic calculations
-  const zona = zonas.find((z) => z.id === step3Data.zonaLogisticaId);
-  const costoEnvio = zona ? calcularCostoEnvio(zona, step3Data.tipoEnvio) : 0;
+  // Dynamic calculations with Automatic Proximity Algorithm by Province
+  const autoShipping = obtenerCostoAutomaticoProximidad(
+    step3Data.provincia,
+    step3Data.ciudad,
+    step3Data.tipoEnvio,
+    zonas
+  );
+  const costoEnvio = autoShipping.precio;
   const pricing = useCartStore.getState().getPricing(metodoPago, costoEnvio);
 
   // Redirect if cart is empty
@@ -637,19 +642,14 @@ export function CheckoutForm({
                       />
                     </div>
                     <div>
-                      <Label htmlFor="zonaLogisticaId">Región / Zona de Envío</Label>
-                      <Select
-                        id="zonaLogisticaId"
-                        value={step3Data.zonaLogisticaId}
-                        onChange={(e) => setStep3Data({ ...step3Data, zonaLogisticaId: e.target.value })}
-                        required
-                      >
-                        {zonas.filter(z => z.precio_domicilio > 0).map((z) => (
-                          <option key={z.id} value={z.id}>
-                            {z.zona_nombre} ({formatPrecio(z.precio_domicilio)})
-                          </option>
-                        ))}
-                      </Select>
+                      <Label htmlFor="zonaLogisticaId">Región / Cotización Calculada</Label>
+                      <div className="flex h-10 w-full items-center justify-between rounded-md border border-border/80 bg-arena/40 px-3 text-xs font-semibold text-chocolate shadow-sm">
+                        <span>{autoShipping.regionNombre}</span>
+                        <span className="text-terracota font-serif font-bold text-sm">{formatPrecio(costoEnvio)}</span>
+                      </div>
+                      <p className="mt-1 text-[10px] text-muted">
+                        Calculado automáticamente según tu provincia por proximidad a Sunchales.
+                      </p>
                     </div>
                     
                     <div className="sm:col-span-2">
@@ -870,7 +870,7 @@ export function CheckoutForm({
                         <p><span className="font-medium text-foreground">Ubicación:</span> {step3Data.ciudad}, {step3Data.provincia} ({step3Data.codigoPostal})</p>
                       </>
                     ) : (
-                      <p><span className="font-medium text-foreground">Agencia/Zona:</span> {zona?.zona_nombre}</p>
+                      <p><span className="font-medium text-foreground">Agencia/Zona:</span> {autoShipping.regionNombre}</p>
                     )}
                     <p className="text-[11px] text-amber-700 dark:text-amber-300 font-medium pt-1">
                       🚚 Transporte: Vía Cargo (Costo estimado a cargo del comprador, sujeto a variación por peso/volumen real).
