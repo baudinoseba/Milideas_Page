@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useSyncExternalStore, useState } from "react";
 import { useCartItemCount, useCartStore } from "@/stores/cart-store";
-
+import { useEncargosCartStore } from "@/stores/encargos-cart-store";
 
 function IconBag({ className }: { className?: string }) {
   return (
@@ -18,7 +18,10 @@ function IconBag({ className }: { className?: string }) {
 const subscribeEmpty = () => () => {};
 
 export function CartButton() {
-  const count = useCartItemCount();
+  const stockCount = useCartItemCount();
+  const encargosCount = useEncargosCartStore((s) => s.getTotalItems());
+  const count = stockCount + encargosCount;
+
   const openCart = useCartStore((s) => s.openCart);
   const isClient = useSyncExternalStore(
     subscribeEmpty,

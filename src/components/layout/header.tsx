@@ -46,9 +46,6 @@ const MOBILE_ICONS: Record<string, typeof IconCatalog> = {
 
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 
-import { EncargosCartButton } from "@/components/cart/encargos-cart-button";
-import { EncargosCartDrawer } from "@/components/cart/encargos-cart-drawer";
-
 export function Header() {
   const pathname = usePathname();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -120,12 +117,10 @@ export function Header() {
             <IconUser className="h-4 w-4" />
             <span>{isLoggedIn ? "Mi Cuenta" : "Ingresar"}</span>
           </Link>
-          <EncargosCartButton />
           <CartButton />
         </div>
       </div>
       <MobileNav pathname={pathname} isLoggedIn={isLoggedIn} />
-      <EncargosCartDrawer />
     </header>
   );
 }

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { ProductoConImagenes, ConfiguracionEncargos, TipoCatalogo } from "@/types";
 import { formatPrecio } from "@/lib/pricing";
+import { useCartStore } from "@/stores/cart-store";
 import { useEncargosCartStore } from "@/stores/encargos-cart-store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -77,6 +78,7 @@ export function EncargoModal({
       cantidad,
     });
 
+    useCartStore.getState().openCart();
     onClose();
   };
 

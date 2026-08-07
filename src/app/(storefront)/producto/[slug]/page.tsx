@@ -77,6 +77,7 @@ export default async function ProductoPage({
   return (
     <>
       <script
+        id="product-json-ld"
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />

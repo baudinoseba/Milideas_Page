@@ -45,7 +45,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es" className={`${dmSans.variable} ${caveat.variable} ${playfairDisplay.variable} h-full`}>
+    <html lang="es" data-scroll-behavior="smooth" className={`${dmSans.variable} ${caveat.variable} ${playfairDisplay.variable} h-full`}>
       <body className="min-h-full flex flex-col antialiased">{children}</body>
     </html>
   );
