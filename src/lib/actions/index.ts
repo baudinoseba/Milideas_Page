@@ -350,9 +350,12 @@ export async function saveProductoAction(
   const anchoCm = formData.get("anchoCm") ? Number(formData.get("anchoCm")) : null;
   const dimensiones = String(formData.get("dimensiones") || "").trim() || null;
 
+  const tipoCatalogo = String(formData.get("tipoCatalogo") || "ceramica").trim();
+
   const payload = {
     nombre,
     slug,
+    tipo_catalogo: tipoCatalogo as any,
     descripcion: String(formData.get("descripcion") || "") || null,
     categoria_id: (formData.get("categoriaId") as string) || null,
     precio_base: Number(formData.get("precioBase")),

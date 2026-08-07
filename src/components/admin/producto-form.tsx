@@ -163,6 +163,23 @@ export function ProductoForm({
           </div>
 
           <div>
+            <Label htmlFor="tipoCatalogo">Catálogo Perteneciente</Label>
+            <Select
+              id="tipoCatalogo"
+              name="tipoCatalogo"
+              defaultValue={(producto as any)?.tipo_catalogo ?? "ceramica"}
+              required
+            >
+              <option value="ceramica">🏺 Catálogo Cerámica</option>
+              <option value="esculturas">🗿 Catálogo Esculturas</option>
+              <option value="ilustraciones">🎨 Catálogo Ilustraciones</option>
+            </Select>
+            <p className="text-[11px] text-muted mt-1">
+              Determina en cuál de los 3 catálogos principales de la tienda se exhibirá esta pieza.
+            </p>
+          </div>
+
+          <div>
             <div className="flex items-center justify-between mb-1.5">
               <Label htmlFor="categoriaId">Categoría</Label>
               {!showNuevaCategoria && (

@@ -3,6 +3,28 @@ import type { Tables, Enums } from "./database.types";
 export type EstadoPedido = Enums<"estado_pedido">;
 export type MetodoPago = Enums<"metodo_pago">;
 export type TipoEnvio = Enums<"tipo_envio"> | "taller";
+export type TipoCatalogo = "ceramica" | "esculturas" | "ilustraciones";
+
+export const CATALOGO_LABELS: Record<TipoCatalogo, { nombre: string; titulo: string; emoji: string; desc: string }> = {
+  ceramica: {
+    nombre: "Cerámica",
+    titulo: "Catálogo de Cerámica",
+    emoji: "🏺",
+    desc: "Piezas utilitarias y decorativas moldeadas e ilustradas a mano en Sunchales.",
+  },
+  esculturas: {
+    nombre: "Esculturas",
+    titulo: "Catálogo de Esculturas",
+    emoji: "🗿",
+    desc: "Obras tridimensionales modeladas a mano, piezas únicas de autor en gran detalle.",
+  },
+  ilustraciones: {
+    nombre: "Ilustraciones",
+    titulo: "Catálogo de Ilustraciones",
+    emoji: "🎨",
+    desc: "Láminas, cuadros y obras sobre papel ilustradas a mano por Mili Ferrero.",
+  },
+};
 
 export type Producto = Tables<"productos">;
 export type ProductoImagen = Tables<"producto_imagenes">;

@@ -15,14 +15,21 @@ import type {
   Perfil,
   ProductoConImagenes,
   ZonaLogistica,
+  TipoCatalogo,
 } from "@/types";
 
-export async function getCategorias(): Promise<Categoria[]> {
+export async function getCategorias(tipoCatalogo?: TipoCatalogo): Promise<Categoria[]> {
   const supabase = await createClient();
-  const { data, error } = await supabase
+  let query = supabase
     .from("categorias")
     .select("*")
     .order("nombre");
+
+  if (tipoCatalogo) {
+    query = query.eq("tipo_catalogo", tipoCatalogo);
+  }
+
+  const { data, error } = await query;
   if (error) throw error;
   return (data ?? []) as Categoria[];
 }
@@ -38,6 +45,7 @@ export async function getZonasLogisticas(activasOnly = true): Promise<ZonaLogist
 
 export async function getProductos(filters?: {
   categoriaId?: string;
+  tipoCatalogo?: TipoCatalogo;
   dropsOnly?: boolean;
   coleccionesFilter?: "actual" | "pasadas" | "todas";
 }): Promise<ProductoConImagenes[]> {
@@ -47,6 +55,10 @@ export async function getProductos(filters?: {
     .select("*, producto_imagenes(*), categorias(*), producciones(*)")
     .eq("activo", true)
     .order("created_at", { ascending: false });
+
+  if (filters?.tipoCatalogo) {
+    query = query.eq("tipo_catalogo", filters.tipoCatalogo);
+  }
 
   if (filters?.categoriaId) {
     query = query.eq("categoria_id", filters.categoriaId);

@@ -14,6 +14,8 @@ export const WHOLESALE_TIERS = [
 export const PAYMENT_GRACE_HOURS = 24;
 
 export const NAV_LINKS = [
-  { href: "/catalogo", label: "Catálogo" },
-  { href: "/colecciones", label: "Colecciones" },
+  { href: "/catalogo/ceramica", label: "🏺 Cerámica" },
+  { href: "/catalogo/esculturas", label: "🗿 Esculturas" },
+  { href: "/catalogo/ilustraciones", label: "🎨 Ilustraciones" },
+  { href: "/colecciones", label: "✨ Colecciones" },
 ] as const;
