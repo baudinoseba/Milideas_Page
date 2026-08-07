@@ -38,6 +38,7 @@ export type Produccion = {
   id: string;
   nombre: string;
   descripcion: string | null;
+  tipo_catalogo?: TipoCatalogo;
   fecha_lanzamiento: string | null;
   activa: boolean;
   created_at: string;

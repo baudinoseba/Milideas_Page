@@ -2,7 +2,7 @@ import Link from "next/link";
 import { getAdminPedidos } from "@/lib/supabase/queries";
 import { formatPrecio } from "@/lib/pricing";
 import { Badge } from "@/components/ui/badge";
-import { isPedidoProximoAVencer } from "@/lib/utils/time";
+import { isPedidoProximoAVencer, formatTiempoRestanteVencimiento } from "@/lib/utils/time";
 
 export const metadata = { title: "Pedidos" };
 
@@ -105,8 +105,10 @@ export default async function AdminPedidosPage({
                     <p className="font-medium truncate">
                       {p.nombre_contacto}
                     </p>
-                    {urgente && (
-                      <Badge variant="warning">⏰ Por vencer</Badge>
+                    {p.estado === "pendiente_pago" && (
+                      <Badge variant={urgente ? "warning" : "muted"}>
+                        ⏰ {formatTiempoRestanteVencimiento(p.fecha_limite_pago, nowMs)}
+                      </Badge>
                     )}
                   </div>
                   <p className="mt-0.5 text-xs text-muted">

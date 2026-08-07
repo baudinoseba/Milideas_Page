@@ -98,6 +98,12 @@
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
   --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.5);
   --shadow-piece: 0 16px 40px rgba(0, 0, 0, 0.6);
+
+  /* Admin sidebar Dark Mode */
+  --admin-sidebar: #08100D;
+  --admin-sidebar-hover: #192C27;
+  --admin-sidebar-text: #9BB8AE;
+  --admin-sidebar-active: #F5EDE3;
 }
 
 

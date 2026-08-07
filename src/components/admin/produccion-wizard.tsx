@@ -21,7 +21,7 @@ import {
 
 import { ImageReorderGallery } from "@/components/admin/image-reorder-gallery";
 import { StorefrontPreviewModal } from "@/components/admin/storefront-preview-modal";
-import type { Categoria, ProductoConImagenes, ProductoImagen } from "@/types";
+import type { Categoria, ProductoConImagenes, ProductoImagen, TipoCatalogo } from "@/types";
 
 type Step = "setup" | "pieces" | "preview";
 type PieceMode = "new" | "existing";
@@ -48,6 +48,7 @@ export function ProduccionWizard({
   const [categorias, setCategorias] = useState(initialCategorias);
   const [categoriaId, setCategoriaId] = useState(resumeCategoriaId ?? "");
   const [categoriaNombre, setCategoriaNombre] = useState(resumeCategoriaNombre ?? "");
+  const [tipoCatalogo, setTipoCatalogo] = useState<TipoCatalogo>("ceramica");
   const [nuevaCategoria, setNuevaCategoria] = useState("");
   const [showNuevaCategoria, setShowNuevaCategoria] = useState(false);
 
@@ -122,7 +123,7 @@ export function ProduccionWizard({
 
     startTransition(async () => {
       setError(null);
-      const res = await createProduccionAction(categoriaNombre.trim());
+      const res = await createProduccionAction(categoriaNombre.trim(), tipoCatalogo);
       if (res.success && res.id) {
         setCategoriaId(res.id);
         setStep("pieces");
@@ -461,6 +462,24 @@ export function ProduccionWizard({
                 autoFocus
               />
             </div>
+
+            <div>
+              <Label htmlFor="tipoCatalogoProduccion">Tipo de Catálogo *</Label>
+              <Select
+                id="tipoCatalogoProduccion"
+                value={tipoCatalogo}
+                onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                  setTipoCatalogo(e.target.value as TipoCatalogo)
+                }
+              >
+                <option value="ceramica">🏺 Catálogo Cerámica (Tazas, Platos, Jarrones)</option>
+                <option value="esculturas">🗿 Catálogo Esculturas (Esculturas de Autor, Pátinas, Bronces)</option>
+                <option value="ilustraciones">🎨 Catálogo Ilustraciones (Láminas, Marcos, Acuarelas)</option>
+              </Select>
+              <p className="mt-1 text-xs text-muted">
+                Define las especificaciones técnicas adaptadas que se solicitarán al crear cada pieza de la colección.
+              </p>
+            </div>
           </div>
 
           <div className="flex gap-3">
@@ -746,6 +765,137 @@ export function ProduccionWizard({
                   />
                 </div>
               </div>
+
+              {/* Dynamic Catalog-Specific Attributes */}
+              <input type="hidden" name="tipoCatalogo" value={tipoCatalogo} />
+
+              {tipoCatalogo === "ceramica" && (
+                <div className="sm:col-span-2 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 space-y-3">
+                  <Label className="text-sm font-semibold flex items-center gap-1.5 text-chocolate">
+                    <span>🏺</span>
+                    <span>Especificaciones de Cerámica</span>
+                  </Label>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <Label htmlFor="capacidadMl" className="text-xs text-muted">Capacidad (ml)</Label>
+                      <Input
+                        id="capacidadMl"
+                        name="capacidadMl"
+                        type="number"
+                        placeholder="ej. 350"
+                      />
+                    </div>
+                    <div className="flex items-center gap-2 pt-5">
+                      <input
+                        type="checkbox"
+                        id="aptoLavavajillas"
+                        name="aptoLavavajillas"
+                        defaultChecked
+                        className="h-4 w-4 rounded border-border text-admin-accent cursor-pointer"
+                      />
+                      <Label htmlFor="aptoLavavajillas" className="text-xs cursor-pointer">
+                        Apto Lavavajillas
+                      </Label>
+                    </div>
+                    <div className="flex items-center gap-2 pt-5">
+                      <input
+                        type="checkbox"
+                        id="aptoMicroondas"
+                        name="aptoMicroondas"
+                        defaultChecked
+                        className="h-4 w-4 rounded border-border text-admin-accent cursor-pointer"
+                      />
+                      <Label htmlFor="aptoMicroondas" className="text-xs cursor-pointer">
+                        Apto Microondas
+                      </Label>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {tipoCatalogo === "esculturas" && (
+                <div className="sm:col-span-2 rounded-xl border border-stone-500/30 bg-stone-500/5 p-4 space-y-3">
+                  <Label className="text-sm font-semibold flex items-center gap-1.5 text-chocolate">
+                    <span>🗿</span>
+                    <span>Especificaciones de Escultura</span>
+                  </Label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <Label htmlFor="materialTecnica" className="text-xs text-muted">Material / Técnica</Label>
+                      <Input
+                        id="materialTecnica"
+                        name="materialTecnica"
+                        placeholder="ej. Gres modelado a mano, pátina natural"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="edicionNumerada" className="text-xs text-muted">Edición Numerada</Label>
+                      <Input
+                        id="edicionNumerada"
+                        name="edicionNumerada"
+                        placeholder="ej. Pieza única 1/1, Serie 1/5"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 pt-1">
+                    <input
+                      type="checkbox"
+                      id="pedestalIncluido"
+                      name="pedestalIncluido"
+                      className="h-4 w-4 rounded border-border text-admin-accent cursor-pointer"
+                    />
+                    <Label htmlFor="pedestalIncluido" className="text-xs cursor-pointer">
+                      Incluye pedestal o base de exposición
+                    </Label>
+                  </div>
+                </div>
+              )}
+
+              {tipoCatalogo === "ilustraciones" && (
+                <div className="sm:col-span-2 rounded-xl border border-rose-500/30 bg-rose-500/5 p-4 space-y-3">
+                  <Label className="text-sm font-semibold flex items-center gap-1.5 text-chocolate">
+                    <span>🎨</span>
+                    <span>Especificaciones de Ilustración</span>
+                  </Label>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <Label htmlFor="papelSoporte" className="text-xs text-muted">Papel / Soporte</Label>
+                      <Input
+                        id="papelSoporte"
+                        name="papelSoporte"
+                        placeholder="ej. Papel Algodón 300g Libre de Ácido"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="tamanoLamina" className="text-xs text-muted">Tamaño de Lámina</Label>
+                      <Input
+                        id="tamanoLamina"
+                        name="tamanoLamina"
+                        placeholder="ej. A3 (30x42cm), A4, 50x70cm"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="materialTecnica" className="text-xs text-muted">Técnica Original</Label>
+                      <Input
+                        id="materialTecnica"
+                        name="materialTecnica"
+                        placeholder="ej. Acuarela, Tinta & Gouache"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 pt-1">
+                    <input
+                      type="checkbox"
+                      id="marcoIncluido"
+                      name="marcoIncluido"
+                      className="h-4 w-4 rounded border-border text-admin-accent cursor-pointer"
+                    />
+                    <Label htmlFor="marcoIncluido" className="text-xs cursor-pointer">
+                      Incluye enmarcado en madera
+                    </Label>
+                  </div>
+                </div>
+              )}
               <div>
                 <Label htmlFor="precioBase">Precio (ARS) *</Label>
                 <Input

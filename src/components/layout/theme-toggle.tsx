@@ -36,14 +36,11 @@ export function ThemeToggle() {
     <button
       type="button"
       onClick={toggleTheme}
-      className="inline-flex items-center gap-1.5 rounded-full border border-border/80 bg-surface/80 px-3 py-1.5 text-xs font-semibold text-chocolate shadow-sm backdrop-blur-md transition-all hover:bg-arena hover:scale-105 active:scale-95 font-sans"
-      title="Alternar entre versión Clara (Arcilla) y Oscura (Galería Noche)"
+      className="flex h-9 w-9 items-center justify-center rounded-full border border-border/80 bg-surface/80 text-base shadow-sm backdrop-blur-md transition-all hover:bg-arena hover:scale-105 active:scale-95 cursor-pointer"
+      title={isDark ? "Cambiar a Modo Claro" : "Cambiar a Modo Noche"}
       aria-label="Cambiar tema visual"
     >
       <span>{isDark ? "☀️" : "🌙"}</span>
-      <span className="hidden sm:inline">
-        {isDark ? "Modo Claro" : "Modo Noche"}
-      </span>
     </button>
   );
 }

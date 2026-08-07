@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { checkoutSchema } from "@/lib/validations/schemas";
-import type { CrearPedidoItem } from "@/types";
+import type { CrearPedidoItem, TipoCatalogo } from "@/types";
 
 export type CheckoutResult =
   | { success: true; pedidoId: string }
@@ -652,6 +652,7 @@ async function generateUniqueSlug(
 
 export async function createProduccionAction(
   nombre: string,
+  tipoCatalogo: TipoCatalogo = "ceramica",
   descripcion?: string,
 ): Promise<{ success: boolean; error?: string; id?: string; nombre?: string }> {
   const supabase = await createClient();
@@ -659,6 +660,7 @@ export async function createProduccionAction(
     .from("producciones")
     .insert({
       nombre,
+      tipo_catalogo: tipoCatalogo as any,
       descripcion: descripcion || null,
       activa: false,
     })
@@ -700,9 +702,21 @@ export async function savePiezaProduccionAction(
   const anchoCm = formData.get("anchoCm") ? Number(formData.get("anchoCm")) : null;
   const dimensiones = String(formData.get("dimensiones") || "").trim() || null;
 
+  const tipoCatalogo = (formData.get("tipoCatalogo") as TipoCatalogo) || "ceramica";
+  const materialTecnica = String(formData.get("materialTecnica") || "").trim() || null;
+  const papelSoporte = String(formData.get("papelSoporte") || "").trim() || null;
+  const tamanoLamina = String(formData.get("tamanoLamina") || "").trim() || null;
+  const capacidadMl = formData.get("capacidadMl") ? Number(formData.get("capacidadMl")) : null;
+  const edicionNumerada = String(formData.get("edicionNumerada") || "").trim() || null;
+  const marcoIncluido = formData.get("marcoIncluido") === "on";
+  const pedestalIncluido = formData.get("pedestalIncluido") === "on";
+  const aptoLavavajillas = formData.get("aptoLavavajillas") === "on";
+  const aptoMicroondas = formData.get("aptoMicroondas") === "on";
+
   const payload = {
     nombre,
     slug: uniqueSlug,
+    tipo_catalogo: tipoCatalogo as any,
     descripcion: String(formData.get("descripcion") || "") || null,
     categoria_id: selectedCategoria,
     produccion_id: produccionId,
@@ -714,6 +728,15 @@ export async function savePiezaProduccionAction(
     alto_cm: altoCm,
     ancho_cm: anchoCm,
     dimensiones,
+    material_tecnica: materialTecnica,
+    papel_soporte: papelSoporte,
+    tamano_lamina: tamanoLamina,
+    capacidad_ml: capacidadMl,
+    edicion_numerada: edicionNumerada,
+    marco_incluido: marcoIncluido,
+    pedestal_incluido: pedestalIncluido,
+    apto_lavavajillas: aptoLavavajillas,
+    apto_microondas: aptoMicroondas,
   };
 
 
