@@ -636,7 +636,7 @@ export function ProduccionWizard({
               </div>
               <div className="sm:col-span-2">
                 <div className="flex items-center justify-between mb-1">
-                  <Label htmlFor="categoriaId">Categoría / Tipo de producto</Label>
+                  <Label htmlFor="categoriaId">Categoría de la pieza</Label>
                   {!showNuevaCategoria && (
                     <button
                       type="button"

@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
 import { ImageUpload } from "@/components/admin/image-upload";
-import { saveProductoAction } from "@/lib/actions";
+import { saveProductoAction, createCategoriaInlineAction } from "@/lib/actions";
 import type { Categoria, Producto, ProductoImagen } from "@/types";
 
 function slugify(text: string) {
@@ -34,7 +34,31 @@ export function ProductoForm({
   const [precioVal, setPrecioVal] = useState<string>(
     producto?.precio_base != null ? String(producto.precio_base) : ""
   );
+  const [localCategorias, setLocalCategorias] = useState<Categoria[]>(categorias);
+  const [selectedCategoriaId, setSelectedCategoriaId] = useState<string>(
+    producto?.categoria_id ?? ""
+  );
+  const [showNuevaCategoria, setShowNuevaCategoria] = useState(false);
+  const [nuevaCategoria, setNuevaCategoria] = useState("");
+  const [creandoCategoria, setCreandoCategoria] = useState(false);
 
+  const handleCreateCategoria = async () => {
+    if (!nuevaCategoria.trim()) return;
+    setCreandoCategoria(true);
+    const res = await createCategoriaInlineAction(nuevaCategoria.trim());
+    setCreandoCategoria(false);
+    if (res.success && res.id && res.nombre) {
+      const newCat: Categoria = {
+        id: res.id,
+        nombre: res.nombre,
+        created_at: new Date().toISOString(),
+      };
+      setLocalCategorias((prev) => [...prev, newCat]);
+      setSelectedCategoriaId(res.id);
+      setNuevaCategoria("");
+      setShowNuevaCategoria(false);
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -139,19 +163,71 @@ export function ProductoForm({
           </div>
 
           <div>
-            <Label htmlFor="categoriaId">Categoría / Colección</Label>
-            <Select
-              id="categoriaId"
-              name="categoriaId"
-              defaultValue={producto?.categoria_id ?? ""}
-            >
-              <option value="">Sin categoría</option>
-              {categorias.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.nombre}
-                </option>
-              ))}
-            </Select>
+            <div className="flex items-center justify-between mb-1.5">
+              <Label htmlFor="categoriaId">Categoría</Label>
+              {!showNuevaCategoria && (
+                <button
+                  type="button"
+                  onClick={() => setShowNuevaCategoria(true)}
+                  className="text-xs text-admin-accent hover:underline font-medium"
+                >
+                  + Nueva categoría
+                </button>
+              )}
+            </div>
+
+            {showNuevaCategoria ? (
+              <div className="flex gap-2">
+                <Input
+                  value={nuevaCategoria}
+                  onChange={(e) => setNuevaCategoria(e.target.value)}
+                  placeholder="ej. Jarra, Cuenco, Mate..."
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleCreateCategoria();
+                    }
+                  }}
+                  autoFocus
+                />
+                <Button
+                  type="button"
+                  onClick={handleCreateCategoria}
+                  isLoading={creandoCategoria}
+                  className="shrink-0"
+                >
+                  Crear
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => {
+                    setShowNuevaCategoria(false);
+                    setNuevaCategoria("");
+                  }}
+                  className="shrink-0"
+                >
+                  Cancelar
+                </Button>
+              </div>
+            ) : (
+              <Select
+                id="categoriaId"
+                name="categoriaId"
+                value={selectedCategoriaId}
+                onChange={(e) => setSelectedCategoriaId(e.target.value)}
+              >
+                <option value="">Sin categoría</option>
+                {localCategorias.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.nombre}
+                  </option>
+                ))}
+              </Select>
+            )}
+            <p className="mt-1 text-[11px] text-muted">
+              Especificá el tipo de pieza (ej. Bandeja, Taza, Cuenco). La colección a la que pertenece se administra desde Producciones.
+            </p>
           </div>
         </section>
 
