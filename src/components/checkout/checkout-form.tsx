@@ -15,6 +15,7 @@ import { crearPedidoAction, loginAction } from "@/lib/actions";
 import { useCartStore } from "@/stores/cart-store";
 import { CheckoutSteps } from "@/components/checkout/checkout-steps";
 import { TerminosModal } from "@/components/checkout/terminos-modal";
+import { CartReservationTimer } from "@/components/cart/cart-reservation-timer";
 import type { MetodoPago, TipoEnvio, ZonaLogistica, Perfil } from "@/types";
 
 const PROVINCIAS_ARGENTINAS = [
@@ -361,6 +362,7 @@ export function CheckoutForm({
 
   return (
     <div className="space-y-8">
+      <CartReservationTimer />
       <CheckoutSteps currentStep={step} />
 
       <div className="grid gap-8 lg:grid-cols-3">
@@ -881,19 +883,24 @@ export function CheckoutForm({
 
               {/* Payment Section */}
               <form onSubmit={handleSubmit} className="space-y-6">
-                <Card className="space-y-5">
+                <Card className="space-y-5 border-[#25D366]/30 bg-[#25D366]/5">
                   <div className="flex items-center justify-between border-b border-border pb-2">
-                    <h2 className="text-lg font-medium text-foreground">
-                      Información de pago
+                    <h2 className="text-lg font-medium text-foreground flex items-center gap-2">
+                      <span>💬</span>
+                      <span>Coordinación y Pago por WhatsApp</span>
                     </h2>
-                    <svg className="w-5 h-5 text-[#25D366] fill-current" viewBox="0 0 24 24">
+                    <svg className="w-6 h-6 text-[#25D366] fill-current" viewBox="0 0 24 24">
                       <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.513 2.262 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.5-5.729-1.452L0 24zm6.59-4.846c1.6.95 3.197 1.451 4.811 1.452 5.518 0 10.006-4.486 10.01-10.002.002-2.673-1.03-5.184-2.906-7.06C16.634 1.66 14.12 1.61 11.45 1.61 6.435 1.61 1.95 6.096 1.947 11.61c0 1.696.442 3.352 1.28 4.8l-.996 3.636 3.823-.992zm11.084-7.472c-.3-.149-1.772-.875-2.046-.975-.276-.1-.476-.15-.676.15-.2.3-.775.975-.95 1.174-.175.2-.35.225-.65.075-3.037-1.512-4.662-2.686-5.88-4.781-.313-.537-.038-.828.188-1.127.202-.27.45-.525.675-.787.225-.262.3-.45.45-.75.15-.3.075-.562-.037-.812-.113-.25-.95-2.288-1.3-3.125-.342-.826-.688-.713-.95-.713-.244-.006-.525-.006-.806-.006-.28 0-.737.106-1.125.525-.387.419-1.475 1.438-1.475 3.506 0 2.069 1.506 4.069 1.712 4.344.207.275 2.969 4.532 7.194 6.356 1.006.431 1.794.688 2.406.881 1.013.325 1.931.281 2.656.175.806-.119 1.775-.725 2.025-1.388.25-.662.25-1.238.175-1.387-.075-.15-.275-.25-.575-.4z" />
                     </svg>
                   </div>
 
-                  <div className="p-4 rounded-lg bg-secondary/15 border border-border/80 text-xs text-muted leading-relaxed space-y-1">
-                    <p className="font-semibold text-foreground text-sm">Acordamos el pago por WhatsApp</p>
-                    <p>Acordamos el pago y coste de envío vía WhatsApp.</p>
+                  <div className="p-4 rounded-xl bg-white/80 dark:bg-black/30 border border-border/80 text-xs text-muted leading-relaxed space-y-2">
+                    <p className="font-semibold text-chocolate text-sm">
+                      🏦 Transferencia o Efectivo a la cuenta de la artista
+                    </p>
+                    <p>
+                      Al confirmar el pedido, tus piezas quedarán <strong>reservadas a tu nombre por 48 horas</strong>. La vendedora te enviará el alias bancario por WhatsApp para que realices la transferencia o coordines en efectivo.
+                    </p>
                   </div>
 
                   {/* Terms and conditions checkbox */}
@@ -922,8 +929,12 @@ export function CheckoutForm({
                     <Button type="button" variant="outline" onClick={() => setStep(3)} className="flex-1 sm:flex-initial">
                       ← Volver
                     </Button>
-                    <Button type="submit" className="flex-1 sm:flex-initial" isLoading={pending}>
-                      Confirmar pedido
+                    <Button
+                      type="submit"
+                      className="flex-1 sm:flex-initial bg-[#25D366] hover:bg-[#20ba59] text-white font-semibold shadow-sm"
+                      isLoading={pending}
+                    >
+                      Confirmar Reserva y Coordinar por WhatsApp →
                     </Button>
                   </div>
                 </Card>

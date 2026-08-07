@@ -8,6 +8,8 @@ import { useCartStore } from "@/stores/cart-store";
 import { formatPrecio, calcularSubtotal, calcularPrecioUnitario } from "@/lib/pricing";
 import { createClient } from "@/lib/supabase/client";
 
+import { CartReservationTimer } from "@/components/cart/cart-reservation-timer";
+
 interface CrossSellProduct {
   id: string;
   slug: string;
@@ -112,6 +114,8 @@ export function CartDrawer() {
 
             {/* ─── Cart Items List ─── */}
             <div className="flex-1 overflow-y-auto p-5 space-y-4 bg-background/40">
+              <CartReservationTimer />
+
               {items.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 text-center space-y-3">
                   <span className="text-4xl">🏺</span>

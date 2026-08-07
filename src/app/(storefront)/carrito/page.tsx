@@ -8,6 +8,7 @@ import { CartLineItem } from "@/components/cart/cart-line-item";
 import { CartEmptyState } from "@/components/cart/cart-button";
 import { formatPrecio, calcularSubtotal, calcularPricing } from "@/lib/pricing";
 import { CheckoutSteps } from "@/components/checkout/checkout-steps";
+import { CartReservationTimer } from "@/components/cart/cart-reservation-timer";
 import { useCartStore } from "@/stores/cart-store";
 
 const subscribeEmpty = () => () => {};
@@ -49,6 +50,8 @@ export default function CarritoPage() {
           "Piezas elegidas para iluminar tu hogar"
         </span>
       </div>
+
+      <CartReservationTimer />
 
       <div className="grid gap-8 lg:grid-cols-12 lg:items-start">
         <div className="lg:col-span-7">

@@ -29,7 +29,7 @@ export const checkoutSchema = z.object({
   nombreContacto: z.string().min(2, "Nombre requerido"),
   whatsappContacto: z.string().min(8, "WhatsApp requerido"),
   emailContacto: z.string().email("Email inválido").optional().or(z.literal("")),
-  zonaLogisticaId: z.string().uuid("Seleccioná una zona"),
+  zonaLogisticaId: z.string().uuid("Seleccioná una zona").optional().or(z.literal("")),
   tipoEnvio: z.enum(["agencia", "domicilio"]),
   metodoPago: z.enum(["transferencia", "mercadopago", "efectivo"]),
   direccionEnvio: direccionEnvioSchema.optional(),

@@ -40,6 +40,7 @@ export function CheckoutExitoClient({ pedido }: { pedido: PedidoConItems }) {
       .join("\n");
 
     const statusTranslations: Record<string, string> = {
+      reservado: "reservado (48h)",
       pendiente_pago: "pendiente",
       confirmado: "confirmado",
       enviado: "enviado",
@@ -130,14 +131,14 @@ ${window.location.origin}/checkout/exito/${pedido.id}`;
   return (
     <div className="mx-auto max-w-lg space-y-6">
       <div className="text-center">
-        <h1 className="text-2xl font-medium">¡Pedido confirmado!</h1>
-        <p className="mt-2 text-muted">
-          Coordiná el pago enviando tu pedido por WhatsApp.
+        <h1 className="text-2xl font-medium font-serif text-chocolate">¡Piezas reservadas con éxito!</h1>
+        <p className="mt-2 text-xs text-muted leading-relaxed">
+          Tus piezas fueron reservadas temporalmente a tu nombre por 48 horas. Coordiná el pago enviando el pedido a la vendedora por WhatsApp.
         </p>
       </div>
 
       {/* WhatsApp Send Card */}
-      <Card className="border-[#25D366]/20 bg-[#25D366]/5 space-y-4 p-6 flex flex-col items-center text-center">
+      <Card className="border-[#25D366]/30 bg-[#25D366]/5 space-y-4 p-6 flex flex-col items-center text-center">
         <div className="w-12 h-12 rounded-full bg-[#25D366]/10 flex items-center justify-center text-[#25D366]">
           <svg className="w-6 h-6 fill-current" viewBox="0 0 24 24">
             <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.513 2.262 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.5-5.729-1.452L0 24zm6.59-4.846c1.6.95 3.197 1.451 4.811 1.452 5.518 0 10.006-4.486 10.01-10.002.002-2.673-1.03-5.184-2.906-7.06C16.634 1.66 14.12 1.61 11.45 1.61 6.435 1.61 1.95 6.096 1.947 11.61c0 1.696.442 3.352 1.28 4.8l-.996 3.636 3.823-.992zm11.084-7.472c-.3-.149-1.772-.875-2.046-.975-.276-.1-.476-.15-.676.15-.2.3-.775.975-.95 1.174-.175.2-.35.225-.65.075-3.037-1.512-4.662-2.686-5.88-4.781-.313-.537-.038-.828.188-1.127.202-.27.45-.525.675-.787.225-.262.3-.45.45-.75.15-.3.075-.562-.037-.812-.113-.25-.95-2.288-1.3-3.125-.342-.826-.688-.713-.95-.713-.244-.006-.525-.006-.806-.006-.28 0-.737.106-1.125.525-.387.419-1.475 1.438-1.475 3.506 0 2.069 1.506 4.069 1.712 4.344.207.275 2.969 4.532 7.194 6.356 1.006.431 1.794.688 2.406.881 1.013.325 1.931.281 2.656.175.806-.119 1.775-.725 2.025-1.388.25-.662.25-1.238.175-1.387-.075-.15-.275-.25-.575-.4z" />
@@ -146,7 +147,7 @@ ${window.location.origin}/checkout/exito/${pedido.id}`;
         <div className="space-y-1">
           <h2 className="text-base font-semibold text-foreground">Enviar detalles por WhatsApp</h2>
           <p className="text-xs text-muted max-w-sm">
-            Para coordinar el pago, tocá abajo para enviarle los detalles del pedido al vendedor.
+            Tocá abajo para enviarle la lista del pedido a la artista por WhatsApp. Te responderá enviándote el alias para la transferencia.
           </p>
         </div>
         <a
@@ -172,8 +173,8 @@ ${window.location.origin}/checkout/exito/${pedido.id}`;
           <span className="font-medium">{formatPrecio(pedido.total)}</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-muted">Vence</span>
-          <span>{limite.toLocaleString("es-AR")}</span>
+          <span className="text-muted">Reserva vence</span>
+          <span className="font-medium text-terracota">{limite.toLocaleString("es-AR")}</span>
         </div>
       </Card>
 

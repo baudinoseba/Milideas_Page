@@ -37,11 +37,12 @@ type PedidoAdmin = {
   }>;
 };
 
-const estadoSteps = ["pendiente_pago", "confirmado", "enviado"];
+const estadoSteps = ["reservado", "confirmado", "enviado"];
 
 function PedidoTimeline({ estado }: { estado: string }) {
-  const currentIdx = estadoSteps.indexOf(estado);
-  const labels = ["Pendiente", "Confirmado", "Enviado"];
+  const normalized = estado === "pendiente_pago" ? "reservado" : estado;
+  const currentIdx = estadoSteps.indexOf(normalized);
+  const labels = ["Reservado (48h)", "Confirmado", "Enviado"];
 
   if (estado === "cancelado") {
     return (
@@ -255,17 +256,17 @@ export function PedidoAdminActions({
 
       {/* Actions */}
       <div className="flex flex-wrap gap-3 border-t border-border pt-6">
-        {pedido.estado === "pendiente_pago" && (
+        {(pedido.estado === "reservado" || pedido.estado === "pendiente_pago") && (
           <>
             <Button onClick={handleConfirmar} isLoading={pending}>
-              ✅ Confirmar pago
+              ✅ Confirmar pago recibido
             </Button>
             <Button
               variant="outline"
               onClick={handleCancelar}
               isLoading={pending}
             >
-              Cancelar pedido
+              ❌ Cancelar (Liberar Stock)
             </Button>
           </>
         )}

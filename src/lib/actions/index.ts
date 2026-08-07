@@ -57,7 +57,7 @@ export async function crearPedidoAction(
     p_whatsapp_contacto: parsed.data.whatsappContacto,
     p_email_contacto: parsed.data.emailContacto || "",
     p_tipo_envio: parsed.data.tipoEnvio,
-    p_zona_logistica_id: parsed.data.zonaLogisticaId,
+    p_zona_logistica_id: parsed.data.zonaLogisticaId || null,
     p_direccion_envio: parsed.data.direccionEnvio ?? null,
     p_metodo_pago: parsed.data.metodoPago,
     p_subtotal: pricing.subtotal,
@@ -994,5 +994,23 @@ export async function bulkAdjustZonasAction(
   revalidatePath("/admin/logistica");
   revalidatePath("/checkout");
   return { success: true, count };
+}
+
+export async function expirarPedidosVencidosAction(): Promise<{
+  success: boolean;
+  error?: string;
+  count?: number;
+}> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase.rpc("expirar_pedidos_vencidos");
+
+  if (error) {
+    return { success: false, error: error.message };
+  }
+
+  revalidatePath("/admin/pedidos");
+  revalidatePath("/catalogo");
+  return { success: true, count: data ?? 0 };
 }
 

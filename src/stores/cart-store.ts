@@ -10,8 +10,12 @@ import {
 } from "@/lib/pricing";
 import type { LineaCarrito, MetodoPago } from "@/types";
 
+export const CART_RESERVATION_MINUTES = 15;
+export const CART_RESERVATION_MS = CART_RESERVATION_MINUTES * 60 * 1000;
+
 interface CartState {
   items: LineaCarrito[];
+  expiresAt: number | null;
   hydrated: boolean;
   isOpen: boolean;
   openCart: () => void;
@@ -23,6 +27,7 @@ interface CartState {
   updateQty: (productoId: string, cantidad: number) => void;
   togglePersonalizacion: (productoId: string) => void;
   clearCart: () => void;
+  checkExpiration: () => boolean;
   getSubtotal: () => number;
   getTotalPiezas: () => number;
   getPricing: (metodoPago: MetodoPago, costoEnvio: number) => ReturnType<typeof calcularPricing>;
@@ -38,6 +43,7 @@ export const useCartStore = create<CartState>()(
   persist(
     (set, get) => ({
       items: [],
+      expiresAt: null,
       hydrated: false,
       isOpen: false,
       openCart: () => set({ isOpen: true }),
@@ -47,11 +53,18 @@ export const useCartStore = create<CartState>()(
 
       addItem: (item) => {
         const cantidad = item.cantidad ?? 1;
+        const now = Date.now();
         set((state) => {
+          const newExpiresAt =
+            state.items.length === 0 || !state.expiresAt || now > state.expiresAt
+              ? now + CART_RESERVATION_MS
+              : state.expiresAt;
+
           const existing = state.items.find((i) => i.productoId === item.productoId);
           if (existing) {
             return {
               isOpen: true,
+              expiresAt: newExpiresAt,
               items: state.items.map((i) =>
                 i.productoId === item.productoId
                   ? { ...i, cantidad: i.cantidad + cantidad }
@@ -61,15 +74,20 @@ export const useCartStore = create<CartState>()(
           }
           return {
             isOpen: true,
+            expiresAt: newExpiresAt,
             items: [...state.items, { ...item, cantidad }],
           };
         });
       },
 
       removeItem: (productoId) =>
-        set((state) => ({
-          items: state.items.filter((i) => i.productoId !== productoId),
-        })),
+        set((state) => {
+          const nextItems = state.items.filter((i) => i.productoId !== productoId);
+          return {
+            items: nextItems,
+            expiresAt: nextItems.length === 0 ? null : state.expiresAt,
+          };
+        }),
 
       updateQty: (productoId, cantidad) => {
         if (cantidad < 1) {
@@ -92,7 +110,16 @@ export const useCartStore = create<CartState>()(
           ),
         })),
 
-      clearCart: () => set({ items: [] }),
+      clearCart: () => set({ items: [], expiresAt: null }),
+
+      checkExpiration: () => {
+        const { expiresAt, items } = get();
+        if (items.length > 0 && expiresAt && Date.now() > expiresAt) {
+          set({ items: [], expiresAt: null });
+          return true; // Expired
+        }
+        return false;
+      },
 
       getSubtotal: () => calcularSubtotal(get().items),
       getTotalPiezas: () => calcularTotalPiezas(get().items),
@@ -113,14 +140,17 @@ export const useCartStore = create<CartState>()(
     }),
     {
       name: "milideas-cart",
-      partialize: (state) => ({ items: state.items }),
+      partialize: (state) => ({ items: state.items, expiresAt: state.expiresAt }),
       onRehydrateStorage: () => (state) => {
         state?.setHydrated();
+        // Check expiration on rehydration
+        if (state) {
+          state.checkExpiration();
+        }
       },
     },
   ),
 );
-
 
 export function useCartItemCount() {
   return useCartStore((s) => s.items.reduce((acc, i) => acc + i.cantidad, 0));

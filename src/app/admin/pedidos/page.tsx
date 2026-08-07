@@ -10,13 +10,14 @@ const estadoConfig: Record<
   string,
   { label: string; variant: "default" | "success" | "warning" | "muted" }
 > = {
+  reservado: { label: "Reservado (48h)", variant: "warning" },
   pendiente_pago: { label: "Pendiente de pago", variant: "warning" },
   confirmado: { label: "Confirmado", variant: "success" },
   enviado: { label: "Enviado", variant: "default" },
   cancelado: { label: "Cancelado", variant: "muted" },
 };
 
-const estados = ["pendiente_pago", "confirmado", "enviado", "cancelado"];
+const estados = ["reservado", "confirmado", "enviado", "cancelado"];
 
 export default async function AdminPedidosPage({
   searchParams,
