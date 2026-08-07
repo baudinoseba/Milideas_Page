@@ -97,6 +97,47 @@ export function ProductoForm({
             />
           </div>
 
+          {/* Dimensiones y medidas aproximadas */}
+          <div className="rounded-xl border border-border/60 bg-surface/50 p-4 space-y-3">
+            <Label className="text-sm font-semibold flex items-center gap-1.5">
+              <span>📐</span>
+              <span>Medidas Aproximadas (Alto, Ancho, Capacidad)</span>
+            </Label>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label htmlFor="altoCm" className="text-xs text-muted">Alto (cm)</Label>
+                <Input
+                  id="altoCm"
+                  name="altoCm"
+                  type="number"
+                  step="0.1"
+                  defaultValue={producto?.alto_cm ?? ""}
+                  placeholder="ej. 10"
+                />
+              </div>
+              <div>
+                <Label htmlFor="anchoCm" className="text-xs text-muted">Ancho / Diámetro (cm)</Label>
+                <Input
+                  id="anchoCm"
+                  name="anchoCm"
+                  type="number"
+                  step="0.1"
+                  defaultValue={producto?.ancho_cm ?? ""}
+                  placeholder="ej. 15"
+                />
+              </div>
+            </div>
+            <div>
+              <Label htmlFor="dimensiones" className="text-xs text-muted">Detalle adicional o Capacidad (opcional)</Label>
+              <Input
+                id="dimensiones"
+                name="dimensiones"
+                defaultValue={producto?.dimensiones ?? ""}
+                placeholder="ej. Capacidad: 350 ml | Incluye posavasos"
+              />
+            </div>
+          </div>
+
           <div>
             <Label htmlFor="categoriaId">Categoría / Colección</Label>
             <Select

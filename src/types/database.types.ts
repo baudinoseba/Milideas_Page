@@ -269,6 +269,9 @@ export type Database = {
           es_entrega_inmediata: boolean;
           fecha_lanzamiento: string | null;
           activo: boolean;
+          alto_cm: number | null;
+          ancho_cm: number | null;
+          dimensiones: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -284,6 +287,9 @@ export type Database = {
           es_entrega_inmediata?: boolean;
           fecha_lanzamiento?: string | null;
           activo?: boolean;
+          alto_cm?: number | null;
+          ancho_cm?: number | null;
+          dimensiones?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -299,6 +305,9 @@ export type Database = {
           es_entrega_inmediata?: boolean;
           fecha_lanzamiento?: string | null;
           activo?: boolean;
+          alto_cm?: number | null;
+          ancho_cm?: number | null;
+          dimensiones?: string | null;
           created_at?: string;
           updated_at?: string;
         };

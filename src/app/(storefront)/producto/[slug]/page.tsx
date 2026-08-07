@@ -158,6 +158,35 @@ export default async function ProductoPage({
             </div>
           )}
 
+          {/* Medidas Aproximadas */}
+          {(producto.alto_cm != null || producto.ancho_cm != null || producto.dimensiones) && (
+            <div className="space-y-2.5 bg-surface p-4 rounded-2xl border border-border/60 shadow-sm">
+              <span className="text-xs font-semibold uppercase tracking-wider text-barro font-sans flex items-center gap-1.5">
+                <span className="text-terracota text-sm">📐</span>
+                <span>Medidas aproximadas</span>
+              </span>
+              <div className="flex flex-wrap items-center gap-2.5 text-xs text-chocolate font-sans">
+                {producto.alto_cm != null && (
+                  <div className="flex items-center gap-1.5 rounded-xl bg-arena/40 px-3 py-1.5 border border-border/40">
+                    <span className="text-barro font-medium">Alto:</span>
+                    <span className="font-semibold">{producto.alto_cm} cm</span>
+                  </div>
+                )}
+                {producto.ancho_cm != null && (
+                  <div className="flex items-center gap-1.5 rounded-xl bg-arena/40 px-3 py-1.5 border border-border/40">
+                    <span className="text-barro font-medium">Ancho / Diámetro:</span>
+                    <span className="font-semibold">{producto.ancho_cm} cm</span>
+                  </div>
+                )}
+                {producto.dimensiones && (
+                  <div className="w-full text-xs text-chocolate/80 font-sans pt-1">
+                    {producto.dimensiones}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Craftsmanship & Care Info Box */}
           <div className="grid grid-cols-2 gap-3 p-4 rounded-2xl border border-border/50 bg-surface text-xs text-barro font-sans">
             <div className="flex items-center gap-2">

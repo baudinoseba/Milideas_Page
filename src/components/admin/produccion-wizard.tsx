@@ -263,6 +263,12 @@ export function ProduccionWizard({
       if (catSelect && pieza.categoria_id) catSelect.value = pieza.categoria_id;
       const personalizable = form.elements.namedItem("esPersonalizable") as HTMLInputElement;
       if (personalizable) personalizable.checked = pieza.es_personalizable;
+      const altoInput = form.elements.namedItem("altoCm") as HTMLInputElement;
+      if (altoInput) altoInput.value = pieza.alto_cm != null ? String(pieza.alto_cm) : "";
+      const anchoInput = form.elements.namedItem("anchoCm") as HTMLInputElement;
+      if (anchoInput) anchoInput.value = pieza.ancho_cm != null ? String(pieza.ancho_cm) : "";
+      const dimInput = form.elements.namedItem("dimensiones") as HTMLInputElement;
+      if (dimInput) dimInput.value = pieza.dimensiones ?? "";
     }, 50);
   };
 
@@ -701,6 +707,44 @@ export function ProduccionWizard({
                   placeholder="Material, tamaño, cuidados, qué la hace especial..."
                   rows={3}
                 />
+              </div>
+
+              {/* Medidas y Dimensiones */}
+              <div className="sm:col-span-2 rounded-xl border border-border/60 bg-surface/50 p-4 space-y-3">
+                <Label className="text-sm font-semibold flex items-center gap-1.5">
+                  <span>📐</span>
+                  <span>Medidas Aproximadas (Alto, Ancho, Capacidad)</span>
+                </Label>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label htmlFor="altoCm" className="text-xs text-muted">Alto (cm)</Label>
+                    <Input
+                      id="altoCm"
+                      name="altoCm"
+                      type="number"
+                      step="0.1"
+                      placeholder="ej. 10"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="anchoCm" className="text-xs text-muted">Ancho / Diámetro (cm)</Label>
+                    <Input
+                      id="anchoCm"
+                      name="anchoCm"
+                      type="number"
+                      step="0.1"
+                      placeholder="ej. 15"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="dimensiones" className="text-xs text-muted">Detalle adicional o Capacidad (opcional)</Label>
+                  <Input
+                    id="dimensiones"
+                    name="dimensiones"
+                    placeholder="ej. Capacidad: 350 ml | Incluye posavasos"
+                  />
+                </div>
               </div>
               <div>
                 <Label htmlFor="precioBase">Precio (ARS) *</Label>

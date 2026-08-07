@@ -318,6 +318,10 @@ export async function saveProductoAction(
   const inputSlug = String(formData.get("slug") || "").trim();
   const slug = inputSlug || (await generateUniqueSlug(supabase, nombre, productoId));
 
+  const altoCm = formData.get("altoCm") ? Number(formData.get("altoCm")) : null;
+  const anchoCm = formData.get("anchoCm") ? Number(formData.get("anchoCm")) : null;
+  const dimensiones = String(formData.get("dimensiones") || "").trim() || null;
+
   const payload = {
     nombre,
     slug,
@@ -329,6 +333,9 @@ export async function saveProductoAction(
     es_entrega_inmediata: formData.get("esEntregaInmediata") === "on",
     fecha_lanzamiento: (formData.get("fechaLanzamiento") as string) || null,
     activo: formData.get("activo") === "on",
+    alto_cm: altoCm,
+    ancho_cm: anchoCm,
+    dimensiones,
   };
 
 
@@ -658,6 +665,10 @@ export async function savePiezaProduccionAction(
   const selectedCategoria = (formData.get("categoriaId") as string) || null;
   const uniqueSlug = await generateUniqueSlug(supabase, nombre, productoId);
 
+  const altoCm = formData.get("altoCm") ? Number(formData.get("altoCm")) : null;
+  const anchoCm = formData.get("anchoCm") ? Number(formData.get("anchoCm")) : null;
+  const dimensiones = String(formData.get("dimensiones") || "").trim() || null;
+
   const payload = {
     nombre,
     slug: uniqueSlug,
@@ -669,6 +680,9 @@ export async function savePiezaProduccionAction(
     stock_disponible: Number(formData.get("stockDisponible")) || 1,
     es_entrega_inmediata: false,
     activo: false, // Always draft in production mode until collection publication
+    alto_cm: altoCm,
+    ancho_cm: anchoCm,
+    dimensiones,
   };
 
 
