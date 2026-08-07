@@ -400,6 +400,139 @@ export function PersonalizacionForm({ config, categorias, producciones = [] }: P
 
       </section>
 
+      {/* 🏦 DATOS BANCARIOS */}
+      <section className="space-y-4 rounded-xl border border-border bg-surface p-6">
+        <h2 className="text-base font-semibold flex items-center gap-2">
+          <span>🏦 Datos Bancarios de Transferencia</span>
+        </h2>
+        <p className="text-xs text-muted">
+          Configurá los datos de la cuenta bancaria de la artista. Estos datos se envían al comprador y se muestran en la confirmación del pedido.
+        </p>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <Label htmlFor="bancoTitular">Titular de la Cuenta</Label>
+            <Input
+              id="bancoTitular"
+              name="bancoTitular"
+              defaultValue={config.banco_titular ?? "Milagros Anita Ferrero"}
+              placeholder="Ej: Milagros Anita Ferrero"
+              required
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="bancoCuit">CUIT / CUIL</Label>
+            <Input
+              id="bancoCuit"
+              name="bancoCuit"
+              defaultValue={config.banco_cuit ?? "27-43717260-4"}
+              placeholder="Ej: 27-43717260-4"
+              required
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="bancoNombre">Entidad / Banco</Label>
+            <Input
+              id="bancoNombre"
+              name="bancoNombre"
+              defaultValue={config.banco_nombre ?? "Brubank"}
+              placeholder="Ej: Brubank / Mercado Pago"
+              required
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="bancoAlias">Alias Bancario</Label>
+            <Input
+              id="bancoAlias"
+              name="bancoAlias"
+              defaultValue={config.banco_alias ?? "milideasarte"}
+              placeholder="Ej: milideasarte"
+              required
+            />
+          </div>
+
+          <div className="sm:col-span-2">
+            <Label htmlFor="bancoCbu">CBU / CVU (Opcional)</Label>
+            <Input
+              id="bancoCbu"
+              name="bancoCbu"
+              defaultValue={config.banco_cbu ?? ""}
+              placeholder="Ej: 0000003100012345678901"
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* 📍 DIRECCIÓN DEL TALLER Y CONTACTO */}
+      <section className="space-y-4 rounded-xl border border-border bg-surface p-6">
+        <h2 className="text-base font-semibold flex items-center gap-2">
+          <span>📍 Dirección del Taller y WhatsApp de Atención</span>
+        </h2>
+        <p className="text-xs text-muted">
+          Ubicación del emprendimiento para la opción "Retiro en Taller" y teléfono oficial de contacto. Podés modificarlo si la artista o el taller se mudan.
+        </p>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="sm:col-span-2">
+            <Label htmlFor="tallerDireccion">Calle y Número del Taller</Label>
+            <Input
+              id="tallerDireccion"
+              name="tallerDireccion"
+              defaultValue={config.taller_direccion ?? "Florentino Ameghino 1576"}
+              placeholder="Ej: Florentino Ameghino 1576"
+              required
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="tallerCiudad">Ciudad / Localidad</Label>
+            <Input
+              id="tallerCiudad"
+              name="tallerCiudad"
+              defaultValue={config.taller_ciudad ?? "Sunchales"}
+              placeholder="Ej: Sunchales"
+              required
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="tallerProvincia">Provincia</Label>
+            <Input
+              id="tallerProvincia"
+              name="tallerProvincia"
+              defaultValue={config.taller_provincia ?? "Santa Fe"}
+              placeholder="Ej: Santa Fe"
+              required
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="tallerCodigoPostal">Código Postal</Label>
+            <Input
+              id="tallerCodigoPostal"
+              name="tallerCodigoPostal"
+              defaultValue={config.taller_codigo_postal ?? "2322"}
+              placeholder="Ej: 2322"
+              required
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="vendedorWhatsapp">WhatsApp Oficial de Atención (con código de país)</Label>
+            <Input
+              id="vendedorWhatsapp"
+              name="vendedorWhatsapp"
+              defaultValue={config.vendedor_whatsapp ?? "5493493668308"}
+              placeholder="Ej: 5493493668308"
+              required
+            />
+          </div>
+        </div>
+      </section>
+
       {/* SUBMIT BUTTON */}
       <div className="flex items-center justify-end gap-3 border-t border-border pt-4">
         <Button type="submit" isLoading={pending}>

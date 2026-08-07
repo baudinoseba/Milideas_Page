@@ -30,6 +30,16 @@ export type ConfiguracionSitio = {
   hero_subtitulo: string;
   hero_imagen_url: string | null;
   coleccion_destacada_id: string | null;
+  banco_titular?: string | null;
+  banco_cuit?: string | null;
+  banco_nombre?: string | null;
+  banco_alias?: string | null;
+  banco_cbu?: string | null;
+  taller_direccion?: string | null;
+  taller_ciudad?: string | null;
+  taller_provincia?: string | null;
+  taller_codigo_postal?: string | null;
+  vendedor_whatsapp?: string | null;
   updated_at?: string;
 };
 

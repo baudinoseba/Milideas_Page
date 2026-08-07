@@ -9,7 +9,7 @@ import type { CrearPedidoItem } from "@/types";
 
 export type CheckoutResult =
   | { success: true; pedidoId: string }
-  | { success: false; error: string };
+  | { success: false; error: string; isStockCollision?: boolean };
 
 export async function crearPedidoAction(
   formData: FormData,
@@ -94,10 +94,12 @@ export async function crearPedidoAction(
 
   if (error) {
     if (error.message.includes("STOCK_INSUFICIENTE")) {
+      const parts = error.message.split("STOCK_INSUFICIENTE:");
+      const productName = parts[1] ? parts[1].trim() : "una de las piezas de tu carrito";
       return {
         success: false,
-        error:
-          "Esta pieza acaba de ser reservada por otro comprador. Revisá tu carrito.",
+        isStockCollision: true,
+        error: `La pieza "${productName}" acaba de ser reservada por otro comprador. Te llevamos a tu carrito para que puedas actualizar tu compra.`,
       };
     }
     return { success: false, error: error.message };
@@ -883,10 +885,32 @@ export async function saveConfiguracionSitioAction(
   const heroSubtitulo = String(formData.get("heroSubtitulo") || "").trim();
   const coleccionDestacadaId = (formData.get("coleccionDestacadaId") as string) || null;
 
+  const bancoTitular = String(formData.get("bancoTitular") || "Milagros Anita Ferrero").trim();
+  const bancoCuit = String(formData.get("bancoCuit") || "27-43717260-4").trim();
+  const bancoNombre = String(formData.get("bancoNombre") || "Brubank").trim();
+  const bancoAlias = String(formData.get("bancoAlias") || "milideasarte").trim();
+  const bancoCbu = String(formData.get("bancoCbu") || "").trim();
+
+  const tallerDireccion = String(formData.get("tallerDireccion") || "Florentino Ameghino 1576").trim();
+  const tallerCiudad = String(formData.get("tallerCiudad") || "Sunchales").trim();
+  const tallerProvincia = String(formData.get("tallerProvincia") || "Santa Fe").trim();
+  const tallerCodigoPostal = String(formData.get("tallerCodigoPostal") || "2322").trim();
+  const vendedorWhatsapp = String(formData.get("vendedorWhatsapp") || "5493493668308").trim();
+
   const payload = {
     hero_titulo: heroTitulo || "Piezas únicas, hechas a mano.",
     hero_subtitulo: heroSubtitulo || "Cerámica de autor en ediciones limitadas.",
     coleccion_destacada_id: coleccionDestacadaId || null,
+    banco_titular: bancoTitular,
+    banco_cuit: bancoCuit,
+    banco_nombre: bancoNombre,
+    banco_alias: bancoAlias,
+    banco_cbu: bancoCbu,
+    taller_direccion: tallerDireccion,
+    taller_ciudad: tallerCiudad,
+    taller_provincia: tallerProvincia,
+    taller_codigo_postal: tallerCodigoPostal,
+    vendedor_whatsapp: vendedorWhatsapp,
     updated_at: new Date().toISOString(),
   };
 

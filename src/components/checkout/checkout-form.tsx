@@ -354,6 +354,12 @@ export function CheckoutForm({
 
       if (!result.success) {
         setError(result.error);
+        if ((result as any).isStockCollision || result.error?.includes("reservada por otro")) {
+          useCartStore.getState().openCart();
+          setTimeout(() => {
+            router.push("/carrito");
+          }, 2000);
+        }
         return;
       }
 

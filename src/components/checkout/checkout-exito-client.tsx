@@ -15,8 +15,9 @@ import { WhatsAppIcon } from "@/components/ui/whatsapp-icon";
 
 export function CheckoutExitoClient({ pedido }: { pedido: PedidoConItems }) {
   const limite = new Date(pedido.fecha_limite_pago);
+  const [whatsappUrl, setWhatsappUrl] = useState<string>("#");
 
-  const whatsappUrl = typeof window !== "undefined" ? (() => {
+  useEffect(() => {
     const dir = pedido.direccion_envio as any;
     const dateFormatted = new Date(pedido.created_at).toLocaleDateString("es-AR", {
       day: "numeric",
@@ -33,7 +34,7 @@ export function CheckoutExitoClient({ pedido }: { pedido: PedidoConItems }) {
         const prodName = item.productos?.nombre ?? "Producto";
         const personalizationText = item.es_personalizado ? " (Personalizado)" : "";
         const totalItemPrice = item.precio_unitario_final * item.cantidad;
-        return `• *${prodName}${personalizationText}* x ${item.cantidad} => ${formatPrecio(totalItemPrice)}`;
+        return `- *${prodName.trim()}${personalizationText}* x ${item.cantidad} => ${formatPrecio(totalItemPrice)}`;
       })
       .join("\n");
 
@@ -47,12 +48,12 @@ export function CheckoutExitoClient({ pedido }: { pedido: PedidoConItems }) {
 
     const getAddressText = () => {
       if (isTaller) {
-        return `*Método de Entrega:* 📍 Retiro en Taller (Sin Cargo)\n*Dirección de Retiro:* Florentino Ameghino 1576, Sunchales, Santa Fe\n*Teléfono:* ${pedido.whatsapp_contacto}`;
+        return `*Método de Entrega:* Retiro en Taller (Sin Cargo)\n*Dirección de Retiro:* Florentino Ameghino 1576, Sunchales, Santa Fe\n*Teléfono:* ${pedido.whatsapp_contacto}`;
       }
       if (pedido.tipo_envio === "agencia") {
-        return `*Método de Entrega:* 📦 Sucursal Vía Cargo\n*Localidad:* ${dir?.ciudad || ""}, ${dir?.provincia || ""}\n*Teléfono:* ${pedido.whatsapp_contacto}`;
+        return `*Método de Entrega:* Sucursal Vía Cargo\n*Localidad:* ${dir?.ciudad || ""}, ${dir?.provincia || ""}\n*Teléfono:* ${pedido.whatsapp_contacto}`;
       }
-      return `*Método de Entrega:* 🏠 A Domicilio (Vía Cargo)\n*Dirección:* ${dir?.calle || ""} ${dir?.numero || ""}${dir?.piso ? ` Piso ${dir.piso}` : ""}${dir?.depto ? ` Depto ${dir.depto}` : ""}\n*Ubicación:* ${dir?.ciudad || ""}, ${dir?.provincia || ""} (CP ${dir?.codigoPostal || ""})\n${dir?.referencia ? `*Indicaciones:* ${dir.referencia}\n` : ""}*Teléfono:* ${pedido.whatsapp_contacto}`;
+      return `*Método de Entrega:* A Domicilio (Vía Cargo)\n*Dirección:* ${dir?.calle || ""} ${dir?.numero || ""}${dir?.piso ? ` Piso ${dir.piso}` : ""}${dir?.depto ? ` Depto ${dir.depto}` : ""}\n*Ubicación:* ${dir?.ciudad || ""}, ${dir?.provincia || ""} (CP ${dir?.codigoPostal || ""})\n${dir?.referencia ? `*Indicaciones:* ${dir.referencia}\n` : ""}*Teléfono:* ${pedido.whatsapp_contacto}`;
     };
 
     const text = `*MILIDEAS ARTE - NUEVO PEDIDO*
@@ -67,37 +68,34 @@ export function CheckoutExitoClient({ pedido }: { pedido: PedidoConItems }) {
 ${itemsText}
 
 --------------------------------
-
-Subtotal: ${formatPrecio(pedido.subtotal)}
-Descuento: -${formatPrecio(pedido.descuento_aplicado)}
-Envío: ${formatPrecio(pedido.costo_envio)}
-Total: ${formatPrecio(pedido.total)}
+*Subtotal:* ${formatPrecio(pedido.subtotal)}
+*Descuento:* -${formatPrecio(pedido.descuento_aplicado)}
+*Envío:* ${formatPrecio(pedido.costo_envio)}
+*TOTAL:* ${formatPrecio(pedido.total)}
 
 --------------------------------
-
-🗒️ Datos del comprador y entrega:
-
-${pedido.nombre_contacto}
+*DATOS DEL COMPRADOR Y ENTREGA:*
+*Comprador:* ${pedido.nombre_contacto}
 ${getAddressText()}
 
 --------------------------------
-
-👁️ Ver Pedido
+*Ver pedido en la web:*
 ${window.location.origin}/checkout/exito/${pedido.id}`;
 
     const vendorWhatsapp = process.env.NEXT_PUBLIC_VENDOR_WHATSAPP || "5493493668308";
-    return `https://wa.me/${vendorWhatsapp}?text=${encodeURIComponent(text)}`;
-  })() : "";
+    const generatedUrl = `https://wa.me/${vendorWhatsapp}?text=${encodeURIComponent(text)}`;
+    setWhatsappUrl(generatedUrl);
 
-  useEffect(() => {
-    if (whatsappUrl && typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      if (params.get("autoOpen") === "true") {
-        // Open WhatsApp in a new tab so order summary page stays open
-        window.open(whatsappUrl, "_blank");
+    // Auto open WhatsApp in a new tab if coming directly from checkout submit
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("autoOpen") === "true") {
+      try {
+        window.open(generatedUrl, "_blank");
+      } catch (err) {
+        console.warn("Popup blocked by browser:", err);
       }
     }
-  }, [whatsappUrl]);
+  }, [pedido]);
 
   return (
     <div className="mx-auto max-w-lg space-y-6">
@@ -145,11 +143,18 @@ ${window.location.origin}/checkout/exito/${pedido.id}`;
         </div>
       </Card>
 
-      <Card>
-        <h2 className="mb-2 font-semibold text-foreground text-sm">Coordinación de Pago y Datos Bancarios</h2>
-        <p className="text-xs text-muted leading-relaxed">
-          {process.env.NEXT_PUBLIC_BANK_ACCOUNT_INFO ??
-            "El alias bancario para realizar la transferencia o la coordinación en efectivo se enviará directamente por WhatsApp al enviar tu pedido."}
+      <Card className="space-y-3 bg-arena/20 border-border/80 p-5">
+        <h2 className="font-semibold text-chocolate text-sm flex items-center gap-2">
+          <span>🏦 Datos de Transferencia Bancaria</span>
+        </h2>
+        <div className="space-y-1.5 text-xs text-muted font-sans">
+          <p><span className="font-medium text-foreground">Titular:</span> Milagros Anita Ferrero</p>
+          <p><span className="font-medium text-foreground">CUIT:</span> 27-43717260-4</p>
+          <p><span className="font-medium text-foreground">Banco:</span> Brubank</p>
+          <p><span className="font-medium text-foreground">Alias:</span> <code className="bg-arena/60 px-2 py-0.5 rounded font-mono font-bold text-chocolate text-xs">milideasarte</code></p>
+        </div>
+        <p className="text-[11px] text-barro pt-1 leading-relaxed border-t border-border/40 mt-2">
+          💡 Podés realizar la transferencia por el total de <strong>{formatPrecio(pedido.total)}</strong> a este alias y enviarle la foto del comprobante a Mili por WhatsApp.
         </p>
       </Card>
 
