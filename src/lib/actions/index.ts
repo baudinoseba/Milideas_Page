@@ -51,11 +51,10 @@ export async function crearPedidoAction(
 
   const supabase = await createClient();
 
-  const direccionPayload = parsed.data.direccionEnvio ?? (
+  const direccionPayload =
     parsed.data.tipoEnvio === "taller"
-      ? { taller: true, retiro: "Florentino Ameghino 1576, Sunchales, Santa Fe" }
-      : null
-  );
+      ? { taller: true, tipo: "taller", retiro: "Florentino Ameghino 1576, Sunchales, Santa Fe" }
+      : (parsed.data.direccionEnvio ?? null);
 
   let { data, error } = await supabase.rpc("crear_pedido", {
     p_items: items,
@@ -81,7 +80,7 @@ export async function crearPedidoAction(
       p_email_contacto: parsed.data.emailContacto || "",
       p_tipo_envio: "agencia" as any,
       p_zona_logistica_id: parsed.data.zonaLogisticaId || null,
-      p_direccion_envio: { taller: true, retiro: "Florentino Ameghino 1576, Sunchales, Santa Fe" },
+      p_direccion_envio: { taller: true, tipo: "taller", retiro: "Florentino Ameghino 1576, Sunchales, Santa Fe" },
       p_metodo_pago: parsed.data.metodoPago,
       p_subtotal: pricing.subtotal,
       p_descuento_aplicado: pricing.descuentoAplicado,

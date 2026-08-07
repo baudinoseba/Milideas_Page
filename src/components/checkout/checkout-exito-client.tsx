@@ -18,7 +18,13 @@ export function CheckoutExitoClient({ pedido }: { pedido: PedidoConItems }) {
   const [whatsappUrl, setWhatsappUrl] = useState<string>("#");
 
   useEffect(() => {
-    const dir = pedido.direccion_envio as any;
+    let dir: any = pedido.direccion_envio;
+    if (typeof dir === "string") {
+      try {
+        dir = JSON.parse(dir);
+      } catch (e) {}
+    }
+
     const dateFormatted = new Date(pedido.created_at).toLocaleDateString("es-AR", {
       day: "numeric",
       month: "long",
@@ -27,7 +33,13 @@ export function CheckoutExitoClient({ pedido }: { pedido: PedidoConItems }) {
 
     const isTaller =
       pedido.tipo_envio === "taller" ||
-      (dir && (dir.taller === true || dir.tipo === "taller" || String(dir.retiro || "").includes("Ameghino")));
+      (dir && (
+        dir.taller === true ||
+        dir.taller === "true" ||
+        dir.tipo === "taller" ||
+        String(dir.retiro || "").toLowerCase().includes("ameghino") ||
+        String(dir.retiro || "").toLowerCase().includes("taller")
+      ));
 
     const itemsText = pedido.items_pedido
       .map((item) => {
