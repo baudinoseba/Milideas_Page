@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
 import { formatPrecio } from "@/lib/pricing";
 import { subirComprobanteAction } from "@/lib/actions";
 import { Button } from "@/components/ui/button";
@@ -87,6 +87,15 @@ ${window.location.origin}/checkout/exito/${pedido.id}`;
     const vendorWhatsapp = process.env.NEXT_PUBLIC_VENDOR_WHATSAPP || "5493493668308";
     return `https://wa.me/${vendorWhatsapp}?text=${encodeURIComponent(text)}`;
   })() : "";
+
+  useEffect(() => {
+    if (whatsappUrl && typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("autoOpen") === "true") {
+        window.location.href = whatsappUrl;
+      }
+    }
+  }, [whatsappUrl]);
 
   return (
     <div className="mx-auto max-w-lg space-y-6">

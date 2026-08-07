@@ -358,7 +358,7 @@ export function CheckoutForm({
       }
 
       clearCart();
-      router.push(`/checkout/exito/${result.pedidoId}`);
+      window.location.href = `/checkout/exito/${result.pedidoId}?autoOpen=true`;
     });
   };
 
