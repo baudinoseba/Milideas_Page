@@ -24,45 +24,46 @@ export function CheckoutExitoClient({ pedido }: { pedido: PedidoConItems }) {
       year: "numeric"
     });
 
+    const isTaller =
+      pedido.tipo_envio === "taller" ||
+      (dir && (dir.taller === true || dir.tipo === "taller" || String(dir.retiro || "").includes("Ameghino")));
+
     const itemsText = pedido.items_pedido
       .map((item) => {
         const prodName = item.productos?.nombre ?? "Producto";
         const personalizationText = item.es_personalizado ? " (Personalizado)" : "";
         const totalItemPrice = item.precio_unitario_final * item.cantidad;
-        return `⭐ ${prodName}${personalizationText} x ${item.cantidad} => ${formatPrecio(totalItemPrice)}`;
+        return `• *${prodName}${personalizationText}* x ${item.cantidad} => ${formatPrecio(totalItemPrice)}`;
       })
       .join("\n");
 
     const statusTranslations: Record<string, string> = {
-      reservado: "reservado (48h)",
-      pendiente_pago: "pendiente",
-      confirmado: "confirmado",
-      enviado: "enviado",
-      cancelado: "cancelado"
+      reservado: "Reservado (48h)",
+      pendiente_pago: "Pendiente de Pago",
+      confirmado: "Confirmado",
+      enviado: "Enviado",
+      cancelado: "Cancelado"
     };
 
     const getAddressText = () => {
-      if (pedido.tipo_envio === "taller") {
-        return `Método de entrega: Retiro en Taller (Sin Cargo)\nDirección de Retiro: Florentino Ameghino 1576, Sunchales, Santa Fe\nTeléfono: ${pedido.whatsapp_contacto}`;
+      if (isTaller) {
+        return `*Método de Entrega:* 📍 Retiro en Taller (Sin Cargo)\n*Dirección de Retiro:* Florentino Ameghino 1576, Sunchales, Santa Fe\n*Teléfono:* ${pedido.whatsapp_contacto}`;
       }
       if (pedido.tipo_envio === "agencia") {
-        return `Método de entrega: Retiro en Sucursal Vía Cargo\nTeléfono: ${pedido.whatsapp_contacto}`;
+        return `*Método de Entrega:* 📦 Sucursal Vía Cargo\n*Localidad:* ${dir?.ciudad || ""}, ${dir?.provincia || ""}\n*Teléfono:* ${pedido.whatsapp_contacto}`;
       }
-      return `Calle: ${dir?.calle || ""} ${dir?.numero || ""}\n${dir?.referencia ? `Detalles: ${dir.referencia}\n` : ""}${dir?.ciudad || ""}, ${dir?.provincia || ""}\nCódigo Postal: ${dir?.codigoPostal || ""}\nTeléfono: ${pedido.whatsapp_contacto}`;
+      return `*Método de Entrega:* 🏠 A Domicilio (Vía Cargo)\n*Dirección:* ${dir?.calle || ""} ${dir?.numero || ""}${dir?.piso ? ` Piso ${dir.piso}` : ""}${dir?.depto ? ` Depto ${dir.depto}` : ""}\n*Ubicación:* ${dir?.ciudad || ""}, ${dir?.provincia || ""} (CP ${dir?.codigoPostal || ""})\n${dir?.referencia ? `*Indicaciones:* ${dir.referencia}\n` : ""}*Teléfono:* ${pedido.whatsapp_contacto}`;
     };
 
-    const text = `👉 Mi Pedido @ Milideas
+    const text = `*MILIDEAS ARTE - NUEVO PEDIDO*
 
 --------------------------------
+*Nº Pedido:* #${pedido.id.slice(0, 8).toUpperCase()}
+*Estado:* ${statusTranslations[pedido.estado] || pedido.estado}
+*Fecha:* ${dateFormatted}
+*Email:* ${pedido.email_contacto || "No especificado"}
 
-#️⃣ Numero    : ${pedido.id.slice(0, 8).toUpperCase()}
-🔆 Estado    : ${statusTranslations[pedido.estado] || pedido.estado}
-🗓️ Fecha     : ${dateFormatted}
-📧 Email     : ${pedido.email_contacto || "No especificado"}
-💰 Total     : ${formatPrecio(pedido.total)}
-
-🔍 Detalles del Pedido: 
-
+*DETALLES DE LAS PIEZAS:*
 ${itemsText}
 
 --------------------------------
@@ -92,7 +93,8 @@ ${window.location.origin}/checkout/exito/${pedido.id}`;
     if (whatsappUrl && typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       if (params.get("autoOpen") === "true") {
-        window.location.href = whatsappUrl;
+        // Open WhatsApp in a new tab so order summary page stays open
+        window.open(whatsappUrl, "_blank");
       }
     }
   }, [whatsappUrl]);
