@@ -1128,18 +1128,29 @@ export async function crearEncargoAction(formData: FormData): Promise<{
     };
   }
 
+  const itemsJsonRaw = formData.get("itemsJson") as string;
+  let itemsArray: any[] = [];
+  if (itemsJsonRaw) {
+    try {
+      itemsArray = JSON.parse(itemsJsonRaw);
+    } catch (e) {}
+  }
+
+  const firstItem = itemsArray[0];
+
   const { data, error } = await supabase
     .from("encargos")
     .insert({
-      producto_id: productoId,
+      producto_id: firstItem?.productoId ?? productoId,
       nombre_contacto: nombreContacto,
       whatsapp_contacto: whatsappContacto,
       email_contacto: emailContacto,
-      tipo_catalogo: tipoCatalogo,
-      es_personalizado: esPersonalizado,
-      detalle_personalizacion: detallePersonalizacion,
-      medida_seleccionada: medidaSeleccionada,
-      con_marco: conMarco,
+      tipo_catalogo: firstItem?.tipoCatalogo ?? tipoCatalogo,
+      es_personalizado: itemsArray.some((i) => i.esPersonalizado) || esPersonalizado,
+      detalle_personalizacion:
+        itemsArray.map((i) => i.detallePersonalizacion).filter(Boolean).join(" | ") || detallePersonalizacion,
+      medida_seleccionada: firstItem?.medidaSeleccionada ?? medidaSeleccionada,
+      con_marco: itemsArray.some((i) => i.conMarco) || conMarco,
       metodo_entrega: metodoEntrega,
       direccion_envio: direccionEnvio,
       precio_estimado: precioEstimado,
@@ -1154,6 +1165,28 @@ export async function crearEncargoAction(formData: FormData): Promise<{
 
   if (error) {
     return { success: false, error: error.message };
+  }
+
+  if (itemsArray.length > 0) {
+    const itemsPayload = itemsArray.map((it) => ({
+      encargo_id: data.id,
+      producto_id: it.productoId || null,
+      nombre_producto: it.nombre,
+      tipo_catalogo: it.tipoCatalogo || "ceramica",
+      es_personalizado: it.esPersonalizado || false,
+      detalle_personalizacion: it.detallePersonalizacion || null,
+      medida_seleccionada: it.medidaSeleccionada || null,
+      con_marco: it.conMarco || false,
+      precio_unitario_base: it.precioBase || 0,
+      recargo_personalizado: it.recargoPersonalizado || 0,
+      adicional_medida: it.adicionalMedida || 0,
+      adicional_marco: it.adicionalMarco || 0,
+      precio_unitario_final: it.precioUnitarioFinal || 0,
+      cantidad: it.cantidad || 1,
+      subtotal: (it.precioUnitarioFinal || 0) * (it.cantidad || 1),
+    }));
+
+    await supabase.from("items_encargo").insert(itemsPayload);
   }
 
   revalidatePath("/admin/encargos");

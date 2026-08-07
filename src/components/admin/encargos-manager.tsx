@@ -154,21 +154,43 @@ Te iremos avisando el avance de tu pieza. ¡Muchas gracias!`;
                   </div>
 
                   <div className="space-y-1.5 bg-arena/20 p-3 rounded-xl border border-border/40">
-                    <p className="font-semibold text-chocolate">🎨 Especificaciones</p>
-                    {enc.medida_seleccionada && <p><span className="text-muted">Medida:</span> {enc.medida_seleccionada}</p>}
-                    {enc.con_marco && <p className="text-emerald-600 dark:text-emerald-400 font-semibold">✓ Con marco de madera artesanal</p>}
-                    {enc.es_personalizado && (
-                      <div>
-                        <p className="text-terracota font-semibold">✨ Personalizado (+15%)</p>
-                        {enc.detalle_personalizacion && (
-                          <p className="text-muted italic bg-surface p-1.5 rounded mt-1 border border-border/40">
-                            &ldquo;{enc.detalle_personalizacion}&rdquo;
-                          </p>
-                        )}
+                    <p className="font-semibold text-chocolate">🎨 Piezas & Especificaciones</p>
+                    {enc.items_encargo && enc.items_encargo.length > 0 ? (
+                      <div className="space-y-2 divide-y divide-border/40">
+                        {enc.items_encargo.map((it: any) => (
+                          <div key={it.id} className="pt-1.5 first:pt-0">
+                            <p className="font-medium text-foreground">
+                              {it.nombre_producto} ({it.tipo_catalogo?.toUpperCase()}) x {it.cantidad}
+                            </p>
+                            {it.medida_seleccionada && <p className="text-muted">· Medida: {it.medida_seleccionada}</p>}
+                            {it.con_marco && <p className="text-emerald-600 dark:text-emerald-400 font-semibold">· Con marco de madera</p>}
+                            {it.es_personalizado && (
+                              <p className="text-terracota">
+                                · Personalizado (+15%) {it.detalle_personalizacion ? `"${it.detalle_personalizacion}"` : ""}
+                              </p>
+                            )}
+                            <p className="text-muted font-mono">{formatPrecio(it.subtotal)}</p>
+                          </div>
+                        ))}
                       </div>
+                    ) : (
+                      <>
+                        {enc.medida_seleccionada && <p><span className="text-muted">Medida:</span> {enc.medida_seleccionada}</p>}
+                        {enc.con_marco && <p className="text-emerald-600 dark:text-emerald-400 font-semibold">✓ Con marco de madera artesanal</p>}
+                        {enc.es_personalizado && (
+                          <div>
+                            <p className="text-terracota font-semibold">✨ Personalizado (+15%)</p>
+                            {enc.detalle_personalizacion && (
+                              <p className="text-muted italic bg-surface p-1.5 rounded mt-1 border border-border/40">
+                                &ldquo;{enc.detalle_personalizacion}&rdquo;
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </>
                     )}
                     {enc.demora_estimada_dias && (
-                      <p className="text-admin-accent font-semibold pt-1">
+                      <p className="text-admin-accent font-semibold pt-1 border-t border-border/40 mt-1">
                         ⏳ Demora pactada: {enc.demora_estimada_dias} días hábiles
                       </p>
                     )}

@@ -86,6 +86,7 @@ export type Encargo = {
   created_at: string;
   updated_at: string;
   productos?: ProductoConImagenes | null;
+  items_encargo?: any[];
 };
 
 

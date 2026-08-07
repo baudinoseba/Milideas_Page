@@ -481,7 +481,7 @@ export async function getEncargos(estado?: string): Promise<Encargo[]> {
   const adminClient = createAdminClient();
   let query = adminClient
     .from("encargos")
-    .select("*, productos(*, producto_imagenes(*))")
+    .select("*, productos(*, producto_imagenes(*)), items_encargo(*)")
     .order("created_at", { ascending: false });
 
   if (estado) {

@@ -46,6 +46,9 @@ const MOBILE_ICONS: Record<string, typeof IconCatalog> = {
 
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 
+import { EncargosCartButton } from "@/components/cart/encargos-cart-button";
+import { EncargosCartDrawer } from "@/components/cart/encargos-cart-drawer";
+
 export function Header() {
   const pathname = usePathname();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -76,7 +79,7 @@ export function Header() {
   }, []);
 
   return (
-    <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur-lg">
+    <header className="sticky top-0 z-40 w-full border-b border-border/60 bg-surface/80 backdrop-blur-md transition-colors duration-300">
       <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 sm:h-16 sm:px-6">
         <Link href="/" className="flex items-center gap-2.5 hover:opacity-90 transition-opacity">
           {logoUrl ? (
@@ -108,7 +111,7 @@ export function Header() {
           ))}
         </nav>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2 text-sm">
           <ThemeToggle />
           <Link
             href={isLoggedIn ? "/cuenta/perfil" : "/login"}
@@ -117,10 +120,12 @@ export function Header() {
             <IconUser className="h-4 w-4" />
             <span>{isLoggedIn ? "Mi Cuenta" : "Ingresar"}</span>
           </Link>
+          <EncargosCartButton />
           <CartButton />
         </div>
       </div>
       <MobileNav pathname={pathname} isLoggedIn={isLoggedIn} />
+      <EncargosCartDrawer />
     </header>
   );
 }
