@@ -803,15 +803,15 @@ export function CheckoutForm({
                 )}
 
                 {/* 🚚 Transport Provider & Mandatory Disclaimer */}
-                <div className="rounded-xl border border-amber-300/80 bg-amber-500/10 p-4 text-xs space-y-2.5 text-chocolate dark:text-amber-200">
-                  <div className="flex items-center gap-2 font-semibold text-amber-900 dark:text-amber-300 text-xs">
+                <div className="rounded-2xl border-2 border-amber-400 bg-amber-50 dark:bg-amber-950/40 p-4 text-xs space-y-2.5 shadow-xs">
+                  <div className="flex items-center gap-2 font-bold text-amber-950 dark:text-amber-200 text-xs sm:text-sm">
                     <span className="text-base">🚚</span>
                     <span>Empresa de Transporte: Vía Cargo</span>
                   </div>
-                  <p className="leading-relaxed font-sans text-[11px] text-chocolate/90 dark:text-amber-100">
+                  <p className="leading-relaxed font-sans text-xs font-medium text-amber-900 dark:text-amber-200">
                     "Los valores de cotización son únicamente informativos y están sujetos a variaciones según cargo por manejo, peso y/o medidas reales registradas en el momento de la venta. El valor del servicio contraentrega tiene un costo adicional que no está contemplado en esta cotización. El valor del envío puede variar en el momento de la entrega en el punto de venta."
                   </p>
-                  <div className="pt-2 border-t border-amber-300/30 text-[11px] text-barro space-y-1">
+                  <div className="pt-2 border-t border-amber-300 dark:border-amber-700/60 text-xs font-semibold text-amber-950 dark:text-amber-300 space-y-1">
                     <p>• La cotización mostrada es un valor aproximado para tu zona y está a cargo del comprador.</p>
                     <p>• El precio final y punto exacto de despacho se terminará acordando directamente con la vendedora.</p>
                   </div>

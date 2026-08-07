@@ -108,7 +108,7 @@ export function ProductDetailClient({ producto }: ProductDetailProps) {
 
       <div className="flex items-baseline justify-between">
         <div>
-          <span className="text-xs uppercase tracking-wider text-barro font-semibold block">Importe de adopción</span>
+          <span className="text-xs uppercase tracking-wider text-barro font-semibold block">PRECIO DE LA PIEZA</span>
           <p className="text-3xl font-semibold text-chocolate font-serif">{formatPrecio(precio)}</p>
         </div>
       </div>
@@ -130,7 +130,7 @@ export function ProductDetailClient({ producto }: ProductDetailProps) {
             ¡Pieza agregada a tu carrito!
           </span>
         ) : (
-          "Adoptar esta pieza →"
+          "Comprar esta pieza →"
         )}
       </Button>
 

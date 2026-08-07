@@ -65,7 +65,7 @@ export default function CarritoPage() {
         <aside className="lg:col-span-5 sticky top-24">
           <Card className="space-y-6 p-6 rounded-2xl border-border/60 bg-surface shadow-piece">
             <h2 className="text-xl font-medium font-serif text-chocolate border-b border-border/60 pb-3">
-              Resumen de adopción
+              Resumen de tu compra
             </h2>
             <div className="space-y-3 text-sm font-sans">
               <div className="flex justify-between text-chocolate">
