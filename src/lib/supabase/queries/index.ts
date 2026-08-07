@@ -16,6 +16,8 @@ import type {
   ProductoConImagenes,
   ZonaLogistica,
   TipoCatalogo,
+  ConfiguracionEncargos,
+  Encargo,
 } from "@/types";
 
 export async function getCategorias(tipoCatalogo?: TipoCatalogo): Promise<Categoria[]> {
@@ -448,6 +450,62 @@ export async function getHeroProductos(destacadaId?: string | null): Promise<Pro
     .limit(10);
 
   return (latest ?? []) as ProductoConImagenes[];
+}
+
+export async function getConfiguracionEncargos(): Promise<ConfiguracionEncargos> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("configuracion_encargos")
+    .select("*")
+    .limit(1)
+    .single();
+
+  if (error || !data) {
+    return {
+      id: "e2000000-0000-4000-8000-000000000001",
+      medidas_ilustraciones: [
+        { id: "a4", nombre: "A4 (21 x 30 cm)", recargo: 0 },
+        { id: "a3", nombre: "A3 (30 x 42 cm)", recargo: 5000 },
+        { id: "large", nombre: "Grand Format (50 x 70 cm)", recargo: 12000 },
+      ],
+      precio_marco_madera: 8500,
+      porcentaje_recargo_personalizado: 0.15,
+      demora_default_dias: 15,
+    };
+  }
+
+  return data as ConfiguracionEncargos;
+}
+
+export async function getEncargos(estado?: string): Promise<Encargo[]> {
+  const adminClient = createAdminClient();
+  let query = adminClient
+    .from("encargos")
+    .select("*, productos(*, producto_imagenes(*))")
+    .order("created_at", { ascending: false });
+
+  if (estado) {
+    query = query.eq("estado", estado);
+  }
+
+  const { data, error } = await query;
+  if (error) {
+    console.error("getEncargos error:", error);
+    return [];
+  }
+  return (data ?? []) as Encargo[];
+}
+
+export async function getEncargoById(id: string): Promise<Encargo | null> {
+  const adminClient = createAdminClient();
+  const { data, error } = await adminClient
+    .from("encargos")
+    .select("*, productos(*, producto_imagenes(*))")
+    .eq("id", id)
+    .single();
+
+  if (error) return null;
+  return data as Encargo;
 }
 
 

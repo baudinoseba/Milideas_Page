@@ -31,7 +31,11 @@ const navItems = [
     label: "Pedidos",
     icon: "📦",
   },
-
+  {
+    href: "/admin/encargos",
+    label: "Encargos",
+    icon: "📝",
+  },
   {
     href: "/admin/logistica",
     label: "Logística",

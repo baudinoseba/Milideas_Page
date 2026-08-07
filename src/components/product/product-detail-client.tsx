@@ -5,17 +5,12 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { formatPrecio, calcularPrecioUnitario } from "@/lib/pricing";
 import { useCartStore } from "@/stores/cart-store";
+import { EncargoModal } from "@/components/product/encargo-modal";
+import type { ProductoConImagenes, ConfiguracionEncargos } from "@/types";
 
 type ProductDetailProps = {
-  producto: {
-    id: string;
-    slug: string;
-    nombre: string;
-    precioBase: number;
-    esPersonalizable: boolean;
-    stockDisponible: number;
-    imagenUrl: string | null;
-  };
+  producto: ProductoConImagenes;
+  configEncargos?: ConfiguracionEncargos;
 };
 
 function IconTruck() {
@@ -52,16 +47,23 @@ const TRUST_ITEMS = [
   { icon: IconHeart, text: "Pieza única ilustrada por Mili Ferrero" },
 ] as const;
 
-export function ProductDetailClient({ producto }: ProductDetailProps) {
+export function ProductDetailClient({ producto, configEncargos }: ProductDetailProps) {
   const [personalizado, setPersonalizado] = useState(false);
   const [cantidad, setCantidad] = useState(1);
   const [added, setAdded] = useState(false);
+  const [isEncargoOpen, setIsEncargoOpen] = useState(false);
   const addItem = useCartStore((s) => s.addItem);
-  const router = useRouter();
+
+  const precioBase = producto.precio_base;
+  const esPersonalizable = producto.es_personalizable;
+  const stockDisponible = producto.stock_disponible;
+  const esBajoPedido = (producto as any).es_bajo_pedido === true;
+
+  const primerImagen = producto.producto_imagenes?.[0]?.url_imagen ?? null;
 
   const precio = calcularPrecioUnitario(
-    producto.precioBase,
-    producto.esPersonalizable,
+    precioBase,
+    esPersonalizable,
     personalizado,
   );
 
@@ -70,15 +72,15 @@ export function ProductDetailClient({ producto }: ProductDetailProps) {
       productoId: producto.id,
       slug: producto.slug,
       nombre: producto.nombre,
-      imagenUrl: producto.imagenUrl,
-      precioBase: producto.precioBase,
-      esPersonalizable: producto.esPersonalizable,
+      imagenUrl: primerImagen,
+      precioBase: precioBase,
+      esPersonalizable: esPersonalizable,
       personalizado,
-      stockDisponible: producto.stockDisponible,
+      stockDisponible: stockDisponible,
       cantidad,
     });
     setAdded(true);
-  }, [addItem, producto, personalizado, cantidad]);
+  }, [addItem, producto, primerImagen, precioBase, esPersonalizable, personalizado, stockDisponible, cantidad]);
 
   useEffect(() => {
     if (added) {
@@ -87,9 +89,21 @@ export function ProductDetailClient({ producto }: ProductDetailProps) {
     }
   }, [added]);
 
+  const defaultConfig: ConfiguracionEncargos = configEncargos ?? {
+    id: "e2000000-0000-4000-8000-000000000001",
+    medidas_ilustraciones: [
+      { id: "a4", nombre: "A4 (21 x 30 cm)", recargo: 0 },
+      { id: "a3", nombre: "A3 (30 x 42 cm)", recargo: 5000 },
+      { id: "large", nombre: "Grand Format (50 x 70 cm)", recargo: 12000 },
+    ],
+    precio_marco_madera: 8500,
+    porcentaje_recargo_personalizado: 0.15,
+    demora_default_dias: 15,
+  };
+
   return (
     <div className="space-y-6 border-t border-border/60 pt-6">
-      {producto.esPersonalizable && (
+      {esPersonalizable && (
         <label className="flex cursor-pointer items-center gap-3.5 rounded-2xl border border-border/80 bg-arena/30 p-4 text-sm transition-all hover:border-terracota/40">
           <div className="relative">
             <input
@@ -115,29 +129,36 @@ export function ProductDetailClient({ producto }: ProductDetailProps) {
         </div>
 
         <div className="shrink-0">
-          {producto.stockDisponible === 1 ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-800 dark:text-amber-300 border border-amber-500/20">
-              <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
-              ¡Última unidad disponible!
-            </span>
+          {stockDisponible > 0 ? (
+            stockDisponible === 1 ? (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-800 dark:text-amber-300 border border-amber-500/20">
+                <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
+                ¡Última unidad disponible!
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-3.5 py-1 text-xs font-semibold text-emerald-800 dark:text-emerald-300 border border-emerald-500/20">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                📦 {stockDisponible} unidades disponibles
+              </span>
+            )
           ) : (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-3.5 py-1 text-xs font-semibold text-emerald-800 dark:text-emerald-300 border border-emerald-500/20">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-              📦 {producto.stockDisponible} unidades disponibles
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/10 px-3.5 py-1 text-xs font-semibold text-amber-800 dark:text-amber-300 border border-amber-500/20">
+              <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+              🎨 Pieza disponible bajo encargo
             </span>
           )}
         </div>
       </div>
 
       {/* Quantity Stepper Selector (when stock > 1) */}
-      {producto.stockDisponible > 1 && (
+      {stockDisponible > 1 && (
         <div className="space-y-2.5 bg-arena/20 p-4 rounded-2xl border border-border/50">
           <div className="flex items-center justify-between text-xs font-sans">
             <span className="font-semibold uppercase tracking-wider text-barro">
               CANTIDAD A COMPRAR
             </span>
             <span className="text-chocolate font-medium">
-              Máximo: {producto.stockDisponible} unidades
+              Máximo: {stockDisponible} unidades
             </span>
           </div>
 
@@ -157,8 +178,8 @@ export function ProductDetailClient({ producto }: ProductDetailProps) {
               </span>
               <button
                 type="button"
-                onClick={() => setCantidad((c) => Math.min(producto.stockDisponible, c + 1))}
-                disabled={cantidad >= producto.stockDisponible}
+                onClick={() => setCantidad((c) => Math.min(stockDisponible, c + 1))}
+                disabled={cantidad >= stockDisponible}
                 className="flex h-9 w-9 items-center justify-center rounded-lg text-lg font-bold text-chocolate hover:bg-arena/60 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
                 aria-label="Aumentar cantidad"
               >
@@ -175,25 +196,39 @@ export function ProductDetailClient({ producto }: ProductDetailProps) {
         </div>
       )}
 
+      {/* Purchase Button */}
+      {stockDisponible > 0 && (
+        <Button
+          onClick={handleAdd}
+          className={`w-full py-4 text-base font-semibold rounded-full shadow-md transition-all ${
+            added
+              ? "bg-verde-menta text-chocolate hover:bg-verde-menta"
+              : "bg-terracota text-white hover:bg-terracota/90 hover:-translate-y-0.5"
+          }`}
+          disabled={added}
+        >
+          {added ? (
+            <span className="flex items-center justify-center gap-2">
+              <svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="3.5 8.5 6.5 11.5 12.5 5.5" />
+              </svg>
+              ¡{cantidad > 1 ? `${cantidad} piezas agregadas` : "Pieza agregada"} a tu carrito!
+            </span>
+          ) : (
+            `Comprar ${cantidad > 1 ? `${cantidad} piezas` : "esta pieza"} →`
+          )}
+        </Button>
+      )}
+
+      {/* Encargo Special Request Button */}
       <Button
-        onClick={handleAdd}
-        className={`w-full py-4 text-base font-semibold rounded-full shadow-md transition-all ${
-          added
-            ? "bg-verde-menta text-chocolate hover:bg-verde-menta"
-            : "bg-terracota text-white hover:bg-terracota/90 hover:-translate-y-0.5"
-        }`}
-        disabled={added}
+        type="button"
+        variant="outline"
+        onClick={() => setIsEncargoOpen(true)}
+        className="w-full py-3.5 text-sm font-semibold rounded-full border border-admin-accent/30 bg-admin-accent/5 text-chocolate hover:bg-admin-accent/15 transition-all flex items-center justify-center gap-2"
       >
-        {added ? (
-          <span className="flex items-center justify-center gap-2">
-            <svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="3.5 8.5 6.5 11.5 12.5 5.5" />
-            </svg>
-            ¡{cantidad > 1 ? `${cantidad} piezas agregadas` : "Pieza agregada"} a tu carrito!
-          </span>
-        ) : (
-          `Comprar ${cantidad > 1 ? `${cantidad} piezas` : "esta pieza"} →`
-        )}
+        <span>✨</span>
+        <span>{stockDisponible > 0 ? "Solicitar esta pieza por Encargo / Medida Especial" : "Encargar esta pieza a Mili Ferrero"}</span>
       </Button>
 
       {/* Trust indicators */}
@@ -207,7 +242,14 @@ export function ProductDetailClient({ producto }: ProductDetailProps) {
           </div>
         ))}
       </div>
+
+      {/* Modal de Encargo */}
+      <EncargoModal
+        producto={producto}
+        config={defaultConfig}
+        isOpen={isEncargoOpen}
+        onClose={() => setIsEncargoOpen(false)}
+      />
     </div>
   );
 }
-

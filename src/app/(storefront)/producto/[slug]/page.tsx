@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { BackButton } from "@/components/ui/back-button";
 import { formatPrecio } from "@/lib/pricing";
 import { getStockStatus, getStockLabel, puedeComprar } from "@/lib/stock";
-import { getProductoBySlug, getProductoSlugs, getProductos } from "@/lib/supabase/queries";
+import { getProductoBySlug, getProductoSlugs, getProductos, getConfiguracionEncargos } from "@/lib/supabase/queries";
 
 export const revalidate = 60;
 
@@ -48,6 +48,7 @@ export default async function ProductoPage({
 
   const stockStatus = getStockStatus(producto.stock_disponible);
   const comprable = puedeComprar(stockStatus);
+  const configEncargos = await getConfiguracionEncargos().catch(() => undefined);
 
   // Fetch related products from the same category
   const productosRelacionados = producto.categoria_id
@@ -207,21 +208,10 @@ export default async function ProductoPage({
             </div>
           </div>
 
-          {comprable && (
-            <ProductDetailClient
-              producto={{
-                id: producto.id,
-                slug: producto.slug,
-                nombre: producto.nombre,
-                precioBase: producto.precio_base,
-                esPersonalizable: producto.es_personalizable,
-                stockDisponible: producto.stock_disponible,
-                imagenUrl:
-                  producto.producto_imagenes.sort((a, b) => a.orden - b.orden)[0]
-                    ?.url_imagen ?? null,
-              }}
-            />
-          )}
+          <ProductDetailClient
+            producto={producto}
+            configEncargos={configEncargos}
+          />
         </div>
       </div>
 

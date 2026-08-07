@@ -45,6 +45,49 @@ export type Produccion = {
   updated_at: string;
 };
 
+export type EstadoEncargo = "pendiente" | "aceptado" | "en_proceso" | "listo" | "rechazado" | "cancelado";
+
+export type MedidaIlustracion = {
+  id: string;
+  nombre: string;
+  recargo: number;
+};
+
+export type ConfiguracionEncargos = {
+  id: string;
+  medidas_ilustraciones: MedidaIlustracion[];
+  precio_marco_madera: number;
+  porcentaje_recargo_personalizado: number;
+  demora_default_dias: number;
+  updated_at?: string;
+};
+
+export type Encargo = {
+  id: string;
+  producto_id: string | null;
+  nombre_contacto: string;
+  whatsapp_contacto: string;
+  email_contacto: string | null;
+  tipo_catalogo: TipoCatalogo;
+  es_personalizado: boolean;
+  detalle_personalizacion: string | null;
+  medida_seleccionada: string | null;
+  con_marco: boolean;
+  metodo_entrega: string;
+  direccion_envio: any;
+  precio_estimado: number;
+  recargo_personalizado: number;
+  adicional_medida: number;
+  adicional_marco: number;
+  total_estimado: number;
+  estado: EstadoEncargo;
+  demora_estimada_dias: number | null;
+  notas_admin: string | null;
+  created_at: string;
+  updated_at: string;
+  productos?: ProductoConImagenes | null;
+};
+
 
 export type ConfiguracionSitio = {
   id: string;

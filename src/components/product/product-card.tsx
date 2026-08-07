@@ -3,6 +3,7 @@ import { OptimizedImage } from "@/components/ui/optimized-image";
 import { Badge } from "@/components/ui/badge";
 import { formatPrecio } from "@/lib/pricing";
 import { getStockStatus } from "@/lib/stock";
+import { QuickAddToCartButton } from "@/components/product/quick-add-cart-button";
 import type { ProductoConImagenes } from "@/types";
 
 export function ProductCard({ producto }: { producto: ProductoConImagenes }) {
@@ -60,7 +61,7 @@ export function ProductCard({ producto }: { producto: ProductoConImagenes }) {
         </div>
 
         {/* Text info */}
-        <div className="space-y-1 px-1 pb-1">
+        <div className="space-y-2 px-1 pb-1">
           <h3 className="text-base font-medium font-serif leading-tight text-chocolate transition-colors group-hover:text-terracota">
             {producto.nombre}
           </h3>
@@ -71,6 +72,10 @@ export function ProductCard({ producto }: { producto: ProductoConImagenes }) {
                 {producto.categorias.nombre}
               </span>
             )}
+          </div>
+
+          <div className="pt-1">
+            <QuickAddToCartButton producto={producto} />
           </div>
         </div>
       </article>

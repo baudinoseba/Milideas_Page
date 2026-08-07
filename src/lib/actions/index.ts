@@ -1089,3 +1089,135 @@ export async function expirarPedidosVencidosAction(): Promise<{
   return { success: true, count: data ?? 0 };
 }
 
+export async function crearEncargoAction(formData: FormData): Promise<{
+  success: boolean;
+  error?: string;
+  encargoId?: string;
+}> {
+  const supabase = await createClient();
+
+  const productoId = (formData.get("productoId") as string) || null;
+  const nombreContacto = String(formData.get("nombreContacto") || "").trim();
+  const whatsappContacto = String(formData.get("whatsappContacto") || "").trim();
+  const emailContacto = String(formData.get("emailContacto") || "").trim() || null;
+  const tipoCatalogo = (formData.get("tipoCatalogo") as any) || "ceramica";
+  const esPersonalizado = formData.get("esPersonalizado") === "true";
+  const detallePersonalizacion = String(formData.get("detallePersonalizacion") || "").trim() || null;
+  const medidaSeleccionada = String(formData.get("medidaSeleccionada") || "").trim() || null;
+  const conMarco = formData.get("conMarco") === "true";
+  const metodoEntrega = String(formData.get("metodoEntrega") || "taller").trim();
+
+  const precioEstimado = Number(formData.get("precioEstimado")) || 0;
+  const recargoPersonalizado = Number(formData.get("recargoPersonalizado")) || 0;
+  const adicionalMedida = Number(formData.get("adicionalMedida")) || 0;
+  const adicionalMarco = Number(formData.get("adicionalMarco")) || 0;
+  const totalEstimado = Number(formData.get("totalEstimado")) || 0;
+
+  let direccionEnvio = null;
+  if (metodoEntrega === "domicilio") {
+    direccionEnvio = {
+      calle: String(formData.get("calle") || ""),
+      numero: String(formData.get("numero") || ""),
+      ciudad: String(formData.get("ciudad") || ""),
+      codigoPostal: String(formData.get("codigoPostal") || ""),
+      referencia: String(formData.get("referencia") || ""),
+    };
+  } else if (metodoEntrega === "agencia") {
+    direccionEnvio = {
+      ciudad: String(formData.get("ciudad") || ""),
+    };
+  }
+
+  const { data, error } = await supabase
+    .from("encargos")
+    .insert({
+      producto_id: productoId,
+      nombre_contacto: nombreContacto,
+      whatsapp_contacto: whatsappContacto,
+      email_contacto: emailContacto,
+      tipo_catalogo: tipoCatalogo,
+      es_personalizado: esPersonalizado,
+      detalle_personalizacion: detallePersonalizacion,
+      medida_seleccionada: medidaSeleccionada,
+      con_marco: conMarco,
+      metodo_entrega: metodoEntrega,
+      direccion_envio: direccionEnvio,
+      precio_estimado: precioEstimado,
+      recargo_personalizado: recargoPersonalizado,
+      adicional_medida: adicionalMedida,
+      adicional_marco: adicionalMarco,
+      total_estimado: totalEstimado,
+      estado: "pendiente",
+    })
+    .select("id")
+    .single();
+
+  if (error) {
+    return { success: false, error: error.message };
+  }
+
+  revalidatePath("/admin/encargos");
+  return { success: true, encargoId: data.id };
+}
+
+export async function actualizarEstadoEncargoAction(
+  id: string,
+  nuevoEstado: string,
+  demoraDias?: number,
+  notas?: string,
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createClient();
+
+  const payload: any = {
+    estado: nuevoEstado,
+    updated_at: new Date().toISOString(),
+  };
+
+  if (demoraDias != null) payload.demora_estimada_dias = demoraDias;
+  if (notas != null) payload.notas_admin = notas;
+
+  const { error } = await supabase
+    .from("encargos")
+    .update(payload)
+    .eq("id", id);
+
+  if (error) return { success: false, error: error.message };
+
+  revalidatePath("/admin/encargos");
+  return { success: true };
+}
+
+export async function saveConfiguracionEncargosAction(formData: FormData): Promise<{
+  success: boolean;
+  error?: string;
+}> {
+  const supabase = await createClient();
+
+  const medidasRaw = String(formData.get("medidasJson") || "[]");
+  let medidasObj = [];
+  try {
+    medidasObj = JSON.parse(medidasRaw);
+  } catch (e) {}
+
+  const precioMarcoMadera = Number(formData.get("precioMarcoMadera")) || 8500;
+  const porcentajeRecargo = Number(formData.get("porcentajeRecargoPersonalizado")) || 0.15;
+  const demoraDefault = Number(formData.get("demoraDefaultDias")) || 15;
+
+  const { error } = await supabase
+    .from("configuracion_encargos")
+    .upsert({
+      id: "e2000000-0000-4000-8000-000000000001",
+      medidas_ilustraciones: medidasObj,
+      precio_marco_madera: precioMarcoMadera,
+      porcentaje_recargo_personalizado: porcentajeRecargo,
+      demora_default_dias: demoraDefault,
+      updated_at: new Date().toISOString(),
+    });
+
+  if (error) return { success: false, error: error.message };
+
+  revalidatePath("/admin/encargos/configuracion");
+  revalidatePath("/catalogo");
+  return { success: true };
+}
+
