@@ -14,6 +14,8 @@ const estadoLabels: Record<string, string> = {
   cancelado: "Cancelado",
 };
 
+import { BackButton } from "@/components/ui/back-button";
+
 export default async function PedidosPage() {
   const supabase = await createClient();
   const {
@@ -25,6 +27,9 @@ export default async function PedidosPage() {
 
   return (
     <div>
+      <div className="mb-4">
+        <BackButton fallbackHref="/cuenta/perfil">Volver al perfil</BackButton>
+      </div>
       <h1 className="mb-6 text-xl font-medium">Mis pedidos</h1>
       {pedidos.length === 0 ? (
         <p className="text-muted">Aún no tenés pedidos.</p>

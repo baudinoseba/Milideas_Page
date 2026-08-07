@@ -2,7 +2,7 @@ import Link from "next/link";
 import { OptimizedImage } from "@/components/ui/optimized-image";
 import { Badge } from "@/components/ui/badge";
 import { formatPrecio } from "@/lib/pricing";
-import { getStockStatus, getStockLabel } from "@/lib/stock";
+import { getStockStatus } from "@/lib/stock";
 import type { ProductoConImagenes } from "@/types";
 
 export function ProductCard({ producto }: { producto: ProductoConImagenes }) {
@@ -11,24 +11,63 @@ export function ProductCard({ producto }: { producto: ProductoConImagenes }) {
 
   return (
     <Link href={`/producto/${producto.slug}`} className="group block">
-      <article>
-        <OptimizedImage
-          src={imagen?.url_imagen ?? "https://placehold.co/800x800"}
-          alt={producto.nombre}
-          className="mb-3 transition-opacity group-hover:opacity-90"
-        />
-        <div className="space-y-1">
-          <h3 className="text-sm font-medium">{producto.nombre}</h3>
-          <p className="text-sm text-muted">{formatPrecio(producto.precio_base)}</p>
-          <div className="flex flex-wrap gap-1">
+      <article
+        className="space-y-3 rounded-2xl border border-border/50 bg-surface p-3 transition-all duration-300 hover:-translate-y-1 hover:border-border hover:shadow-piece"
+        style={{ boxShadow: "var(--shadow-subtle)" }}
+      >
+        {/* Image container — Full coverage with rounded corners */}
+        <div className="relative overflow-hidden rounded-xl aspect-[4/5] w-full bg-surface/50">
+          <OptimizedImage
+            src={imagen?.url_imagen ?? "https://placehold.co/800x800"}
+            alt={producto.nombre}
+            aspectRatio="none"
+            objectFit="cover"
+            className="h-full w-full object-cover rounded-xl transition-transform duration-500 ease-out group-hover:scale-[1.03]"
+          />
+          {/* Badges overlay */}
+          <div className="absolute left-2.5 top-2.5 flex flex-col gap-1.5 z-10">
             {producto.es_entrega_inmediata && (
-              <Badge variant="success">Entrega inmediata</Badge>
+              <Badge variant="success" className="shadow-sm bg-surface/90 text-terracota border border-terracota/20 backdrop-blur-md text-[11px] font-medium">
+                Entrega inmediata
+              </Badge>
             )}
             {stockStatus === "bajo_pedido" && (
-              <Badge variant="warning">Bajo pedido</Badge>
+              <Badge variant="warning" className="shadow-sm bg-surface/90 text-chocolate border border-barro-claro backdrop-blur-md text-[11px] font-medium">
+                Bajo pedido
+              </Badge>
             )}
-            {stockStatus === "no_disponible" && (
-              <Badge variant="muted">{getStockLabel(stockStatus)}</Badge>
+          </div>
+
+          {/* Urgency indicator */}
+          {producto.stock_disponible > 0 && producto.stock_disponible <= 2 && (
+            <div className="absolute bottom-2.5 left-2.5 right-2.5 z-10">
+              <span className="inline-flex w-full items-center justify-center gap-1.5 rounded-full bg-chocolate/90 px-3 py-1.5 text-[11px] font-medium text-crema-cruda shadow-sm backdrop-blur-md">
+                <span className="h-1.5 w-1.5 rounded-full bg-amarillo-sol animate-pulse" />
+                {producto.stock_disponible === 1 ? "¡Última unidad!" : `Solo quedan ${producto.stock_disponible}`}
+              </span>
+            </div>
+          )}
+
+          {stockStatus === "no_disponible" && (
+            <div className="absolute inset-0 flex items-center justify-center bg-chocolate/40 backdrop-blur-[2px] z-10">
+              <span className="rounded-full bg-surface/90 px-3 py-1 text-xs font-semibold text-chocolate shadow-sm">
+                Encontró su hogar (Agotado)
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Text info */}
+        <div className="space-y-1 px-1 pb-1">
+          <h3 className="text-base font-medium font-serif leading-tight text-chocolate transition-colors group-hover:text-terracota">
+            {producto.nombre}
+          </h3>
+          <div className="flex items-center justify-between pt-0.5">
+            <p className="text-sm font-semibold font-sans text-chocolate">{formatPrecio(producto.precio_base)}</p>
+            {producto.categorias && (
+              <span className="text-[11px] font-medium text-barro font-sans">
+                {producto.categorias.nombre}
+              </span>
             )}
           </div>
         </div>
@@ -36,3 +75,4 @@ export function ProductCard({ producto }: { producto: ProductoConImagenes }) {
     </Link>
   );
 }
+

@@ -4,6 +4,8 @@ import { getPedidoById } from "@/lib/supabase/queries";
 import { formatPrecio } from "@/lib/pricing";
 import type { PedidoConItems } from "@/types";
 
+import { BackButton } from "@/components/ui/back-button";
+
 export default async function PedidoDetallePage({
   params,
 }: {
@@ -23,6 +25,9 @@ export default async function PedidoDetallePage({
 
   return (
     <div className="max-w-lg space-y-6">
+      <div className="mb-4">
+        <BackButton fallbackHref="/cuenta/pedidos">Volver a mis pedidos</BackButton>
+      </div>
       <h1 className="text-xl font-medium">Pedido #{p.id.slice(0, 8)}</h1>
       <div className="space-y-2 text-sm">
         <div className="flex justify-between">

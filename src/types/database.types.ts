@@ -178,6 +178,16 @@ export type Database = {
           es_admin: boolean;
           created_at: string;
           updated_at: string;
+          nombre_usuario: string | null;
+          dni: string | null;
+          direccion_calle: string | null;
+          direccion_numero: string | null;
+          direccion_piso: string | null;
+          direccion_depto: string | null;
+          direccion_ciudad: string | null;
+          direccion_provincia: string | null;
+          direccion_codigo_postal: string | null;
+          direccion_referencia: string | null;
         };
         Insert: {
           id: string;
@@ -186,6 +196,16 @@ export type Database = {
           es_admin?: boolean;
           created_at?: string;
           updated_at?: string;
+          nombre_usuario?: string | null;
+          dni?: string | null;
+          direccion_calle?: string | null;
+          direccion_numero?: string | null;
+          direccion_piso?: string | null;
+          direccion_depto?: string | null;
+          direccion_ciudad?: string | null;
+          direccion_provincia?: string | null;
+          direccion_codigo_postal?: string | null;
+          direccion_referencia?: string | null;
         };
         Update: {
           id?: string;
@@ -194,6 +214,16 @@ export type Database = {
           es_admin?: boolean;
           created_at?: string;
           updated_at?: string;
+          nombre_usuario?: string | null;
+          dni?: string | null;
+          direccion_calle?: string | null;
+          direccion_numero?: string | null;
+          direccion_piso?: string | null;
+          direccion_depto?: string | null;
+          direccion_ciudad?: string | null;
+          direccion_provincia?: string | null;
+          direccion_codigo_postal?: string | null;
+          direccion_referencia?: string | null;
         };
         Relationships: [];
       };

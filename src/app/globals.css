@@ -1,13 +1,105 @@
 @import "tailwindcss";
 
 :root {
-  --background: #fafaf9;
-  --foreground: #1c1917;
-  --muted: #78716c;
-  --border: #e7e5e4;
+  /* ═══ 1. Familia Arcilla (Fondos y Superficies) ═══ */
+  --crema-cruda: #FFF8F0;
+  --arena: #F5EDE3;
+  --lino: #EDE4D8;
+  --barro-claro: #D4C4B0;
+  --barro: #8B7355;
+  --chocolate: #3D2B1F;
+  --noche-taller: #1E1710;
+
+  /* ═══ 2. Familia Esmalte (Acentos y Personalidad) ═══ */
+  --rosa-buho: #E8A4A0;
+  --verde-menta: #A8D5BA;
+  --celeste-bandera: #7EC8DB;
+  --amarillo-sol: #F5C842;
+  --durazno: #F2C4A0;
+
+  /* ═══ 3. Familia Tierra (Profundidad) ═══ */
+  --terracota: #C67D4E;
+  --teal-botanica: #1A5E63;
+  --magenta-flor: #C2387A;
+  --ocre: #D4A843;
+
+  /* ═══ Mapeo Semántico UI (Modo Claro) ═══ */
+  --background: var(--crema-cruda);
+  --foreground: var(--chocolate);
+  --muted: var(--barro);
+  --border: rgba(212, 196, 176, 0.4);
   --surface: #ffffff;
-  --accent: #44403c;
+  
+  --primary: var(--terracota);
+  --primary-foreground: #ffffff;
+  --primary-hover: #b0693a;
+  
+  --secondary: var(--arena);
+  --secondary-foreground: var(--chocolate);
+  --secondary-hover: var(--lino);
+  
+  --accent: var(--rosa-buho);
+  --accent-hover: #e0908b;
+
+  --ring: var(--rosa-buho);
+
+  /* Elevation (Soft, organic chocolate-based shadows) */
+  --shadow-sm: 0 1px 3px rgba(61, 43, 31, 0.04), 0 1px 2px rgba(61, 43, 31, 0.03);
+  --shadow-md: 0 4px 12px rgba(61, 43, 31, 0.06), 0 2px 4px rgba(61, 43, 31, 0.03);
+  --shadow-lg: 0 10px 25px rgba(61, 43, 31, 0.08), 0 4px 10px rgba(61, 43, 31, 0.04);
+  --shadow-piece: 0 12px 32px rgba(61, 43, 31, 0.12);
+
+  /* Radius */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-full: 9999px;
+
+  /* Admin theme */
+  --admin-sidebar: var(--chocolate);
+  --admin-sidebar-hover: #2e2017;
+  --admin-sidebar-text: var(--arena);
+  --admin-sidebar-active: var(--crema-cruda);
+  --admin-accent: var(--terracota);
+  --admin-accent-hover: #b0693a;
+  --admin-success: #2D6A4F;
+  --admin-danger: #B44A3E;
 }
+
+.dark {
+  /* ═══ Mapeo Semántico UI (Modo Oscuro Noche Taller / Galería Botánica Profunda) ═══ */
+  --crema-cruda: #0E1A16;
+  --arena: #162621;
+  --lino: #1F332C;
+  --barro-claro: #324D44;
+  --barro: #9BB8AE;
+  --chocolate: #F5EDE3;
+  --noche-taller: #09120F;
+
+  --background: #0C1714;
+  --foreground: #F5EDE3;
+  --muted: #9BB8AE;
+  --border: rgba(168, 213, 186, 0.15);
+  --surface: #14241F;
+  
+  --primary: #D48C5B;
+  --primary-foreground: #ffffff;
+  --primary-hover: #c47c4b;
+  
+  --secondary: #162621;
+  --secondary-foreground: #F5EDE3;
+  --secondary-hover: #1F332C;
+  
+  --accent: #E8A4A0;
+  --ring: #A8D5BA;
+
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.5);
+  --shadow-piece: 0 16px 40px rgba(0, 0, 0, 0.6);
+}
+
 
 @theme inline {
   --color-background: var(--background);
@@ -16,8 +108,39 @@
   --color-border: var(--border);
   --color-surface: var(--surface);
   --color-accent: var(--accent);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-hover: var(--primary-hover);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary-hover: var(--secondary-hover);
+  --color-accent-hover: var(--accent-hover);
+  --color-ring: var(--ring);
+
+  --color-crema-cruda: var(--crema-cruda);
+  --color-arena: var(--arena);
+  --color-lino: var(--lino);
+  --color-barro: var(--barro);
+  --color-chocolate: var(--chocolate);
+  --color-rosa-buho: var(--rosa-buho);
+  --color-verde-menta: var(--verde-menta);
+  --color-celeste-bandera: var(--celeste-bandera);
+  --color-amarillo-sol: var(--amarillo-sol);
+  --color-durazno: var(--durazno);
+  --color-terracota: var(--terracota);
+  
+  --color-admin-sidebar: var(--admin-sidebar);
+  --color-admin-sidebar-hover: var(--admin-sidebar-hover);
+  --color-admin-sidebar-text: var(--admin-sidebar-text);
+  --color-admin-sidebar-active: var(--admin-sidebar-active);
+  --color-admin-accent: var(--admin-accent);
+  --color-admin-accent-hover: var(--admin-accent-hover);
+  --color-admin-success: var(--admin-success);
+  --color-admin-danger: var(--admin-danger);
+
+  --font-sans: var(--font-dm-sans), system-ui, sans-serif;
+  --font-serif: var(--font-recoleta), Georgia, serif;
+  --font-handwritten: var(--font-caveat), cursive;
 }
 
 * {
@@ -31,11 +154,202 @@ html {
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  font-family: var(--font-sans), system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-serif), Georgia, serif;
+}
+
+
+::selection {
+  background: color-mix(in srgb, var(--foreground) 12%, transparent);
 }
 
 :focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
+}
+
+/* Shimmer skeleton animation */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--border) 25%,
+    color-mix(in srgb, var(--border) 40%, var(--surface)) 50%,
+    var(--border) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.8s ease-in-out infinite;
+}
+
+/* Cart badge bounce */
+@keyframes badge-pop {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.3); }
+  100% { transform: scale(1); }
+}
+
+.badge-pop {
+  animation: badge-pop 0.3s ease-out;
+}
+
+/* Fade-in utility */
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.4s ease-out both;
+}
+
+/* Slide-in from right for drawer */
+@keyframes slide-in-right {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes slide-out-right {
+  from { transform: translateX(0); }
+  to { transform: translateX(100%); }
+}
+
+/* Backdrop fade */
+@keyframes backdrop-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-backdrop-in {
+  animation: backdrop-in 0.2s ease-out both;
+}
+
+/* Admin dropzone */
+.admin-dropzone {
+  border: 2px dashed var(--border);
+  border-radius: 0.5rem;
+  padding: 2rem;
+  text-align: center;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.admin-dropzone:hover,
+.admin-dropzone.dragging {
+  border-color: var(--admin-accent);
+  background: color-mix(in srgb, var(--admin-accent) 5%, transparent);
+}
+
+/* Admin quick action cards */
+.admin-action-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1.5rem 1rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-decoration: none;
+  color: var(--foreground);
+}
+
+.admin-action-card:hover {
+  border-color: var(--admin-accent);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--admin-accent) 10%, transparent);
+  transform: translateY(-2px);
+}
+
+.admin-action-card .action-icon {
+  width: 2.5rem;
+  height: 2.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.5rem;
+  font-size: 1.25rem;
+  background: color-mix(in srgb, var(--admin-accent) 10%, transparent);
+}
+
+/* Admin stat card */
+.admin-stat {
+  padding: 1.25rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.admin-stat .stat-value {
+  font-size: 2rem;
+  font-weight: 600;
+  line-height: 1;
+  margin-top: 0.5rem;
+}
+
+/* Timeline */
+.admin-timeline {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+.admin-timeline-step {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+}
+
+.admin-timeline-step .step-dot {
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.625rem;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.admin-timeline-step.completed .step-dot {
+  background: var(--admin-success);
+  color: white;
+}
+
+.admin-timeline-step.current .step-dot {
+  background: var(--admin-accent);
+  color: white;
+}
+
+.admin-timeline-step.pending .step-dot {
+  background: var(--border);
+  color: var(--muted);
+}
+
+.admin-timeline-connector {
+  width: 2rem;
+  height: 2px;
+  flex-shrink: 0;
+}
+
+.admin-timeline-connector.completed {
+  background: var(--admin-success);
+}
+
+.admin-timeline-connector.pending {
+  background: var(--border);
 }

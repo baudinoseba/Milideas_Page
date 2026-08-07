@@ -9,6 +9,8 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { registroAction } from "@/lib/actions";
 
+import { BackButton } from "@/components/ui/back-button";
+
 export default function RegistroPage() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -23,13 +25,16 @@ export default function RegistroPage() {
         setError(result.error);
         return;
       }
-      router.push("/cuenta/perfil");
+      router.push("/");
       router.refresh();
     });
   };
 
   return (
     <div className="mx-auto max-w-sm">
+      <div className="mb-4">
+        <BackButton fallbackHref="/login">Volver</BackButton>
+      </div>
       <Card>
         <h1 className="mb-6 text-xl font-medium">Crear cuenta</h1>
         <form onSubmit={handleSubmit} className="space-y-4">

@@ -12,10 +12,33 @@ export type ItemPedido = Tables<"items_pedido">;
 export type Perfil = Tables<"perfiles">;
 export type ZonaLogistica = Tables<"configuracion_logistica">;
 
+export type Produccion = {
+  id: string;
+  nombre: string;
+  descripcion: string | null;
+  fecha_lanzamiento: string | null;
+  activa: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+
+export type ConfiguracionSitio = {
+  id: string;
+  logo_url: string | null;
+  hero_titulo: string;
+  hero_subtitulo: string;
+  hero_imagen_url: string | null;
+  coleccion_destacada_id: string | null;
+  updated_at?: string;
+};
+
 export type ProductoConImagenes = Producto & {
   producto_imagenes: ProductoImagen[];
   categorias: Categoria | null;
+  producciones?: Produccion | null;
 };
+
 
 export type PedidoConItems = Pedido & {
   items_pedido: (ItemPedido & { productos: Producto | null })[];

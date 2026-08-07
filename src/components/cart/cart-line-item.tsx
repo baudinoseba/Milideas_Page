@@ -25,52 +25,68 @@ export function CartLineItem({
   );
 
   return (
-    <li className="flex gap-3 border-b border-border pb-4">
-      {item.imagenUrl && (
-        <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-sm bg-border/30">
-          <Image src={item.imagenUrl} alt={item.nombre} fill className="object-cover" sizes="64px" />
+    <li className="flex gap-3.5 border-b border-border pb-4 transition-all">
+      <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-border/20">
+        <Image
+          src={item.imagenUrl || "https://placehold.co/800x800"}
+          alt={item.nombre}
+          fill
+          className="object-cover"
+          sizes="80px"
+        />
+      </div>
+      <div className="flex flex-1 flex-col justify-between py-0.5">
+        <div>
+          <div className="flex items-start justify-between gap-2">
+            <Link href={`/producto/${item.slug}`} className="text-sm font-medium hover:underline">
+              {item.nombre}
+            </Link>
+            <button
+              type="button"
+              onClick={() => removeItem(item.productoId)}
+              className="text-xs text-muted hover:text-red-600 transition-colors p-1 -mr-1"
+              aria-label={`Quitar ${item.nombre}`}
+            >
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <path d="M4 4l8 8M12 4l-8 8" />
+              </svg>
+            </button>
+          </div>
+          <p className="text-sm font-medium text-muted mt-0.5">{formatPrecio(unitario)}</p>
+          {item.esPersonalizable && !compact && (
+            <label className="mt-1 flex cursor-pointer items-center gap-2 text-xs text-muted hover:text-foreground">
+              <input
+                type="checkbox"
+                checked={item.personalizado}
+                onChange={() => togglePersonalizacion(item.productoId)}
+                className="h-3.5 w-3.5 rounded border-border text-foreground focus:ring-0"
+              />
+              <span>Personalizar (+15%)</span>
+            </label>
+          )}
         </div>
-      )}
-      <div className="flex flex-1 flex-col gap-2">
-        <div className="flex justify-between gap-2">
-          <Link href={`/producto/${item.slug}`} className="text-sm font-medium">
-            {item.nombre}
-          </Link>
-          <button
-            type="button"
-            onClick={() => removeItem(item.productoId)}
-            className="text-xs text-muted hover:text-foreground"
-          >
-            Quitar
-          </button>
-        </div>
-        <p className="text-sm text-muted">{formatPrecio(unitario)}</p>
-        {item.esPersonalizable && !compact && (
-          <label className="flex items-center gap-2 text-xs">
-            <input
-              type="checkbox"
-              checked={item.personalizado}
-              onChange={() => togglePersonalizacion(item.productoId)}
-            />
-            Personalizar (+15%)
-          </label>
-        )}
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            className="min-h-8 px-2"
-            onClick={() => updateQty(item.productoId, item.cantidad - 1)}
-          >
-            −
-          </Button>
-          <span className="w-6 text-center text-sm">{item.cantidad}</span>
-          <Button
-            variant="outline"
-            className="min-h-8 px-2"
-            onClick={() => updateQty(item.productoId, item.cantidad + 1)}
-          >
-            +
-          </Button>
+
+        {/* Quantity Controls with improved touch targets */}
+        <div className="mt-2 flex items-center gap-2">
+          <div className="flex items-center rounded-lg border border-border bg-background">
+            <button
+              type="button"
+              className="flex h-8 w-8 items-center justify-center text-sm font-medium transition-colors hover:bg-border/40 active:scale-95 disabled:opacity-30"
+              onClick={() => updateQty(item.productoId, item.cantidad - 1)}
+              aria-label="Disminuir cantidad"
+            >
+              −
+            </button>
+            <span className="w-8 text-center text-xs font-semibold">{item.cantidad}</span>
+            <button
+              type="button"
+              className="flex h-8 w-8 items-center justify-center text-sm font-medium transition-colors hover:bg-border/40 active:scale-95"
+              onClick={() => updateQty(item.productoId, item.cantidad + 1)}
+              aria-label="Aumentar cantidad"
+            >
+              +
+            </button>
+          </div>
         </div>
       </div>
     </li>

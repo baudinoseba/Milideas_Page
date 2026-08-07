@@ -9,6 +9,8 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { loginAction } from "@/lib/actions";
 
+import { BackButton } from "@/components/ui/back-button";
+
 export default function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -32,6 +34,9 @@ export default function LoginForm() {
 
   return (
     <div className="mx-auto max-w-sm">
+      <div className="mb-4">
+        <BackButton fallbackHref="/">Volver a la tienda</BackButton>
+      </div>
       <Card>
         <h1 className="mb-6 text-xl font-medium">Iniciar sesión</h1>
         <form onSubmit={handleSubmit} className="space-y-4">

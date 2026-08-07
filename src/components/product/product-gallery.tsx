@@ -15,29 +15,38 @@ export function ProductGallery({ imagenes }: { imagenes: ProductoImagen[] }) {
       <OptimizedImage
         src="https://placehold.co/800x800"
         alt="Sin imagen"
-        className="w-full"
+        className="w-full rounded-xl"
       />
     );
   }
 
   return (
     <div className="space-y-3">
-      <OptimizedImage
-        src={current.url_imagen}
-        alt="Imagen del producto"
-        className="w-full"
-        priority
-      />
+      {/* Main image with fade transition and uncropped containment */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-crema-cruda to-arena/60 aspect-[4/5] sm:h-[440px] flex items-center justify-center p-4">
+        <OptimizedImage
+          key={current.id}
+          src={current.url_imagen}
+          alt="Imagen del producto"
+          aspectRatio="none"
+          objectFit="contain"
+          className="animate-fade-in h-full w-full"
+          priority
+        />
+      </div>
+      {/* Thumbnails */}
       {sorted.length > 1 && (
-        <div className="flex gap-2 overflow-x-auto pb-1">
+        <div className="flex gap-2.5 overflow-x-auto pb-1">
           {sorted.map((img, i) => (
             <button
               key={img.id}
               type="button"
               onClick={() => setActive(i)}
               className={cn(
-                "relative h-16 w-16 shrink-0 overflow-hidden rounded-sm border",
-                i === active ? "border-foreground" : "border-border",
+                "relative h-16 w-16 shrink-0 overflow-hidden rounded-lg border-2 transition-all duration-200",
+                i === active
+                  ? "border-foreground ring-1 ring-foreground/20"
+                  : "border-transparent opacity-60 hover:opacity-100",
               )}
             >
               <OptimizedImage

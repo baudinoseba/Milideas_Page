@@ -10,9 +10,10 @@ export function Card({
   return (
     <div
       className={cn(
-        "rounded-sm border border-border bg-surface p-4 sm:p-6",
+        "rounded-xl border border-border bg-surface p-4 shadow-sm sm:p-6",
         className,
       )}
+      style={{ boxShadow: "var(--shadow-sm)" }}
     >
       {children}
     </div>

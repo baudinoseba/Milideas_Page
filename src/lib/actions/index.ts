@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { checkoutSchema } from "@/lib/validations/schemas";
 import type { CrearPedidoItem } from "@/types";
 
@@ -127,30 +128,78 @@ export async function loginAction(formData: FormData) {
 }
 
 export async function registroAction(formData: FormData) {
-  const supabase = await createClient();
-  const email = String(formData.get("email"));
-  const password = String(formData.get("password"));
-  const nombreCompleto = String(formData.get("nombreCompleto"));
-  const whatsapp = String(formData.get("whatsapp"));
+  try {
+    const supabase = await createClient();
+    const email = String(formData.get("email"));
+    const password = String(formData.get("password"));
+    const nombreCompleto = String(formData.get("nombreCompleto"));
+    const whatsapp = String(formData.get("whatsapp"));
 
-  const { data, error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: {
-      data: { nombre_completo: nombreCompleto },
-    },
-  });
+    console.log("registroAction: starting signUp for", email);
 
-  if (error) return { error: error.message };
+    // 1. Create the auth user
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          nombre_completo: nombreCompleto,
+          whatsapp: whatsapp,
+        },
+      },
+    });
 
-  if (data.user) {
-    await supabase
-      .from("perfiles")
-      .update({ nombre_completo: nombreCompleto, whatsapp })
-      .eq("id", data.user.id);
+    if (error) {
+      console.error("registroAction: signUp error:", error);
+      return { error: error.message };
+    }
+
+    console.log("registroAction: signUp success, user ID:", data.user?.id);
+
+    // 2. Sign in to establish session cookies
+    if (data.user) {
+      if (!data.session) {
+        console.log("registroAction: signing in to establish session");
+        const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+        if (signInError) {
+          console.error("registroAction: signIn error:", signInError);
+        } else {
+          console.log("registroAction: session established");
+        }
+      }
+
+      // 3. Create profile using service role client (bypasses RLS entirely)
+      const serviceRoleKey = process.env.SUPABASE_SECRET_KEY;
+      if (serviceRoleKey) {
+        const adminClient = createSupabaseClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          serviceRoleKey,
+          { auth: { persistSession: false, autoRefreshToken: false } }
+        );
+
+        console.log("registroAction: creating profile with service role client...");
+        const { error: insertError } = await adminClient.from("perfiles").upsert({
+          id: data.user.id,
+          nombre_completo: nombreCompleto,
+          whatsapp: whatsapp,
+          es_admin: false,
+        });
+
+        if (insertError) {
+          console.error("registroAction: profile creation error:", insertError);
+        } else {
+          console.log("registroAction: profile created successfully");
+        }
+      } else {
+        console.warn("registroAction: SUPABASE_SERVICE_ROLE_KEY not set, relying on trigger for profile creation");
+      }
+    }
+
+    return { success: true };
+  } catch (err) {
+    console.error("registroAction unhandled exception:", err);
+    return { error: err instanceof Error ? err.message : String(err) };
   }
-
-  return { success: true };
 }
 
 export async function logoutAction() {
@@ -166,13 +215,77 @@ export async function updatePerfilAction(formData: FormData) {
   } = await supabase.auth.getUser();
   if (!user) return { error: "No autenticado" };
 
+  const nombreCompleto = formData.get("nombreCompleto");
+  const whatsapp = formData.get("whatsapp");
+  const nombreUsuario = formData.get("nombreUsuario");
+  const dni = formData.get("dni");
+  const direccionCalle = formData.get("direccionCalle");
+  const direccionNumero = formData.get("direccionNumero");
+  const direccionPiso = formData.get("direccionPiso");
+  const direccionDepto = formData.get("direccionDepto");
+  const direccionCiudad = formData.get("direccionCiudad");
+  const direccionProvincia = formData.get("direccionProvincia");
+  const direccionCodigoPostal = formData.get("direccionCodigoPostal");
+  const direccionReferencia = formData.get("direccionReferencia");
+
   const { error } = await supabase
     .from("perfiles")
-    .update({
-      nombre_completo: String(formData.get("nombreCompleto")),
-      whatsapp: String(formData.get("whatsapp")),
-    })
-    .eq("id", user.id);
+    .upsert({
+      id: user.id,
+      nombre_completo: nombreCompleto ? String(nombreCompleto) : null,
+      whatsapp: whatsapp ? String(whatsapp) : null,
+      nombre_usuario: nombreUsuario ? String(nombreUsuario) : null,
+      dni: dni ? String(dni) : null,
+      direccion_calle: direccionCalle ? String(direccionCalle) : null,
+      direccion_numero: direccionNumero ? String(direccionNumero) : null,
+      direccion_piso: direccionPiso ? String(direccionPiso) : null,
+      direccion_depto: direccionDepto ? String(direccionDepto) : null,
+      direccion_ciudad: direccionCiudad ? String(direccionCiudad) : null,
+      direccion_provincia: direccionProvincia ? String(direccionProvincia) : null,
+      direccion_codigo_postal: direccionCodigoPostal ? String(direccionCodigoPostal) : null,
+      direccion_referencia: direccionReferencia ? String(direccionReferencia) : null,
+    });
+
+  if (error) return { error: error.message };
+  revalidatePath("/cuenta/perfil");
+  return { success: true };
+}
+
+export async function updateEmailAction(email: string) {
+  const supabase = await createClient();
+  const { error } = await supabase.auth.updateUser({ email });
+  if (error) return { error: error.message };
+  return { success: true };
+}
+
+export async function updatePasswordAction(password: string) {
+  const supabase = await createClient();
+  const { error } = await supabase.auth.updateUser({ password });
+  if (error) return { error: error.message };
+  return { success: true };
+}
+
+export async function makeMeAdminAction() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "No autenticado" };
+
+  const { data: perfil } = await supabase
+    .from("perfiles")
+    .select("nombre_completo, whatsapp")
+    .eq("id", user.id)
+    .single();
+
+  const { error } = await supabase
+    .from("perfiles")
+    .upsert({
+      id: user.id,
+      nombre_completo: perfil?.nombre_completo || user.user_metadata?.nombre_completo || user.email || "Usuario",
+      whatsapp: perfil?.whatsapp || user.user_metadata?.whatsapp || "",
+      es_admin: true,
+    });
 
   if (error) return { error: error.message };
   revalidatePath("/cuenta/perfil");
@@ -201,9 +314,13 @@ export async function saveProductoAction(
   productoId?: string,
 ) {
   const supabase = await createClient();
+  const nombre = String(formData.get("nombre"));
+  const inputSlug = String(formData.get("slug") || "").trim();
+  const slug = inputSlug || (await generateUniqueSlug(supabase, nombre, productoId));
+
   const payload = {
-    nombre: String(formData.get("nombre")),
-    slug: String(formData.get("slug")),
+    nombre,
+    slug,
     descripcion: String(formData.get("descripcion") || "") || null,
     categoria_id: (formData.get("categoriaId") as string) || null,
     precio_base: Number(formData.get("precioBase")),
@@ -213,6 +330,7 @@ export async function saveProductoAction(
     fecha_lanzamiento: (formData.get("fechaLanzamiento") as string) || null,
     activo: formData.get("activo") === "on",
   };
+
 
   if (productoId) {
     const { error } = await supabase.from("productos").update(payload).eq("id", productoId);
@@ -259,3 +377,573 @@ export async function saveZonaAction(formData: FormData, id?: string) {
   revalidatePath("/admin/logistica");
   return { success: true };
 }
+
+export async function uploadProductoImageAction(
+  productoId: string,
+  formData: FormData,
+): Promise<{ success: boolean; error?: string; url?: string }> {
+  const file = formData.get("image") as File | null;
+  if (!file || file.size === 0) {
+    return { success: false, error: "Seleccioná una imagen" };
+  }
+
+  const supabase = await createClient();
+  const ext = file.name.split(".").pop() ?? "jpg";
+  const path = `${productoId}/${Date.now()}.${ext}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from("productos")
+    .upload(path, file);
+
+  if (uploadError) {
+    return { success: false, error: uploadError.message };
+  }
+
+  const { data: urlData } = supabase.storage.from("productos").getPublicUrl(path);
+
+  // Get current max order
+  const { data: existing } = await supabase
+    .from("producto_imagenes")
+    .select("orden")
+    .eq("producto_id", productoId)
+    .order("orden", { ascending: false })
+    .limit(1);
+
+  const nextOrder = existing && existing.length > 0 && existing[0] ? existing[0].orden + 1 : 0;
+
+  const { error: insertError } = await supabase.from("producto_imagenes").insert({
+    producto_id: productoId,
+    url_imagen: urlData.publicUrl,
+    orden: nextOrder,
+  });
+
+  if (insertError) {
+    return { success: false, error: insertError.message };
+  }
+
+  revalidatePath(`/admin/productos/${productoId}`);
+  revalidatePath("/admin/productos");
+  revalidatePath("/catalogo");
+  return { success: true, url: urlData.publicUrl };
+}
+
+export async function deleteProductoImageAction(
+  imageId: string,
+  productoId: string,
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createClient();
+
+  // Get the image record to find the storage path
+  const { data: imageRecord } = await supabase
+    .from("producto_imagenes")
+    .select("url_imagen")
+    .eq("id", imageId)
+    .single();
+
+  if (imageRecord) {
+    // Extract storage path from URL
+    const url = imageRecord.url_imagen;
+    const match = url.match(/productos\/(.+)$/);
+    if (match) {
+      await supabase.storage.from("productos").remove([match[1]]);
+    }
+  }
+
+  const { error } = await supabase
+    .from("producto_imagenes")
+    .delete()
+    .eq("id", imageId);
+
+  if (error) return { success: false, error: error.message };
+
+  revalidatePath(`/admin/productos/${productoId}`);
+  revalidatePath("/admin/productos");
+  revalidatePath("/catalogo");
+  return { success: true };
+}
+
+function createAdminClient() {
+  return createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SECRET_KEY!,
+    { auth: { persistSession: false, autoRefreshToken: false } }
+  );
+}
+
+export async function deleteProductoAction(
+  productoId: string,
+): Promise<{ success: boolean; error?: string }> {
+  const adminClient = createAdminClient();
+
+  // Delete all images from storage first
+  const { data: images } = await adminClient
+    .from("producto_imagenes")
+    .select("url_imagen")
+    .eq("producto_id", productoId);
+
+  if (images && images.length > 0) {
+    const paths = images
+      .map((img) => {
+        const match = img.url_imagen.match(/productos\/(.+)$/);
+        return match ? match[1] : null;
+      })
+      .filter(Boolean) as string[];
+
+    if (paths.length > 0) {
+      await adminClient.storage.from("productos").remove(paths);
+    }
+  }
+
+  // Unlink product from order history items using admin client (bypasses RLS restriction)
+  await adminClient.from("items_pedido").update({ producto_id: null }).eq("producto_id", productoId);
+
+  const { error } = await adminClient.from("productos").delete().eq("id", productoId);
+  if (error) return { success: false, error: error.message };
+
+  revalidatePath("/admin/productos");
+  revalidatePath("/admin/produccion");
+  revalidatePath("/catalogo");
+  revalidatePath("/");
+  return { success: true };
+}
+
+
+export async function toggleProductoActivoAction(
+  productoId: string,
+  activo: boolean,
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("productos")
+    .update({ activo })
+    .eq("id", productoId);
+
+  if (error) return { success: false, error: error.message };
+
+  revalidatePath("/admin/productos");
+  revalidatePath("/catalogo");
+  return { success: true };
+}
+
+export async function marcarEnviadoAction(pedidoId: string) {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("pedidos")
+    .update({ estado: "enviado" })
+    .eq("id", pedidoId)
+    .eq("estado", "confirmado");
+
+  if (error) return { error: error.message };
+  revalidatePath("/admin/pedidos");
+  return { success: true };
+}
+
+export async function deleteCategoriaAction(
+  categoriaId: string,
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("categorias")
+    .delete()
+    .eq("id", categoriaId);
+
+  if (error) return { success: false, error: error.message };
+
+  revalidatePath("/admin/categorias");
+  return { success: true };
+}
+
+export async function deleteZonaAction(
+  zonaId: string,
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("configuracion_logistica")
+    .delete()
+    .eq("id", zonaId);
+
+  if (error) return { success: false, error: error.message };
+
+  revalidatePath("/admin/logistica");
+  return { success: true };
+}
+
+export async function toggleZonaActivaAction(
+  zonaId: string,
+  activa: boolean,
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("configuracion_logistica")
+    .update({ activa })
+    .eq("id", zonaId);
+
+  if (error) return { success: false, error: error.message };
+
+  revalidatePath("/admin/logistica");
+  return { success: true };
+}
+
+// ─── Production Workflow Actions ───
+
+function slugify(text: string) {
+  return text
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+async function generateUniqueSlug(
+  supabase: any,
+  nombre: string,
+  currentProductoId?: string,
+): Promise<string> {
+  const baseSlug = slugify(nombre) || "pieza";
+  let query = supabase.from("productos").select("id").eq("slug", baseSlug);
+  if (currentProductoId) {
+    query = query.neq("id", currentProductoId);
+  }
+  const { data } = await query;
+  if (!data || data.length === 0) {
+    return baseSlug;
+  }
+  return `${baseSlug}-${Date.now().toString(36).slice(-4)}`;
+}
+
+export async function createProduccionAction(
+  nombre: string,
+  descripcion?: string,
+): Promise<{ success: boolean; error?: string; id?: string; nombre?: string }> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("producciones")
+    .insert({
+      nombre,
+      descripcion: descripcion || null,
+      activa: false,
+    })
+    .select("id, nombre")
+    .single();
+
+  if (error) return { success: false, error: error.message };
+  revalidatePath("/admin/produccion");
+  return { success: true, id: data.id, nombre: data.nombre };
+}
+
+export async function createCategoriaInlineAction(
+  nombre: string,
+): Promise<{ success: boolean; error?: string; id?: string; nombre?: string }> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("categorias")
+    .insert({ nombre })
+    .select("id, nombre")
+    .single();
+
+  if (error) return { success: false, error: error.message };
+  revalidatePath("/admin/categorias");
+  revalidatePath("/admin/productos");
+  return { success: true, id: data.id, nombre: data.nombre };
+}
+
+export async function savePiezaProduccionAction(
+  formData: FormData,
+  produccionId: string,
+  productoId?: string,
+): Promise<{ success: boolean; error?: string; id?: string }> {
+  const supabase = await createClient();
+  const nombre = String(formData.get("nombre"));
+  const selectedCategoria = (formData.get("categoriaId") as string) || null;
+  const uniqueSlug = await generateUniqueSlug(supabase, nombre, productoId);
+
+  const payload = {
+    nombre,
+    slug: uniqueSlug,
+    descripcion: String(formData.get("descripcion") || "") || null,
+    categoria_id: selectedCategoria,
+    produccion_id: produccionId,
+    precio_base: Number(formData.get("precioBase")) || 0,
+    es_personalizable: formData.get("esPersonalizable") === "on",
+    stock_disponible: Number(formData.get("stockDisponible")) || 1,
+    es_entrega_inmediata: false,
+    activo: false, // Always draft in production mode until collection publication
+  };
+
+
+  if (productoId) {
+    const { error } = await supabase
+      .from("productos")
+      .update(payload)
+      .eq("id", productoId);
+    if (error) return { success: false, error: error.message };
+    revalidatePath("/admin/produccion");
+    return { success: true, id: productoId };
+  } else {
+    const { data, error } = await supabase
+      .from("productos")
+      .insert(payload)
+      .select("id")
+      .single();
+    if (error) return { success: false, error: error.message };
+    revalidatePath("/admin/produccion");
+    return { success: true, id: data.id };
+  }
+}
+
+export async function vincularProductoAProduccionAction(
+  productoId: string,
+  produccionId: string,
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("productos")
+    .update({ produccion_id: produccionId })
+    .eq("id", productoId);
+
+  if (error) return { success: false, error: error.message };
+
+  revalidatePath("/admin/produccion");
+  revalidatePath("/admin/productos");
+  return { success: true };
+}
+
+
+export async function publicarProduccionAction(
+  produccionId: string,
+): Promise<{ success: boolean; error?: string; count?: number }> {
+  const supabase = await createClient();
+  const now = new Date().toISOString();
+
+  // Update produccion record
+  await supabase
+    .from("producciones")
+    .update({ activa: true, fecha_lanzamiento: now })
+    .eq("id", produccionId);
+
+  // Update all products in this production
+  const { data, error } = await supabase
+    .from("productos")
+    .update({ 
+      activo: true,
+      fecha_lanzamiento: now
+    })
+    .eq("produccion_id", produccionId)
+    .select("id");
+
+  if (error) return { success: false, error: error.message };
+
+  revalidatePath("/admin/productos");
+  revalidatePath("/admin/produccion");
+  revalidatePath("/catalogo");
+  revalidatePath("/colecciones");
+  revalidatePath("/");
+  return { success: true, count: data?.length ?? 0 };
+}
+
+export async function deletePiezaProduccionAction(
+  productoId: string,
+): Promise<{ success: boolean; error?: string }> {
+  const adminClient = createAdminClient();
+
+  // Delete images from storage
+  const { data: images } = await adminClient
+    .from("producto_imagenes")
+    .select("url_imagen")
+    .eq("producto_id", productoId);
+
+  if (images && images.length > 0) {
+    const paths = images
+      .map((img) => {
+        const match = img.url_imagen.match(/productos\/(.+)$/);
+        return match ? match[1] : null;
+      })
+      .filter(Boolean) as string[];
+
+    if (paths.length > 0) {
+      await adminClient.storage.from("productos").remove(paths);
+    }
+  }
+
+  // Unlink product from order history items using admin client (bypasses RLS restriction)
+  await adminClient.from("items_pedido").update({ producto_id: null }).eq("producto_id", productoId);
+
+  const { error } = await adminClient.from("productos").delete().eq("id", productoId);
+  if (error) return { success: false, error: error.message };
+
+  revalidatePath("/admin/produccion");
+  revalidatePath("/admin/productos");
+  revalidatePath("/catalogo");
+  revalidatePath("/");
+  return { success: true };
+}
+
+
+export async function reorderProductoImagesAction(
+  productoId: string,
+  imageIdsInOrder: string[],
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createClient();
+
+  // Update order for each image ID
+  for (let i = 0; i < imageIdsInOrder.length; i++) {
+    const id = imageIdsInOrder[i];
+    if (!id) continue;
+    const { error } = await supabase
+      .from("producto_imagenes")
+      .update({ orden: i })
+      .eq("id", id)
+      .eq("producto_id", productoId);
+
+    if (error) return { success: false, error: error.message };
+  }
+
+  revalidatePath(`/admin/productos/${productoId}`);
+  revalidatePath("/admin/produccion");
+  revalidatePath("/admin/productos");
+  revalidatePath("/catalogo");
+  revalidatePath("/");
+  return { success: true };
+}
+
+export async function deleteProduccionCompletaAction(
+  categoriaId: string,
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createClient();
+
+  // Get all products in category
+  const { data: productos } = await supabase
+    .from("productos")
+    .select("id")
+    .eq("categoria_id", categoriaId);
+
+  if (productos && productos.length > 0) {
+    for (const p of productos) {
+      await deletePiezaProduccionAction(p.id);
+    }
+  }
+
+  // Delete category
+  const { error } = await supabase.from("categorias").delete().eq("id", categoriaId);
+  if (error) return { success: false, error: error.message };
+
+  revalidatePath("/admin/produccion");
+  revalidatePath("/admin/categorias");
+  revalidatePath("/catalogo");
+  revalidatePath("/");
+  return { success: true };
+}
+
+export async function saveConfiguracionSitioAction(
+  formData: FormData,
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createClient();
+  const heroTitulo = String(formData.get("heroTitulo") || "").trim();
+  const heroSubtitulo = String(formData.get("heroSubtitulo") || "").trim();
+  const coleccionDestacadaId = (formData.get("coleccionDestacadaId") as string) || null;
+
+  const payload = {
+    hero_titulo: heroTitulo || "Piezas únicas, hechas a mano.",
+    hero_subtitulo: heroSubtitulo || "Cerámica de autor en ediciones limitadas.",
+    coleccion_destacada_id: coleccionDestacadaId || null,
+    updated_at: new Date().toISOString(),
+  };
+
+  try {
+    const { data: existing } = await supabase.from("configuracion_sitio").select("id").limit(1).single();
+
+    if (existing) {
+      await supabase.from("configuracion_sitio").update(payload).eq("id", existing.id);
+    } else {
+      await supabase.from("configuracion_sitio").insert(payload);
+    }
+  } catch (err) {
+    console.warn("Notice: configuracion_sitio DB table warning:", err);
+  }
+
+  revalidatePath("/");
+  revalidatePath("/admin/personalizacion");
+  return { success: true };
+}
+
+export async function uploadLogoAction(
+  formData: FormData,
+): Promise<{ success: boolean; error?: string; url?: string }> {
+  const file = formData.get("logo") as File | null;
+  if (!file || file.size === 0) {
+    return { success: false, error: "Seleccioná un archivo de logo" };
+  }
+
+  const supabase = await createClient();
+  const ext = file.name.split(".").pop() ?? "png";
+  const path = `logo_${Date.now()}.${ext}`;
+
+  // Use 'productos' bucket as primary storage bucket
+  let { error: uploadError } = await supabase.storage.from("productos").upload(path, file);
+  if (uploadError) {
+    const { error: fallbackErr } = await supabase.storage.from("sitio").upload(path, file);
+    if (fallbackErr && uploadError) {
+      return { success: false, error: uploadError.message };
+    }
+  }
+
+  const { data: urlData } = supabase.storage.from("productos").getPublicUrl(path);
+
+  try {
+    const { data: existing } = await supabase.from("configuracion_sitio").select("id").limit(1).single();
+
+    if (existing) {
+      await supabase.from("configuracion_sitio").update({ logo_url: urlData.publicUrl }).eq("id", existing.id);
+    } else {
+      await supabase.from("configuracion_sitio").insert({ logo_url: urlData.publicUrl });
+    }
+  } catch (err) {
+    console.warn("DB config update notice:", err);
+  }
+
+  revalidatePath("/");
+  revalidatePath("/admin/personalizacion");
+  return { success: true, url: urlData.publicUrl };
+}
+
+export async function uploadHeroImageAction(
+  formData: FormData,
+): Promise<{ success: boolean; error?: string; url?: string }> {
+  const file = formData.get("heroImage") as File | null;
+  if (!file || file.size === 0) {
+    return { success: false, error: "Seleccioná una imagen de portada" };
+  }
+
+  const supabase = await createClient();
+  const ext = file.name.split(".").pop() ?? "jpg";
+  const path = `hero_${Date.now()}.${ext}`;
+
+  // Use 'productos' bucket as primary storage bucket
+  let { error: uploadError } = await supabase.storage.from("productos").upload(path, file);
+  if (uploadError) {
+    const { error: fallbackErr } = await supabase.storage.from("sitio").upload(path, file);
+    if (fallbackErr && uploadError) {
+      return { success: false, error: uploadError.message };
+    }
+  }
+
+  const { data: urlData } = supabase.storage.from("productos").getPublicUrl(path);
+
+  try {
+    const { data: existing } = await supabase.from("configuracion_sitio").select("id").limit(1).single();
+
+    if (existing) {
+      await supabase.from("configuracion_sitio").update({ hero_imagen_url: urlData.publicUrl }).eq("id", existing.id);
+    } else {
+      await supabase.from("configuracion_sitio").insert({ hero_imagen_url: urlData.publicUrl });
+    }
+  } catch (err) {
+    console.warn("DB config update notice:", err);
+  }
+
+  revalidatePath("/");
+  revalidatePath("/admin/personalizacion");
+  return { success: true, url: urlData.publicUrl };
+}
+

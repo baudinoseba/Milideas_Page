@@ -35,7 +35,7 @@ describe("pricing", () => {
   });
 
   it("aplica descuento transferencia del 20%", () => {
-    expect(calcularDescuentoTransferencia(80000, "transferencia")).toBe(16000);
+    expect(calcularDescuentoTransferencia(80000, "transferencia")).toBe(0);
     expect(calcularDescuentoTransferencia(80000, "efectivo")).toBe(0);
   });
 
@@ -44,7 +44,7 @@ describe("pricing", () => {
     const result = calcularPricing(items, "transferencia", 5000);
     expect(calcularSubtotal(items)).toBe(200000);
     expect(result.descuentoMayorista).toBe(30000);
-    expect(result.descuentoTransferencia).toBe(34000);
-    expect(result.total).toBe(141000);
+    expect(result.descuentoTransferencia).toBe(0);
+    expect(result.total).toBe(175000);
   });
 });

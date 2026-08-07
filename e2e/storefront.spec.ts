@@ -11,9 +11,9 @@ test.describe("Storefront", () => {
     await expect(page.getByRole("heading", { name: "Catálogo" })).toBeVisible();
   });
 
-  test("navigation to drops", async ({ page }) => {
+  test("navigation to colecciones", async ({ page }) => {
     await page.goto("/");
-    await page.getByRole("link", { name: /Ver drop actual/i }).click();
-    await expect(page).toHaveURL("/drops");
+    await page.getByRole("link", { name: /Ver colección actual/i }).click();
+    await expect(page).toHaveURL("/colecciones");
   });
 });

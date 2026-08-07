@@ -136,10 +136,11 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
-  INSERT INTO public.perfiles (id, nombre_completo)
+  INSERT INTO public.perfiles (id, nombre_completo, whatsapp)
   VALUES (
     NEW.id,
-    COALESCE(NEW.raw_user_meta_data ->> 'nombre_completo', NEW.email)
+    COALESCE(NEW.raw_user_meta_data ->> 'nombre_completo', NEW.email),
+    NEW.raw_user_meta_data ->> 'whatsapp'
   );
   RETURN NEW;
 END;

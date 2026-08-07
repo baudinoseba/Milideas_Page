@@ -13,6 +13,10 @@ import type { LineaCarrito, MetodoPago } from "@/types";
 interface CartState {
   items: LineaCarrito[];
   hydrated: boolean;
+  isOpen: boolean;
+  openCart: () => void;
+  closeCart: () => void;
+  toggleCart: () => void;
   setHydrated: () => void;
   addItem: (item: Omit<LineaCarrito, "cantidad"> & { cantidad?: number }) => void;
   removeItem: (productoId: string) => void;
@@ -35,6 +39,10 @@ export const useCartStore = create<CartState>()(
     (set, get) => ({
       items: [],
       hydrated: false,
+      isOpen: false,
+      openCart: () => set({ isOpen: true }),
+      closeCart: () => set({ isOpen: false }),
+      toggleCart: () => set((state) => ({ isOpen: !state.isOpen })),
       setHydrated: () => set({ hydrated: true }),
 
       addItem: (item) => {
@@ -43,6 +51,7 @@ export const useCartStore = create<CartState>()(
           const existing = state.items.find((i) => i.productoId === item.productoId);
           if (existing) {
             return {
+              isOpen: true,
               items: state.items.map((i) =>
                 i.productoId === item.productoId
                   ? { ...i, cantidad: i.cantidad + cantidad }
@@ -51,6 +60,7 @@ export const useCartStore = create<CartState>()(
             };
           }
           return {
+            isOpen: true,
             items: [...state.items, { ...item, cantidad }],
           };
         });
@@ -103,12 +113,14 @@ export const useCartStore = create<CartState>()(
     }),
     {
       name: "milideas-cart",
+      partialize: (state) => ({ items: state.items }),
       onRehydrateStorage: () => (state) => {
         state?.setHydrated();
       },
     },
   ),
 );
+
 
 export function useCartItemCount() {
   return useCartStore((s) => s.items.reduce((acc, i) => acc + i.cantidad, 0));
