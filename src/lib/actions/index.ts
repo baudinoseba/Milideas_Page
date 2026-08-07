@@ -961,3 +961,38 @@ export async function uploadHeroImageAction(
   return { success: true, url: urlData.publicUrl };
 }
 
+export async function bulkAdjustZonasAction(
+  porcentaje: number,
+): Promise<{ success: boolean; error?: string; count?: number }> {
+  if (isNaN(porcentaje) || porcentaje === 0) {
+    return { success: false, error: "Ingresá un porcentaje válido de ajuste" };
+  }
+
+  const supabase = await createClient();
+  const { data: zonas, error: fetchErr } = await supabase.from("configuracion_logistica").select("*");
+  if (fetchErr || !zonas) {
+    return { success: false, error: fetchErr?.message ?? "Error al obtener zonas de envío" };
+  }
+
+  const multiplier = 1 + porcentaje / 100;
+  let count = 0;
+
+  for (const z of zonas) {
+    const nuevoPrecioAgencia = Math.round((z.precio_agencia * multiplier) / 50) * 50;
+    const nuevoPrecioDomicilio = Math.round((z.precio_domicilio * multiplier) / 50) * 50;
+
+    await supabase
+      .from("configuracion_logistica")
+      .update({
+        precio_agencia: Math.max(0, nuevoPrecioAgencia),
+        precio_domicilio: Math.max(0, nuevoPrecioDomicilio),
+      })
+      .eq("id", z.id);
+    count++;
+  }
+
+  revalidatePath("/admin/logistica");
+  revalidatePath("/checkout");
+  return { success: true, count };
+}
+

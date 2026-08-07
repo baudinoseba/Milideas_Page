@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatPrecio } from "@/lib/pricing";
+import { BulkAdjustShippingForm } from "@/components/admin/bulk-adjust-shipping-form";
 import type { ZonaLogistica } from "@/types";
 
 export const metadata = { title: "Logística" };
@@ -29,6 +30,8 @@ export default async function AdminLogisticaPage() {
           <Button>+ Nueva zona</Button>
         </Link>
       </div>
+
+      {zonas.length > 0 && <BulkAdjustShippingForm />}
 
       {zonas.length === 0 ? (
         <div className="rounded-xl border-2 border-dashed border-border p-12 text-center">

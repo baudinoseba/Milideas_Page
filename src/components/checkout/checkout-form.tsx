@@ -800,6 +800,21 @@ export function CheckoutForm({
                   </div>
                 )}
 
+                {/* 🚚 Transport Provider & Mandatory Disclaimer */}
+                <div className="rounded-xl border border-amber-300/80 bg-amber-500/10 p-4 text-xs space-y-2.5 text-chocolate dark:text-amber-200">
+                  <div className="flex items-center gap-2 font-semibold text-amber-900 dark:text-amber-300 text-xs">
+                    <span className="text-base">🚚</span>
+                    <span>Empresa de Transporte: Vía Cargo</span>
+                  </div>
+                  <p className="leading-relaxed font-sans text-[11px] text-chocolate/90 dark:text-amber-100">
+                    "Los valores de cotización son únicamente informativos y están sujetos a variaciones según cargo por manejo, peso y/o medidas reales registradas en el momento de la venta. El valor del servicio contraentrega tiene un costo adicional que no está contemplado en esta cotización. El valor del envío puede variar en el momento de la entrega en el punto de venta."
+                  </p>
+                  <div className="pt-2 border-t border-amber-300/30 text-[11px] text-barro space-y-1">
+                    <p>• La cotización mostrada es un valor aproximado para tu zona y está a cargo del comprador.</p>
+                    <p>• El precio final y punto exacto de despacho se terminará acordando directamente con la vendedora.</p>
+                  </div>
+                </div>
+
                 <div className="flex gap-3 pt-2">
                   <Button variant="outline" onClick={() => setStep(2)} className="flex-1 sm:flex-initial">
                     ← Volver
@@ -848,7 +863,7 @@ export function CheckoutForm({
                     </button>
                   </div>
                   <div className="text-xs text-muted space-y-1">
-                    <p><span className="font-medium text-foreground">Tipo:</span> {step3Data.tipoEnvio === "domicilio" ? "A Domicilio" : "Retiro en Agencia"}</p>
+                    <p><span className="font-medium text-foreground">Tipo:</span> {step3Data.tipoEnvio === "domicilio" ? "A Domicilio (Vía Cargo)" : "Retiro en Agencia (Vía Cargo)"}</p>
                     {step3Data.tipoEnvio === "domicilio" ? (
                       <>
                         <p><span className="font-medium text-foreground">Calle:</span> {step3Data.calle} {step3Data.numero} {step3Data.piso ? `, Piso ${step3Data.piso}` : ""} {step3Data.depto ? `, Depto ${step3Data.depto}` : ""}</p>
@@ -857,6 +872,9 @@ export function CheckoutForm({
                     ) : (
                       <p><span className="font-medium text-foreground">Agencia/Zona:</span> {zona?.zona_nombre}</p>
                     )}
+                    <p className="text-[11px] text-amber-700 dark:text-amber-300 font-medium pt-1">
+                      🚚 Transporte: Vía Cargo (Costo estimado a cargo del comprador, sujeto a variación por peso/volumen real).
+                    </p>
                   </div>
                 </Card>
               </div>
