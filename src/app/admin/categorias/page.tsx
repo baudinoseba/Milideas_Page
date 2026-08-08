@@ -60,19 +60,33 @@ export default async function AdminCategoriasPage() {
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {cats.map((cat) => {
             const count = countMap[cat.id] ?? 0;
+            const tipo = cat.tipo_catalogo || "ceramica";
+            const badge =
+              tipo === "ilustraciones"
+                ? { label: "Ilustraciones", emoji: "🎨", color: "bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/20" }
+                : tipo === "esculturas"
+                ? { label: "Esculturas", emoji: "🗿", color: "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20" }
+                : { label: "Cerámica", emoji: "🏺", color: "bg-terracota/10 text-terracota border-terracota/20" };
+
             return (
               <Link
                 key={cat.id}
                 href={`/admin/categorias/${cat.id}`}
-                className="flex items-center justify-between rounded-lg border border-border bg-surface p-5 transition-all hover:border-admin-accent hover:shadow-sm"
+                className="flex items-center justify-between rounded-2xl border border-border bg-surface p-5 transition-all hover:border-admin-accent hover:shadow-sm"
               >
-                <div>
-                  <h3 className="font-medium">{cat.nombre}</h3>
-                  <p className="mt-0.5 text-xs text-muted">
-                    {count} pieza{count !== 1 ? "s" : ""}
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-semibold text-chocolate font-serif">{cat.nombre}</h3>
+                    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold border ${badge.color}`}>
+                      <span>{badge.emoji}</span>
+                      <span>{badge.label}</span>
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted">
+                    {count} pieza{count !== 1 ? "s" : ""} asociadas
                   </p>
                 </div>
-                <span className="text-sm text-muted">Editar →</span>
+                <span className="text-xs font-semibold text-admin-accent">Editar →</span>
               </Link>
             );
           })}

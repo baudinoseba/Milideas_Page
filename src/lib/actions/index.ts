@@ -348,8 +348,28 @@ export async function saveProductoAction(
   const altoCm = formData.get("altoCm") ? Number(formData.get("altoCm")) : null;
   const anchoCm = formData.get("anchoCm") ? Number(formData.get("anchoCm")) : null;
   const dimensiones = String(formData.get("dimensiones") || "").trim() || null;
-
   const tipoCatalogo = String(formData.get("tipoCatalogo") || "ceramica").trim();
+
+  // Discipline specific fields
+  const capacidadMl = formData.get("capacidadMl") ? Number(formData.get("capacidadMl")) : null;
+  const papelSoporte = String(formData.get("papelSoporte") || "").trim() || null;
+  const materialTecnica = String(formData.get("materialTecnica") || "").trim() || null;
+  const edicionNumerada = String(formData.get("edicionNumerada") || "").trim() || null;
+  const marcoIncluido = formData.get("marcoIncluido") === "on";
+  const pedestalIncluido = formData.get("pedestalIncluido") === "on";
+  const aptoLavavajillas = formData.get("aptoLavavajillas") === "on";
+  const aptoMicroondas = formData.get("aptoMicroondas") === "on";
+
+  const atributosEspecificos = {
+    capacidad_ml: capacidadMl,
+    papel_soporte: papelSoporte,
+    material_tecnica: materialTecnica,
+    edicion_numerada: edicionNumerada,
+    marco_incluido: marcoIncluido,
+    pedestal_incluido: pedestalIncluido,
+    apto_lavavajillas: aptoLavavajillas,
+    apto_microondas: aptoMicroondas,
+  };
 
   const payload = {
     nombre,
@@ -366,6 +386,15 @@ export async function saveProductoAction(
     alto_cm: altoCm,
     ancho_cm: anchoCm,
     dimensiones,
+    capacidad_ml: capacidadMl,
+    papel_soporte: papelSoporte,
+    material_tecnica: materialTecnica,
+    edicion_numerada: edicionNumerada,
+    marco_incluido: marcoIncluido,
+    pedestal_incluido: pedestalIncluido,
+    apto_lavavajillas: aptoLavavajillas,
+    apto_microondas: aptoMicroondas,
+    atributos_especificos: atributosEspecificos,
   };
 
 
@@ -385,14 +414,16 @@ export async function saveProductoAction(
 export async function saveCategoriaAction(formData: FormData, id?: string) {
   const supabase = await createClient();
   const nombre = String(formData.get("nombre"));
+  const tipoCatalogo = (formData.get("tipoCatalogo") as any) || "ceramica";
   if (id) {
-    const { error } = await supabase.from("categorias").update({ nombre }).eq("id", id);
+    const { error } = await supabase.from("categorias").update({ nombre, tipo_catalogo: tipoCatalogo }).eq("id", id);
     if (error) return { error: error.message };
   } else {
-    const { error } = await supabase.from("categorias").insert({ nombre });
+    const { error } = await supabase.from("categorias").insert({ nombre, tipo_catalogo: tipoCatalogo });
     if (error) return { error: error.message };
   }
   revalidatePath("/admin/categorias");
+  revalidatePath("/catalogo");
   return { success: true };
 }
 

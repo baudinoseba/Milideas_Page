@@ -35,12 +35,20 @@ export function ProductoForm({
     producto?.precio_base != null ? String(producto.precio_base) : ""
   );
   const [localCategorias, setLocalCategorias] = useState<Categoria[]>(categorias);
+  const [selectedTipoCatalogo, setSelectedTipoCatalogo] = useState<string>(
+    (producto as any)?.tipo_catalogo ?? "ceramica"
+  );
+
   const [selectedCategoriaId, setSelectedCategoriaId] = useState<string>(
     producto?.categoria_id ?? ""
   );
   const [showNuevaCategoria, setShowNuevaCategoria] = useState(false);
   const [nuevaCategoria, setNuevaCategoria] = useState("");
   const [creandoCategoria, setCreandoCategoria] = useState(false);
+
+  const filteredCategorias = localCategorias.filter(
+    (c) => !c.tipo_catalogo || c.tipo_catalogo === selectedTipoCatalogo
+  );
 
   const handleCreateCategoria = async () => {
     if (!nuevaCategoria.trim()) return;
@@ -51,6 +59,7 @@ export function ProductoForm({
       const newCat: Categoria = {
         id: res.id,
         nombre: res.nombre,
+        tipo_catalogo: selectedTipoCatalogo as any,
         created_at: new Date().toISOString(),
       };
       setLocalCategorias((prev) => [...prev, newCat]);
@@ -76,7 +85,7 @@ export function ProductoForm({
         <section className="space-y-4">
           <div className="border-b border-border pb-2">
             <h2 className="text-lg font-medium">Información básica</h2>
-            <p className="text-xs text-muted">Nombre, descripción y categoría de la pieza</p>
+            <p className="text-xs text-muted">Nombre, descripción y disciplina de la pieza</p>
           </div>
 
           <div>
@@ -116,16 +125,150 @@ export function ProductoForm({
               id="descripcion"
               name="descripcion"
               defaultValue={producto?.descripcion ?? ""}
-              placeholder="Describí la pieza: material, tamaño, cuidados, qué la hace especial..."
+              placeholder="Describí la pieza: material, técnica, cuidados, qué la hace única..."
               rows={4}
             />
+          </div>
+
+          {/* Catalog Type Choice */}
+          <div>
+            <Label htmlFor="tipoCatalogo" className="text-xs font-semibold text-chocolate">Disciplina / Catálogo Perteneciente *</Label>
+            <Select
+              id="tipoCatalogo"
+              name="tipoCatalogo"
+              value={selectedTipoCatalogo}
+              onChange={(e) => setSelectedTipoCatalogo(e.target.value)}
+              required
+              className="mt-1 font-semibold"
+            >
+              <option value="ceramica">🏺 Catálogo de Cerámica (Piezas Utilitarias / Objetos)</option>
+              <option value="esculturas">🗿 Catálogo de Esculturas (Modelado Tridimensional)</option>
+              <option value="ilustraciones">🎨 Catálogo de Ilustraciones (Láminas / Obras en Papel)</option>
+            </Select>
+            <p className="text-[11px] text-muted mt-1">
+              Determina los campos técnicos requeridos y en qué catálogo principal se exhibirá.
+            </p>
+          </div>
+
+          {/* Dynamic Discipline-Specific Attribute Fields */}
+          <div className="rounded-2xl border border-admin-accent/30 bg-arena/30 p-4 space-y-4">
+            <h3 className="text-xs font-serif font-semibold text-chocolate uppercase tracking-wider flex items-center gap-1.5">
+              <span>{selectedTipoCatalogo === "ceramica" ? "🏺" : selectedTipoCatalogo === "esculturas" ? "🗿" : "🎨"}</span>
+              <span>Especificaciones Técnicas — {selectedTipoCatalogo.toUpperCase()}</span>
+            </h3>
+
+            {/* CERAMICA Specific Fields */}
+            {selectedTipoCatalogo === "ceramica" && (
+              <div className="space-y-3">
+                <div>
+                  <Label htmlFor="capacidadMl" className="text-xs text-chocolate font-medium">Capacidad (ml)</Label>
+                  <Input
+                    id="capacidadMl"
+                    name="capacidadMl"
+                    type="number"
+                    defaultValue={(producto as any)?.capacidad_ml ?? ""}
+                    placeholder="ej. 350"
+                  />
+                </div>
+                <div className="flex gap-6 pt-1">
+                  <label className="flex items-center gap-2 text-xs font-medium text-chocolate cursor-pointer">
+                    <input
+                      type="checkbox"
+                      name="aptoLavavajillas"
+                      defaultChecked={(producto as any)?.apto_lavavajillas ?? true}
+                      className="h-4 w-4 rounded border-border accent-admin-accent"
+                    />
+                    🧽 Apto lavavajillas
+                  </label>
+                  <label className="flex items-center gap-2 text-xs font-medium text-chocolate cursor-pointer">
+                    <input
+                      type="checkbox"
+                      name="aptoMicroondas"
+                      defaultChecked={(producto as any)?.apto_microondas ?? true}
+                      className="h-4 w-4 rounded border-border accent-admin-accent"
+                    />
+                    ♨️ Apto microondas
+                  </label>
+                </div>
+              </div>
+            )}
+
+            {/* ILUSTRACIONES Specific Fields */}
+            {selectedTipoCatalogo === "ilustraciones" && (
+              <div className="space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <Label htmlFor="papelSoporte" className="text-xs text-chocolate font-medium">Soporte / Papel</Label>
+                    <Input
+                      id="papelSoporte"
+                      name="papelSoporte"
+                      defaultValue={(producto as any)?.papel_soporte ?? "Papel Canson 300g Acuarela"}
+                      placeholder="ej. Papel Canson 300g"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="materialTecnica" className="text-xs text-chocolate font-medium">Técnica de Ilustración</Label>
+                    <Input
+                      id="materialTecnica"
+                      name="materialTecnica"
+                      defaultValue={(producto as any)?.material_tecnica ?? ""}
+                      placeholder="ej. Acuarela y tinta china"
+                    />
+                  </div>
+                </div>
+                <label className="flex items-center gap-2 text-xs font-medium text-chocolate cursor-pointer pt-1">
+                  <input
+                    type="checkbox"
+                    name="marcoIncluido"
+                    defaultChecked={(producto as any)?.marco_incluido ?? false}
+                    className="h-4 w-4 rounded border-border accent-admin-accent"
+                  />
+                  🖼️ Incluye marco artesanal de madera
+                </label>
+              </div>
+            )}
+
+            {/* ESCULTURAS Specific Fields */}
+            {selectedTipoCatalogo === "esculturas" && (
+              <div className="space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <Label htmlFor="materialTecnica" className="text-xs text-chocolate font-medium">Material / Pasta Escultórica</Label>
+                    <Input
+                      id="materialTecnica"
+                      name="materialTecnica"
+                      defaultValue={(producto as any)?.material_tecnica ?? ""}
+                      placeholder="ej. Pasta Gres modelada a mano"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edicionNumerada" className="text-xs text-chocolate font-medium">Edición Limitada / Numeración</Label>
+                    <Input
+                      id="edicionNumerada"
+                      name="edicionNumerada"
+                      defaultValue={(producto as any)?.edicion_numerada ?? ""}
+                      placeholder="ej. Edición Única 1/1 o 3/10"
+                    />
+                  </div>
+                </div>
+                <label className="flex items-center gap-2 text-xs font-medium text-chocolate cursor-pointer pt-1">
+                  <input
+                    type="checkbox"
+                    name="pedestalIncluido"
+                    defaultChecked={(producto as any)?.pedestal_incluido ?? false}
+                    className="h-4 w-4 rounded border-border accent-admin-accent"
+                  />
+                  🗿 Incluye pedestal o base de exposición
+                </label>
+              </div>
+            )}
           </div>
 
           {/* Dimensiones y medidas aproximadas */}
           <div className="rounded-xl border border-border/60 bg-surface/50 p-4 space-y-3">
             <Label className="text-sm font-semibold flex items-center gap-1.5">
               <span>📐</span>
-              <span>Medidas Aproximadas (Alto, Ancho, Capacidad)</span>
+              <span>Medidas Aproximadas (Alto, Ancho)</span>
             </Label>
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -152,36 +295,20 @@ export function ProductoForm({
               </div>
             </div>
             <div>
-              <Label htmlFor="dimensiones" className="text-xs text-muted">Detalle adicional o Capacidad (opcional)</Label>
+              <Label htmlFor="dimensiones" className="text-xs text-muted">Detalle adicional o aclaraciones (opcional)</Label>
               <Input
                 id="dimensiones"
                 name="dimensiones"
                 defaultValue={producto?.dimensiones ?? ""}
-                placeholder="ej. Capacidad: 350 ml | Incluye posavasos"
+                placeholder="ej. Diámetro base: 12 cm"
               />
             </div>
           </div>
 
-          <div>
-            <Label htmlFor="tipoCatalogo">Catálogo Perteneciente</Label>
-            <Select
-              id="tipoCatalogo"
-              name="tipoCatalogo"
-              defaultValue={(producto as any)?.tipo_catalogo ?? "ceramica"}
-              required
-            >
-              <option value="ceramica">🏺 Catálogo Cerámica</option>
-              <option value="esculturas">🗿 Catálogo Esculturas</option>
-              <option value="ilustraciones">🎨 Catálogo Ilustraciones</option>
-            </Select>
-            <p className="text-[11px] text-muted mt-1">
-              Determina en cuál de los 3 catálogos principales de la tienda se exhibirá esta pieza.
-            </p>
-          </div>
-
+          {/* Categorías Filtradas por Disciplina */}
           <div>
             <div className="flex items-center justify-between mb-1.5">
-              <Label htmlFor="categoriaId">Categoría</Label>
+              <Label htmlFor="categoriaId">Categoría de {selectedTipoCatalogo.toUpperCase()}</Label>
               {!showNuevaCategoria && (
                 <button
                   type="button"
@@ -198,7 +325,7 @@ export function ProductoForm({
                 <Input
                   value={nuevaCategoria}
                   onChange={(e) => setNuevaCategoria(e.target.value)}
-                  placeholder="ej. Jarra, Cuenco, Mate..."
+                  placeholder="ej. Jarra, Acuarela, Animales..."
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
                       e.preventDefault();
@@ -234,8 +361,8 @@ export function ProductoForm({
                 value={selectedCategoriaId}
                 onChange={(e) => setSelectedCategoriaId(e.target.value)}
               >
-                <option value="">Sin categoría</option>
-                {localCategorias.map((c) => (
+                <option value="">Sin categoría específica</option>
+                {filteredCategorias.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.nombre}
                   </option>
@@ -243,7 +370,7 @@ export function ProductoForm({
               </Select>
             )}
             <p className="mt-1 text-[11px] text-muted">
-              Especificá el tipo de pieza (ej. Bandeja, Taza, Cuenco). La colección a la que pertenece se administra desde Producciones.
+              Mostrando categorías filtradas para la disciplina de {selectedTipoCatalogo}.
             </p>
           </div>
         </section>

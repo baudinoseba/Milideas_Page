@@ -16,16 +16,19 @@ export type Database = {
         Row: {
           id: string;
           nombre: string;
+          tipo_catalogo?: string | null;
           created_at: string;
         };
         Insert: {
           id?: string;
           nombre: string;
+          tipo_catalogo?: string | null;
           created_at?: string;
         };
         Update: {
           id?: string;
           nombre?: string;
+          tipo_catalogo?: string | null;
           created_at?: string;
         };
         Relationships: [];
@@ -262,6 +265,7 @@ export type Database = {
           categoria_id: string | null;
           nombre: string;
           slug: string;
+          tipo_catalogo?: string | null;
           descripcion: string | null;
           precio_base: number;
           es_personalizable: boolean;
@@ -272,6 +276,15 @@ export type Database = {
           alto_cm: number | null;
           ancho_cm: number | null;
           dimensiones: string | null;
+          capacidad_ml?: number | null;
+          papel_soporte?: string | null;
+          material_tecnica?: string | null;
+          edicion_numerada?: string | null;
+          marco_incluido?: boolean | null;
+          pedestal_incluido?: boolean | null;
+          apto_lavavajillas?: boolean | null;
+          apto_microondas?: boolean | null;
+          atributos_especificos?: any;
           created_at: string;
           updated_at: string;
         };
@@ -280,6 +293,7 @@ export type Database = {
           categoria_id?: string | null;
           nombre: string;
           slug: string;
+          tipo_catalogo?: string | null;
           descripcion?: string | null;
           precio_base: number;
           es_personalizable?: boolean;
@@ -290,6 +304,15 @@ export type Database = {
           alto_cm?: number | null;
           ancho_cm?: number | null;
           dimensiones?: string | null;
+          capacidad_ml?: number | null;
+          papel_soporte?: string | null;
+          material_tecnica?: string | null;
+          edicion_numerada?: string | null;
+          marco_incluido?: boolean | null;
+          pedestal_incluido?: boolean | null;
+          apto_lavavajillas?: boolean | null;
+          apto_microondas?: boolean | null;
+          atributos_especificos?: any;
           created_at?: string;
           updated_at?: string;
         };
@@ -298,6 +321,7 @@ export type Database = {
           categoria_id?: string | null;
           nombre?: string;
           slug?: string;
+          tipo_catalogo?: string | null;
           descripcion?: string | null;
           precio_base?: number;
           es_personalizable?: boolean;
@@ -308,6 +332,15 @@ export type Database = {
           alto_cm?: number | null;
           ancho_cm?: number | null;
           dimensiones?: string | null;
+          capacidad_ml?: number | null;
+          papel_soporte?: string | null;
+          material_tecnica?: string | null;
+          edicion_numerada?: string | null;
+          marco_incluido?: boolean | null;
+          pedestal_incluido?: boolean | null;
+          apto_lavavajillas?: boolean | null;
+          apto_microondas?: boolean | null;
+          atributos_especificos?: any;
           created_at?: string;
           updated_at?: string;
         };

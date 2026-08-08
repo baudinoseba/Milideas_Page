@@ -18,7 +18,11 @@ export default async function EditarCategoriaPage({
   return (
     <div>
       <h1 className="mb-6 text-2xl font-medium">Editar categoría</h1>
-      <CategoriaForm id={categoria.id} nombre={categoria.nombre} />
+      <CategoriaForm
+        id={categoria.id}
+        nombre={categoria.nombre}
+        tipoCatalogo={categoria.tipo_catalogo || "ceramica"}
+      />
     </div>
   );
 }

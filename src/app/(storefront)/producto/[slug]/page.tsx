@@ -189,24 +189,66 @@ export default async function ProductoPage({
             </div>
           )}
 
-          {/* Craftsmanship & Care Info Box */}
+          {/* Discipline Craftsmanship & Technical Features */}
           <div className="grid grid-cols-2 gap-3 p-4 rounded-2xl border border-border/50 bg-surface text-xs text-barro font-sans">
-            <div className="flex items-center gap-2">
-              <span className="text-terracota text-base">🔥</span>
-              <span>Horneado a 1040°C</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-terracota text-base">✨</span>
-              <span>Esmalte libre de plomo</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-terracota text-base">🧽</span>
-              <span>Apto lavavajillas</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-terracota text-base">🇦🇷</span>
-              <span>Hecho en Sunchales</span>
-            </div>
+            {producto.tipo_catalogo === "ilustraciones" ? (
+              <>
+                <div className="flex items-center gap-2">
+                  <span className="text-terracota text-base">📜</span>
+                  <span>{producto.papel_soporte || "Papel Canson 300g"}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-terracota text-base">🎨</span>
+                  <span>{producto.material_tecnica || "Ilustración original"}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-terracota text-base">🖼️</span>
+                  <span>{producto.marco_incluido ? "Incluye marco artesanal" : "Opción de marco"}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-terracota text-base">🇦🇷</span>
+                  <span>Ilustrada en Sunchales</span>
+                </div>
+              </>
+            ) : producto.tipo_catalogo === "esculturas" ? (
+              <>
+                <div className="flex items-center gap-2">
+                  <span className="text-terracota text-base">🗿</span>
+                  <span>{producto.material_tecnica || "Pasta gres modelada"}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-terracota text-base">✨</span>
+                  <span>{producto.edicion_numerada || "Edición de Autor 1/1"}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-terracota text-base">⚖️</span>
+                  <span>{producto.pedestal_incluido ? "Incluye base / pedestal" : "Pieza independiente"}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-terracota text-base">🇦🇷</span>
+                  <span>Modelado en Sunchales</span>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center gap-2">
+                  <span className="text-terracota text-base">🔥</span>
+                  <span>Horneado a 1040°C</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-terracota text-base">✨</span>
+                  <span>Esmalte libre de plomo</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-terracota text-base">🧽</span>
+                  <span>{producto.apto_lavavajillas ? "Apto lavavajillas" : "Lavado delicado a mano"}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-terracota text-base">🇦🇷</span>
+                  <span>Hecho en Sunchales</span>
+                </div>
+              </>
+            )}
           </div>
 
           <ProductDetailClient
