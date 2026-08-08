@@ -4,6 +4,7 @@ import { useState, useTransition, useSyncExternalStore } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { formatPrecio } from "@/lib/pricing";
+import { calcularTarifaPorProvincia } from "@/lib/shipping";
 import { crearEncargoAction } from "@/lib/actions";
 import { useEncargosCartStore, ItemEncargoCart } from "@/stores/encargos-cart-store";
 import { EncargosSteps } from "@/components/encargos/encargos-steps";
@@ -25,6 +26,33 @@ const MEDIDAS_DEFAULT = [
 const PRECIO_MARCO_DEFAULT = 8500;
 const PORCENTAJE_RECARGO_DEFAULT = 0.15;
 
+const PROVINCIAS_ARGENTINA = [
+  "Buenos Aires",
+  "CABA",
+  "Catamarca",
+  "Chaco",
+  "Chubut",
+  "Córdoba",
+  "Corrientes",
+  "Entre Ríos",
+  "Formosa",
+  "Jujuy",
+  "La Pampa",
+  "La Rioja",
+  "Mendoza",
+  "Misiones",
+  "Neuquén",
+  "Río Negro",
+  "Salta",
+  "San Juan",
+  "San Luis",
+  "Santa Cruz",
+  "Santa Fe",
+  "Santiago del Estero",
+  "Tierra del Fuego",
+  "Tucumán",
+];
+
 export function EncargosCheckoutClient() {
   const isClient = useSyncExternalStore(
     subscribeEmpty,
@@ -44,9 +72,10 @@ export function EncargosCheckoutClient() {
   const [whatsappContacto, setWhatsappContacto] = useState("");
   const [emailContacto, setEmailContacto] = useState("");
   const [metodoEntrega, setMetodoEntrega] = useState<"taller" | "domicilio" | "agencia">("taller");
+  const [provincia, setProvincia] = useState("Santa Fe");
+  const [ciudad, setCiudad] = useState("");
   const [calle, setCalle] = useState("");
   const [numero, setNumero] = useState("");
-  const [ciudad, setCiudad] = useState("");
   const [codigoPostal, setCodigoPostal] = useState("");
 
   if (!isClient) return null;
@@ -73,7 +102,10 @@ export function EncargosCheckoutClient() {
     );
   }
 
-  const totalPrice = getTotalPrice();
+  const totalPiezasPrice = getTotalPrice();
+  const tarifaEnvio = calcularTarifaPorProvincia(provincia || ciudad, metodoEntrega);
+  const costoEnvio = tarifaEnvio.precio;
+  const totalEstimadoFinal = totalPiezasPrice + costoEnvio;
 
   // Handle live editing of an encargo item
   const handleEditItemFields = (
@@ -119,6 +151,10 @@ export function EncargosCheckoutClient() {
       setErrorMsg("Por favor ingresá tu nombre y número de WhatsApp.");
       return;
     }
+    if (metodoEntrega !== "taller" && !ciudad.trim()) {
+      setErrorMsg("Por favor ingresá tu ciudad para calcular la agencia o envío.");
+      return;
+    }
     setErrorMsg(null);
     setStep(3);
   };
@@ -130,15 +166,18 @@ export function EncargosCheckoutClient() {
     formData.append("whatsappContacto", whatsappContacto);
     formData.append("emailContacto", emailContacto);
     formData.append("metodoEntrega", metodoEntrega);
-    formData.append("totalEstimado", String(totalPrice));
+    formData.append("costoEnvio", String(costoEnvio));
+    formData.append("totalEstimado", String(totalEstimadoFinal));
     formData.append("itemsJson", JSON.stringify(items));
 
     if (metodoEntrega === "domicilio") {
+      formData.append("provincia", provincia);
+      formData.append("ciudad", ciudad);
       formData.append("calle", calle);
       formData.append("numero", numero);
-      formData.append("ciudad", ciudad);
       formData.append("codigoPostal", codigoPostal);
     } else if (metodoEntrega === "agencia") {
+      formData.append("provincia", provincia);
       formData.append("ciudad", ciudad);
     }
 
@@ -166,11 +205,11 @@ export function EncargosCheckoutClient() {
         })
         .join("\n\n");
 
-      let entregaText = "*Entrega:* Retiro en Taller (Sunchales)";
+      let entregaText = "*Entrega:* Retiro en Taller (Sunchales - Sin cargo)";
       if (metodoEntrega === "domicilio") {
-        entregaText = `*Entrega:* Envío a Domicilio Vía Cargo (${ciudad})`;
+        entregaText = `*Entrega:* Envío a Domicilio Vía Cargo (${ciudad}, ${provincia}) => +${formatPrecio(costoEnvio)}`;
       } else if (metodoEntrega === "agencia") {
-        entregaText = `*Entrega:* Retiro en Sucursal Vía Cargo (${ciudad})`;
+        entregaText = `*Entrega:* Sucursal Vía Cargo (${ciudad}, ${provincia}) => +${formatPrecio(costoEnvio)} (Estimado ${tarifaEnvio.regionNombre})`;
       }
 
       const text = `*MILIDEAS ARTE - SOLICITUD DE ENCARGOS MÚLTIPLES*
@@ -181,7 +220,9 @@ export function EncargosCheckoutClient() {
 ${itemsFormattedText}
 
 --------------------------------
-*TOTAL ESTIMADO:* ${formatPrecio(totalPrice)}
+Subtotal Piezas: ${formatPrecio(totalPiezasPrice)}
+Envío (${metodoEntrega === "taller" ? "Retiro en Taller" : tarifaEnvio.regionNombre}): ${costoEnvio > 0 ? `+${formatPrecio(costoEnvio)}` : "Sin Cargo"}
+*TOTAL ESTIMADO:* ${formatPrecio(totalEstimadoFinal)}
 
 --------------------------------
 *DATOS DEL CLIENTE:*
@@ -384,42 +425,20 @@ ${emailContacto ? `*Email:* ${emailContacto}\n` : ""}${entregaText}
 
               <div className="space-y-3 text-xs font-sans">
                 <div className="flex justify-between text-chocolate">
-                  <span className="text-muted">Total Piezas Base ({items.length}):</span>
-                  <span className="font-semibold">
-                    {formatPrecio(items.reduce((s, i) => s + i.precioBase * i.cantidad, 0))}
+                  <span className="text-muted">Subtotal Piezas ({items.length}):</span>
+                  <span className="font-semibold">{formatPrecio(totalPiezasPrice)}</span>
+                </div>
+
+                <div className="flex justify-between text-chocolate">
+                  <span className="text-muted">Costo de Envío Estimado:</span>
+                  <span className="font-semibold text-chocolate">
+                    {costoEnvio > 0 ? formatPrecio(costoEnvio) : "Se calcula en el paso 2"}
                   </span>
                 </div>
 
-                {items.some((i) => i.recargoPersonalizado > 0) && (
-                  <div className="flex justify-between text-terracota font-medium">
-                    <span>Personalizaciones (+15%):</span>
-                    <span>
-                      +{formatPrecio(items.reduce((s, i) => s + i.recargoPersonalizado * i.cantidad, 0))}
-                    </span>
-                  </div>
-                )}
-
-                {items.some((i) => i.adicionalMedida > 0) && (
-                  <div className="flex justify-between text-chocolate">
-                    <span className="text-muted">Adicionales por Medida:</span>
-                    <span>
-                      +{formatPrecio(items.reduce((s, i) => s + i.adicionalMedida * i.cantidad, 0))}
-                    </span>
-                  </div>
-                )}
-
-                {items.some((i) => i.adicionalMarco > 0) && (
-                  <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-medium">
-                    <span>Marcos de Madera Artesanal:</span>
-                    <span>
-                      +{formatPrecio(items.reduce((s, i) => s + i.adicionalMarco * i.cantidad, 0))}
-                    </span>
-                  </div>
-                )}
-
                 <div className="flex justify-between border-t border-border/60 pt-4 text-base font-bold text-chocolate">
                   <span>TOTAL ESTIMADO</span>
-                  <span className="text-xl font-serif text-admin-accent">{formatPrecio(totalPrice)}</span>
+                  <span className="text-xl font-serif text-admin-accent">{formatPrecio(totalEstimadoFinal)}</span>
                 </div>
               </div>
 
@@ -503,7 +522,7 @@ ${emailContacto ? `*Email:* ${emailContacto}\n` : ""}${entregaText}
                       : "border-border bg-surface text-muted hover:border-border/80"
                   }`}
                 >
-                  🏪 Retiro en Taller (Sunchales)
+                  🏪 Retiro en Taller (Sunchales - Sin Cargo)
                 </button>
                 <button
                   type="button"
@@ -530,20 +549,57 @@ ${emailContacto ? `*Email:* ${emailContacto}\n` : ""}${entregaText}
               </div>
 
               {metodoEntrega !== "taller" && (
-                <div className="pt-3 space-y-3 bg-arena/20 p-4 rounded-xl border border-border/50">
-                  <div>
-                    <Label htmlFor="ciudad">Ciudad y Provincia *</Label>
-                    <Input
-                      id="ciudad"
-                      placeholder="ej. Sunchales, Santa Fe"
-                      value={ciudad}
-                      onChange={(e) => setCiudad(e.target.value)}
-                      required
-                    />
+                <div className="pt-3 space-y-4 bg-arena/20 p-4 rounded-xl border border-border/50">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <Label htmlFor="provincia">Provincia *</Label>
+                      <select
+                        id="provincia"
+                        value={provincia}
+                        onChange={(e) => setProvincia(e.target.value)}
+                        className="mt-1 block w-full rounded-md border border-border bg-surface px-3 py-2 text-xs text-foreground focus:border-admin-accent focus:outline-none"
+                      >
+                        {PROVINCIAS_ARGENTINA.map((p) => (
+                          <option key={p} value={p}>
+                            {p}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="ciudad">Ciudad / Localidad *</Label>
+                      <Input
+                        id="ciudad"
+                        placeholder="ej. Sunchales, Rosario, Salta"
+                        value={ciudad}
+                        onChange={(e) => setCiudad(e.target.value)}
+                        required
+                      />
+                    </div>
                   </div>
 
+                  {/* Calculated Shipping Rate Banner */}
+                  <div className="rounded-xl border border-admin-accent/30 bg-surface p-3 flex items-center justify-between text-xs">
+                    <div>
+                      <span className="font-semibold text-chocolate block">
+                        Costo de Envío Estimado ({tarifaEnvio.regionNombre}):
+                      </span>
+                      <span className="text-[11px] text-muted">
+                        Calculado por proximidad a Sunchales para todo el país
+                      </span>
+                    </div>
+                    <span className="text-base font-bold font-serif text-admin-accent">
+                      {formatPrecio(costoEnvio)}
+                    </span>
+                  </div>
+
+                  <p className="text-[11px] text-muted leading-relaxed italic bg-surface/50 p-2.5 rounded-lg border border-border/30">
+                    💡 <strong>Nota sobre las Sucursales Vía Cargo:</strong> El costo mostrado es una estimación aproximada por zona geográfica. Al solicitar el encargo por WhatsApp, Mili acordará con vos la sucursal de Vía Cargo más cercana a tu localidad o transporte alternativo (ej. Correo Argentino) si Vía Cargo no posee sucursal directa en tu ciudad.
+                  </p>
+
                   {metodoEntrega === "domicilio" && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-border/40">
                       <div>
                         <Label htmlFor="calle">Calle</Label>
                         <Input
@@ -607,10 +663,10 @@ ${emailContacto ? `*Email:* ${emailContacto}\n` : ""}${entregaText}
                 <p className="font-semibold text-chocolate">🚚 Método de Entrega</p>
                 <p className="capitalize font-semibold text-foreground">
                   {metodoEntrega === "taller"
-                    ? "Retiro en Taller Mili Ferrero (Sunchales)"
+                    ? "Retiro en Taller Mili Ferrero (Sunchales - Sin Cargo)"
                     : metodoEntrega === "agencia"
-                    ? `Sucursal Vía Cargo (${ciudad})`
-                    : `Domicilio Vía Cargo (${calle} ${numero}, ${ciudad})`}
+                    ? `Sucursal Vía Cargo (${ciudad}, ${provincia}) => ${formatPrecio(costoEnvio)}`
+                    : `Domicilio Vía Cargo (${calle} ${numero}, ${ciudad}, ${provincia}) => ${formatPrecio(costoEnvio)}`}
                 </p>
               </div>
             </div>
@@ -644,9 +700,19 @@ ${emailContacto ? `*Email:* ${emailContacto}\n` : ""}${entregaText}
             </div>
 
             {/* Price Table Total */}
-            <div className="border-t border-border/60 pt-4 flex justify-between items-baseline text-chocolate font-serif font-bold text-lg">
-              <span>TOTAL ESTIMADO:</span>
-              <span className="text-2xl text-admin-accent">{formatPrecio(totalPrice)}</span>
+            <div className="space-y-2 border-t border-border/60 pt-4 text-chocolate font-serif text-sm">
+              <div className="flex justify-between text-muted text-xs font-sans">
+                <span>Subtotal Piezas ({items.length}):</span>
+                <span className="font-semibold text-chocolate">{formatPrecio(totalPiezasPrice)}</span>
+              </div>
+              <div className="flex justify-between text-muted text-xs font-sans">
+                <span>Costo Envío Estimado ({tarifaEnvio.regionNombre}):</span>
+                <span className="font-semibold text-chocolate">{costoEnvio > 0 ? formatPrecio(costoEnvio) : "Sin Cargo"}</span>
+              </div>
+              <div className="flex justify-between font-bold text-lg pt-2 border-t border-border/40">
+                <span>TOTAL ESTIMADO:</span>
+                <span className="text-2xl text-admin-accent">{formatPrecio(totalEstimadoFinal)}</span>
+              </div>
             </div>
 
             <div className="flex items-center justify-between pt-4 border-t border-border/60">
@@ -675,7 +741,7 @@ ${emailContacto ? `*Email:* ${emailContacto}\n` : ""}${entregaText}
               ¡Solicitud de Encargo Enviada!
             </h2>
             <p className="text-xs text-muted leading-relaxed">
-              Tu encargo fue registrado exitosamente. Se ha abierto una ventana de WhatsApp para conversar con <strong>Mili Ferrero</strong> y coordinar la producción y fecha de entrega.
+              Tu encargo fue registrado exitosamente. Se ha abierto una ventana de WhatsApp para conversar con <strong>Mili Ferrero</strong> y coordinar la producción, entrega y sucursal.
             </p>
 
             <div className="pt-4 border-t border-border/60 space-y-3">
