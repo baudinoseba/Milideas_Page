@@ -723,10 +723,13 @@ ${emailContacto ? `*Email:* ${emailContacto}\n` : ""}${entregaText}
 
                 <button
                   type="button"
-                  onClick={() => setIsEncargosFormOpen(true)}
+                  onClick={() => {
+                    closeCart();
+                    router.push("/encargos");
+                  }}
                   className="w-full rounded-full bg-admin-accent py-3.5 text-center text-sm font-semibold text-white shadow-xs transition-all hover:bg-admin-accent-hover hover:-translate-y-0.5 active:scale-[0.98]"
                 >
-                  Finalizar Solicitud de Encargos →
+                  Proceder al encargo →
                 </button>
               </div>
             )}

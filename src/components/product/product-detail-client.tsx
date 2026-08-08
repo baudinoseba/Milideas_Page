@@ -13,40 +13,6 @@ type ProductDetailProps = {
   configEncargos?: ConfiguracionEncargos;
 };
 
-function IconTruck() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="1" y="3" width="15" height="13" rx="2" />
-      <path d="M16 8h4l3 3v5h-7V8z" />
-      <circle cx="5.5" cy="18.5" r="2.5" />
-      <circle cx="18.5" cy="18.5" r="2.5" />
-    </svg>
-  );
-}
-
-function IconShield() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-      <path d="M9 12l2 2 4-4" />
-    </svg>
-  );
-}
-
-function IconHeart() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l8.78-8.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-    </svg>
-  );
-}
-
-const TRUST_ITEMS = [
-  { icon: IconTruck, text: "Envíos protegidos a todo el país" },
-  { icon: IconShield, text: "Embalaje especial antigolpes garantizado" },
-  { icon: IconHeart, text: "Pieza única ilustrada por Mili Ferrero" },
-] as const;
-
 export function ProductDetailClient({ producto, configEncargos }: ProductDetailProps) {
   const [personalizado, setPersonalizado] = useState(false);
   const [cantidad, setCantidad] = useState(1);
@@ -230,18 +196,6 @@ export function ProductDetailClient({ producto, configEncargos }: ProductDetailP
         <span>✨</span>
         <span>{stockDisponible > 0 ? "Solicitar esta pieza por Encargo / Medida Especial" : "Encargar esta pieza a Mili Ferrero"}</span>
       </Button>
-
-      {/* Trust indicators */}
-      <div className="space-y-3 pt-4 border-t border-border/40">
-        {TRUST_ITEMS.map((item) => (
-          <div key={item.text} className="flex items-center gap-3 text-xs text-barro font-sans font-medium">
-            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-rosa-buho/20 text-terracota" aria-hidden>
-              <item.icon />
-            </span>
-            <span>{item.text}</span>
-          </div>
-        ))}
-      </div>
 
       {/* Modal de Encargo */}
       <EncargoModal
