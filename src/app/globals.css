@@ -359,3 +359,9 @@ h1, h2, h3, h4, h5, h6 {
 .admin-timeline-connector.pending {
   background: var(--border);
 }
+
+/* Ocultar icono nativo de Edge/IE para no superponer con el botón de ojo */
+input::-ms-reveal,
+input::-ms-clear {
+  display: none;
+}

@@ -284,6 +284,24 @@ export function PedidoAdminActions({
             </Button>
           </>
         )}
+        {pedido.whatsapp_contacto && (
+          <Button
+            variant="outline"
+            className="border-[#25D366]/40 text-[#25D366] hover:bg-[#25D366]/10"
+            onClick={() => {
+              const rawPhone = pedido.whatsapp_contacto.replace(/[^0-9]/g, "");
+              const trackingCode = prompt("Ingresá el código de seguimiento (opcional):", "") ?? "";
+              const text = encodeURIComponent(
+                `¡Hola ${pedido.nombre_contacto}! Tu pedido #${pedido.id.slice(0, 8)} de Milideas Arte ya está preparado/enviado 🎨.${
+                  trackingCode ? ` Podés realizar el seguimiento con el código: ${trackingCode}` : ""
+                }\n\n¡Muchas gracias por tu compra!`
+              );
+              window.open(`https://wa.me/${rawPhone}?text=${text}`, "_blank");
+            }}
+          >
+            💬 Enviar Tracking por WhatsApp
+          </Button>
+        )}
         <Link
           href="/admin/pedidos"
           className="inline-flex items-center text-sm text-muted hover:text-foreground transition-colors"

@@ -4,7 +4,9 @@ import { useEffect, useState, useTransition, useSyncExternalStore } from "react"
 import { useRouter } from "next/navigation";
 import { createClient as createBrowserClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
+import { GoogleButton } from "@/components/ui/google-button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
@@ -466,7 +468,16 @@ export function CheckoutForm({
                       <h2 className="mb-4 text-lg font-medium border-b border-border pb-2 text-foreground">
                         YA SOY MIEMBRO
                       </h2>
-                      <form onSubmit={handleLoginSubmit} className="space-y-4">
+                      <div className="mb-4">
+                        <GoogleButton label="Ingresar con Google" disabled={true} />
+                        <div className="relative my-4 flex items-center justify-center">
+                          <div className="absolute inset-0 flex items-center">
+                            <div className="w-full border-t border-border" />
+                          </div>
+                          <span className="relative bg-surface px-2 text-xs uppercase text-muted">o con email</span>
+                        </div>
+                      </div>
+                      <form method="POST" onSubmit={handleLoginSubmit} className="space-y-4">
                         <div>
                           <Label htmlFor="login-email">E-mail</Label>
                           <Input
@@ -478,10 +489,9 @@ export function CheckoutForm({
                         </div>
                         <div>
                           <Label htmlFor="login-password">Contraseña</Label>
-                          <Input
+                          <PasswordInput
                             id="login-password"
                             name="password"
-                            type="password"
                             required
                           />
                         </div>

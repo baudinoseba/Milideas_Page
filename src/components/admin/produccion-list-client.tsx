@@ -25,7 +25,7 @@ export function ProduccionListClient({
   const handleDelete = (categoriaId: string, nombre: string) => {
     if (
       !confirm(
-        `¿Estás seguro de eliminar la producción "${nombre}"?\nSe borrarán permanentemente todas las piezas y fotos asociadas a esta colección.`,
+        `¿Estás seguro de eliminar la colección "${nombre}"?\nLa colección se eliminará pero todos sus productos permanecerán guardados en el catálogo.`,
       )
     ) {
       return;

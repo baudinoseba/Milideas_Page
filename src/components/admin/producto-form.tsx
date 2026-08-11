@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useRef, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,7 +8,11 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
 import { ImageUpload } from "@/components/admin/image-upload";
-import { saveProductoAction, createCategoriaInlineAction } from "@/lib/actions";
+import {
+  saveProductoAction,
+  createCategoriaInlineAction,
+  generarDescripcionProductoIAAction,
+} from "@/lib/actions";
 import type { Categoria, Producto, ProductoImagen } from "@/types";
 
 function slugify(text: string) {
@@ -24,13 +28,36 @@ export function ProductoForm({
   categorias,
   producto,
   imagenes,
+  produccionId,
+  categoriaIdInicial,
+  onSuccess,
+  onSaveAndAddAnother,
+  onFinishProduction,
+  onSaveDraft,
+  onDeletePiece,
+  onCancel,
+  submitText,
+  isWizardMode = false,
 }: {
   categorias: Categoria[];
   producto?: Producto;
   imagenes?: ProductoImagen[];
+  produccionId?: string;
+  categoriaIdInicial?: string;
+  onSuccess?: (productoId?: string) => void;
+  onSaveAndAddAnother?: (productoId?: string) => void;
+  onFinishProduction?: () => void;
+  onSaveDraft?: () => void;
+  onDeletePiece?: () => void;
+  onCancel?: () => void;
+  submitText?: string;
+  isWizardMode?: boolean;
 }) {
   const router = useRouter();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
   const [pending, startTransition] = useTransition();
+
   const [precioVal, setPrecioVal] = useState<string>(
     producto?.precio_base != null ? String(producto.precio_base) : ""
   );
@@ -40,11 +67,90 @@ export function ProductoForm({
   );
 
   const [selectedCategoriaId, setSelectedCategoriaId] = useState<string>(
-    producto?.categoria_id ?? ""
+    producto?.categoria_id ?? categoriaIdInicial ?? ""
   );
   const [showNuevaCategoria, setShowNuevaCategoria] = useState(false);
   const [nuevaCategoria, setNuevaCategoria] = useState("");
   const [creandoCategoria, setCreandoCategoria] = useState(false);
+
+  // Photos state (supports both existing images and newly selected local previews)
+  const [selectedFilePreviews, setSelectedFilePreviews] = useState<
+    Array<{ id: string; url: string; file?: File }>
+  >((imagenes ?? []).sort((a, b) => a.orden - b.orden).map((img) => ({ id: img.id, url: img.url_imagen })));
+
+  const [descripcionVal, setDescripcionVal] = useState<string>(producto?.descripcion ?? "");
+  const [generatingAi, setGeneratingAi] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+
+  // Sync state if producto prop changes
+  useEffect(() => {
+    if (producto) {
+      setPrecioVal(producto.precio_base != null ? String(producto.precio_base) : "");
+      setSelectedTipoCatalogo((producto as any)?.tipo_catalogo ?? "ceramica");
+      setSelectedCategoriaId(producto.categoria_id ?? categoriaIdInicial ?? "");
+      setDescripcionVal(producto.descripcion ?? "");
+    }
+    if (imagenes) {
+      setSelectedFilePreviews(
+        [...imagenes].sort((a, b) => a.orden - b.orden).map((img) => ({ id: img.id, url: img.url_imagen }))
+      );
+    }
+  }, [producto, imagenes, categoriaIdInicial]);
+
+  const handleFileSelect = (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    const newItems: Array<{ id: string; url: string; file?: File }> = [];
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      if (!file) continue;
+      const dataUrl = URL.createObjectURL(file);
+      newItems.push({
+        id: `local-${Date.now()}-${i}`,
+        url: dataUrl,
+        file,
+      });
+    }
+
+    setSelectedFilePreviews((prev) => [...prev, ...newItems]);
+  };
+
+  const handleGenerateAiDescription = async () => {
+    const nombreInput = (document.getElementById("nombre") as HTMLInputElement)?.value ?? "";
+    const firstImgUrl = selectedFilePreviews[0]?.url ?? null;
+
+    if (!firstImgUrl) {
+      setAiError("Subí o seleccioná al menos una foto de la pieza arriba para que Gemini pueda analizarla.");
+      return;
+    }
+
+    setGeneratingAi(true);
+    setAiError(null);
+
+    let processUrl = firstImgUrl;
+    if (firstImgUrl.startsWith("blob:")) {
+      try {
+        const blobRes = await fetch(firstImgUrl);
+        const blob = await blobRes.blob();
+        processUrl = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.readAsDataURL(blob);
+        });
+      } catch (e) {
+        console.error("Error reading blob image:", e);
+      }
+    }
+
+    const res = await generarDescripcionProductoIAAction(processUrl, nombreInput);
+    setGeneratingAi(false);
+
+    if (res.success && res.descripcion) {
+      setDescripcionVal(res.descripcion);
+    } else if (res.error) {
+      setAiError(res.error);
+    }
+  };
 
   const filteredCategorias = localCategorias.filter(
     (c) => !c.tipo_catalogo || c.tipo_catalogo === selectedTipoCatalogo
@@ -69,27 +175,53 @@ export function ProductoForm({
     }
   };
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
+  const processFormSubmit = (
+    onDone?: (id?: string) => void,
+  ) => {
+    if (!formRef.current) return;
+    const formData = new FormData(formRef.current);
+    if (produccionId) {
+      formData.set("produccionId", produccionId);
+    }
     startTransition(async () => {
       const result = await saveProductoAction(formData, producto?.id);
-      if (!result.error) router.push("/admin/productos");
+      if (!result.error) {
+        const savedId = (result as any).id;
+        if (onDone) {
+          onDone(savedId);
+        } else if (onSuccess) {
+          onSuccess(savedId);
+        } else {
+          router.push("/admin/productos");
+        }
+      } else {
+        setAiError(result.error);
+      }
     });
   };
 
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    processFormSubmit(onSuccess);
+  };
+
+  const attr = (producto as any)?.atributos_especificos ?? {};
+
   return (
-    <div className="max-w-2xl space-y-8">
-      <form onSubmit={handleSubmit} className="space-y-8">
-        {/* ─── Section 1: Basic info ─── */}
+    <div className={isWizardMode ? "space-y-6" : "max-w-2xl space-y-8"}>
+      <form ref={formRef} onSubmit={handleSubmit} className="space-y-8">
+        {produccionId && <input type="hidden" name="produccionId" value={produccionId} />}
+        {producto?.id && <input type="hidden" name="productoId" value={producto.id} />}
+
+        {/* ─── Section 1: Información básica & Categoría ─── */}
         <section className="space-y-4">
           <div className="border-b border-border pb-2">
-            <h2 className="text-lg font-medium">Información básica</h2>
-            <p className="text-xs text-muted">Nombre, descripción y disciplina de la pieza</p>
+            <h2 className="text-lg font-medium">Información básica y Categoría</h2>
+            <p className="text-xs text-muted">Nombre de la pieza, catálogo y categoría</p>
           </div>
 
           <div>
-            <Label htmlFor="nombre">Nombre de la pieza</Label>
+            <Label htmlFor="nombre">Nombre de la pieza *</Label>
             <Input
               id="nombre"
               name="nombre"
@@ -119,38 +251,207 @@ export function ProductoForm({
             </p>
           </div>
 
-          <div>
-            <Label htmlFor="descripcion">Descripción</Label>
-            <Textarea
-              id="descripcion"
-              name="descripcion"
-              defaultValue={producto?.descripcion ?? ""}
-              placeholder="Describí la pieza: material, técnica, cuidados, qué la hace única..."
-              rows={4}
-            />
+          {/* Categoría / Disciplina ubicadas ANTES de la imagen y la descripción */}
+          <div className="grid gap-4 sm:grid-cols-2 pt-2">
+            <div>
+              <Label htmlFor="tipoCatalogo" className="text-xs font-semibold text-chocolate">Disciplina / Catálogo *</Label>
+              <Select
+                id="tipoCatalogo"
+                name="tipoCatalogo"
+                value={selectedTipoCatalogo}
+                onChange={(e) => setSelectedTipoCatalogo(e.target.value)}
+                required
+                className="mt-1 font-semibold"
+              >
+                <option value="ceramica">🏺 Cerámica (Piezas Utilitarias / Objetos)</option>
+                <option value="esculturas">🗿 Esculturas (Modelado Tridimensional)</option>
+                <option value="ilustraciones">🎨 Ilustraciones (Láminas / Obras en Papel)</option>
+              </Select>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <Label htmlFor="categoriaId">Categoría específica</Label>
+                {!showNuevaCategoria && (
+                  <button
+                    type="button"
+                    onClick={() => setShowNuevaCategoria(true)}
+                    className="text-xs text-admin-accent hover:underline font-medium"
+                  >
+                    + Nueva categoría
+                  </button>
+                )}
+              </div>
+
+              {showNuevaCategoria ? (
+                <div className="flex gap-2">
+                  <Input
+                    value={nuevaCategoria}
+                    onChange={(e) => setNuevaCategoria(e.target.value)}
+                    placeholder="ej. Jarra, Acuarela, Animales..."
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleCreateCategoria();
+                      }
+                    }}
+                    autoFocus
+                  />
+                  <Button
+                    type="button"
+                    onClick={handleCreateCategoria}
+                    isLoading={creandoCategoria}
+                    className="shrink-0"
+                  >
+                    Crear
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => {
+                      setShowNuevaCategoria(false);
+                      setNuevaCategoria("");
+                    }}
+                    className="shrink-0"
+                  >
+                    Cancelar
+                  </Button>
+                </div>
+              ) : (
+                <Select
+                  id="categoriaId"
+                  name="categoriaId"
+                  value={selectedCategoriaId}
+                  onChange={(e) => setSelectedCategoriaId(e.target.value)}
+                >
+                  <option value="">Sin categoría específica</option>
+                  {filteredCategorias.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.nombre}
+                    </option>
+                  ))}
+                </Select>
+              )}
+            </div>
+          </div>
+        </section>
+
+        {/* ─── Section 2: Fotos de la Pieza ─── */}
+        <section className="space-y-4 rounded-xl border border-border/80 bg-surface p-4 shadow-xs">
+          <div className="border-b border-border/60 pb-2 flex items-center justify-between">
+            <div>
+              <h2 className="text-base font-medium text-chocolate">📷 1. Fotos de la pieza</h2>
+              <p className="text-xs text-muted">
+                Subí las fotos antes de generar la descripción. La primera foto se usará para analizarla con la IA.
+              </p>
+            </div>
+            {selectedFilePreviews.length > 0 && (
+              <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200">
+                ✓ {selectedFilePreviews.length} foto{selectedFilePreviews.length !== 1 ? "s" : ""} lista{selectedFilePreviews.length !== 1 ? "s" : ""}
+              </span>
+            )}
           </div>
 
-          {/* Catalog Type Choice */}
-          <div>
-            <Label htmlFor="tipoCatalogo" className="text-xs font-semibold text-chocolate">Disciplina / Catálogo Perteneciente *</Label>
-            <Select
-              id="tipoCatalogo"
-              name="tipoCatalogo"
-              value={selectedTipoCatalogo}
-              onChange={(e) => setSelectedTipoCatalogo(e.target.value)}
-              required
-              className="mt-1 font-semibold"
+          {producto?.id ? (
+            <ImageUpload productoId={producto.id} imagenes={imagenes ?? []} />
+          ) : (
+            <div className="space-y-3">
+              {/* Previews grid */}
+              {selectedFilePreviews.length > 0 && (
+                <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
+                  {selectedFilePreviews.map((img, idx) => (
+                    <div key={img.id} className="relative aspect-square overflow-hidden rounded-lg border border-border bg-surface shadow-xs">
+                      <img src={img.url} alt="Foto previa" className="h-full w-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => setSelectedFilePreviews((prev) => prev.filter((p) => p.id !== img.id))}
+                        className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white hover:bg-black text-xs"
+                      >
+                        ✕
+                      </button>
+                      {idx === 0 && (
+                        <span className="absolute bottom-1 left-1 rounded bg-terracota px-1.5 py-0.5 text-[9px] font-bold text-white">
+                          Imagen para IA
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Dropzone & file selector */}
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-terracota/40 bg-terracota/5 p-6 text-center cursor-pointer hover:border-terracota transition-all"
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  name="imageFiles"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => handleFileSelect(e.target.files)}
+                />
+                <span className="text-3xl mb-1">📷</span>
+                <p className="text-sm font-semibold text-chocolate">
+                  Hacé clic acá para cargar las fotos de la pieza
+                </p>
+                <p className="text-xs text-muted mt-0.5">
+                  Seleccioná fotos desde tu dispositivo (JPG, PNG, WebP)
+                </p>
+              </div>
+            </div>
+          )}
+        </section>
+
+        {/* ─── Section 3: Descripción & Redacción con IA (Gemini) ─── */}
+        <section className="space-y-3">
+          <div className="flex items-center justify-between">
+            <Label htmlFor="descripcion" className="text-sm font-medium">2. Descripción de la pieza</Label>
+            <button
+              type="button"
+              onClick={handleGenerateAiDescription}
+              disabled={generatingAi || selectedFilePreviews.length === 0}
+              className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl border transition-all ${
+                selectedFilePreviews.length > 0
+                  ? "border-terracota bg-terracota text-white shadow-xs hover:bg-chocolate cursor-pointer"
+                  : "border-border bg-surface text-muted cursor-not-allowed opacity-60"
+              }`}
+              title={
+                selectedFilePreviews.length > 0
+                  ? "Gemini analizará la primera foto cargada arriba y redactará la descripción con la voz de la artista"
+                  : "Primero subí o seleccioná una foto arriba para habilitar la IA"
+              }
             >
-              <option value="ceramica">🏺 Catálogo de Cerámica (Piezas Utilitarias / Objetos)</option>
-              <option value="esculturas">🗿 Catálogo de Esculturas (Modelado Tridimensional)</option>
-              <option value="ilustraciones">🎨 Catálogo de Ilustraciones (Láminas / Obras en Papel)</option>
-            </Select>
-            <p className="text-[11px] text-muted mt-1">
-              Determina los campos técnicos requeridos y en qué catálogo principal se exhibirá.
-            </p>
+              <span className={generatingAi ? "animate-spin" : ""}>✨</span>
+              <span>{generatingAi ? "Analizando foto con Gemini..." : "Redactar con IA (Gemini)"}</span>
+            </button>
           </div>
 
-          {/* Dynamic Discipline-Specific Attribute Fields */}
+          {selectedFilePreviews.length === 0 && (
+            <p className="text-[11px] text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 p-2.5 rounded-lg border border-amber-200 dark:border-amber-800">
+              📷 <strong>Paso previo requerido:</strong> Cargá o seleccioná al menos una foto de la pieza en el recuadro superior para habilitar la redacción automática con IA.
+            </p>
+          )}
+
+          <Textarea
+            id="descripcion"
+            name="descripcion"
+            value={descripcionVal}
+            onChange={(e) => setDescripcionVal(e.target.value)}
+            placeholder="Describí la pieza o usá el botón de IA arriba para redactarla automáticamente a partir de la foto..."
+            rows={5}
+          />
+          {aiError && (
+            <p className="text-xs text-red-600 bg-red-50 p-2 rounded border border-red-200">
+              ⚠️ {aiError}
+            </p>
+          )}
+        </section>
+
+        {/* ─── Section 4: Especificaciones Técnicas por Disciplina ─── */}
+        <section className="space-y-4">
           <div className="rounded-2xl border border-admin-accent/30 bg-arena/30 p-4 space-y-4">
             <h3 className="text-xs font-serif font-semibold text-chocolate uppercase tracking-wider flex items-center gap-1.5">
               <span>{selectedTipoCatalogo === "ceramica" ? "🏺" : selectedTipoCatalogo === "esculturas" ? "🗿" : "🎨"}</span>
@@ -166,7 +467,7 @@ export function ProductoForm({
                     id="capacidadMl"
                     name="capacidadMl"
                     type="number"
-                    defaultValue={(producto as any)?.capacidad_ml ?? ""}
+                    defaultValue={(producto as any)?.capacidad_ml ?? attr.capacidad_ml ?? ""}
                     placeholder="ej. 350"
                   />
                 </div>
@@ -175,7 +476,7 @@ export function ProductoForm({
                     <input
                       type="checkbox"
                       name="aptoLavavajillas"
-                      defaultChecked={(producto as any)?.apto_lavavajillas ?? true}
+                      defaultChecked={(producto as any)?.apto_lavavajillas ?? attr.apto_lavavajillas ?? true}
                       className="h-4 w-4 rounded border-border accent-admin-accent"
                     />
                     🧽 Apto lavavajillas
@@ -184,7 +485,7 @@ export function ProductoForm({
                     <input
                       type="checkbox"
                       name="aptoMicroondas"
-                      defaultChecked={(producto as any)?.apto_microondas ?? true}
+                      defaultChecked={(producto as any)?.apto_microondas ?? attr.apto_microondas ?? true}
                       className="h-4 w-4 rounded border-border accent-admin-accent"
                     />
                     ♨️ Apto microondas
@@ -202,7 +503,7 @@ export function ProductoForm({
                     <Input
                       id="papelSoporte"
                       name="papelSoporte"
-                      defaultValue={(producto as any)?.papel_soporte ?? "Papel Canson 300g Acuarela"}
+                      defaultValue={(producto as any)?.papel_soporte ?? attr.papel_soporte ?? "Papel Canson 300g Acuarela"}
                       placeholder="ej. Papel Canson 300g"
                     />
                   </div>
@@ -211,7 +512,7 @@ export function ProductoForm({
                     <Input
                       id="materialTecnica"
                       name="materialTecnica"
-                      defaultValue={(producto as any)?.material_tecnica ?? ""}
+                      defaultValue={(producto as any)?.material_tecnica ?? attr.material_tecnica ?? ""}
                       placeholder="ej. Acuarela y tinta china"
                     />
                   </div>
@@ -220,7 +521,7 @@ export function ProductoForm({
                   <input
                     type="checkbox"
                     name="marcoIncluido"
-                    defaultChecked={(producto as any)?.marco_incluido ?? false}
+                    defaultChecked={(producto as any)?.marco_incluido ?? attr.marco_incluido ?? false}
                     className="h-4 w-4 rounded border-border accent-admin-accent"
                   />
                   🖼️ Incluye marco artesanal de madera
@@ -237,7 +538,7 @@ export function ProductoForm({
                     <Input
                       id="materialTecnica"
                       name="materialTecnica"
-                      defaultValue={(producto as any)?.material_tecnica ?? ""}
+                      defaultValue={(producto as any)?.material_tecnica ?? attr.material_tecnica ?? ""}
                       placeholder="ej. Pasta Gres modelada a mano"
                     />
                   </div>
@@ -246,7 +547,7 @@ export function ProductoForm({
                     <Input
                       id="edicionNumerada"
                       name="edicionNumerada"
-                      defaultValue={(producto as any)?.edicion_numerada ?? ""}
+                      defaultValue={(producto as any)?.edicion_numerada ?? attr.edicion_numerada ?? ""}
                       placeholder="ej. Edición Única 1/1 o 3/10"
                     />
                   </div>
@@ -255,7 +556,7 @@ export function ProductoForm({
                   <input
                     type="checkbox"
                     name="pedestalIncluido"
-                    defaultChecked={(producto as any)?.pedestal_incluido ?? false}
+                    defaultChecked={(producto as any)?.pedestal_incluido ?? attr.pedestal_incluido ?? false}
                     className="h-4 w-4 rounded border-border accent-admin-accent"
                   />
                   🗿 Incluye pedestal o base de exposición
@@ -264,7 +565,7 @@ export function ProductoForm({
             )}
           </div>
 
-          {/* Dimensiones y medidas aproximadas */}
+          {/* Dimensiones y medidas aproximadamente */}
           <div className="rounded-xl border border-border/60 bg-surface/50 p-4 space-y-3">
             <Label className="text-sm font-semibold flex items-center gap-1.5">
               <span>📐</span>
@@ -278,7 +579,7 @@ export function ProductoForm({
                   name="altoCm"
                   type="number"
                   step="0.1"
-                  defaultValue={producto?.alto_cm ?? ""}
+                  defaultValue={producto?.alto_cm ?? attr.alto_cm ?? ""}
                   placeholder="ej. 10"
                 />
               </div>
@@ -289,7 +590,7 @@ export function ProductoForm({
                   name="anchoCm"
                   type="number"
                   step="0.1"
-                  defaultValue={producto?.ancho_cm ?? ""}
+                  defaultValue={producto?.ancho_cm ?? attr.ancho_cm ?? ""}
                   placeholder="ej. 15"
                 />
               </div>
@@ -304,78 +605,9 @@ export function ProductoForm({
               />
             </div>
           </div>
-
-          {/* Categorías Filtradas por Disciplina */}
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <Label htmlFor="categoriaId">Categoría de {selectedTipoCatalogo.toUpperCase()}</Label>
-              {!showNuevaCategoria && (
-                <button
-                  type="button"
-                  onClick={() => setShowNuevaCategoria(true)}
-                  className="text-xs text-admin-accent hover:underline font-medium"
-                >
-                  + Nueva categoría
-                </button>
-              )}
-            </div>
-
-            {showNuevaCategoria ? (
-              <div className="flex gap-2">
-                <Input
-                  value={nuevaCategoria}
-                  onChange={(e) => setNuevaCategoria(e.target.value)}
-                  placeholder="ej. Jarra, Acuarela, Animales..."
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      handleCreateCategoria();
-                    }
-                  }}
-                  autoFocus
-                />
-                <Button
-                  type="button"
-                  onClick={handleCreateCategoria}
-                  isLoading={creandoCategoria}
-                  className="shrink-0"
-                >
-                  Crear
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => {
-                    setShowNuevaCategoria(false);
-                    setNuevaCategoria("");
-                  }}
-                  className="shrink-0"
-                >
-                  Cancelar
-                </Button>
-              </div>
-            ) : (
-              <Select
-                id="categoriaId"
-                name="categoriaId"
-                value={selectedCategoriaId}
-                onChange={(e) => setSelectedCategoriaId(e.target.value)}
-              >
-                <option value="">Sin categoría específica</option>
-                {filteredCategorias.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.nombre}
-                  </option>
-                ))}
-              </Select>
-            )}
-            <p className="mt-1 text-[11px] text-muted">
-              Mostrando categorías filtradas para la disciplina de {selectedTipoCatalogo}.
-            </p>
-          </div>
         </section>
 
-        {/* ─── Section 2: Pricing & Stock ─── */}
+        {/* ─── Section 5: Pricing & Stock ─── */}
         <section className="space-y-4">
           <div className="border-b border-border pb-2">
             <h2 className="text-lg font-medium">Precio y stock</h2>
@@ -417,109 +649,127 @@ export function ProductoForm({
                 id="stockDisponible"
                 name="stockDisponible"
                 type="number"
-                defaultValue={producto?.stock_disponible ?? 0}
+                defaultValue={producto?.stock_disponible ?? 1}
                 required
                 min={0}
               />
             </div>
           </div>
-
-          <div className="flex flex-wrap gap-6 pt-2">
-            <label className="flex items-center gap-2 text-sm cursor-pointer">
-              <input
-                type="checkbox"
-                name="esPersonalizable"
-                defaultChecked={producto?.es_personalizable}
-                className="h-4 w-4 rounded border-border accent-admin-accent"
-              />
-              ¿Es personalizable?
-            </label>
-            <label className="flex items-center gap-2 text-sm cursor-pointer">
-              <input
-                type="checkbox"
-                name="esEntregaInmediata"
-                defaultChecked={producto?.es_entrega_inmediata}
-                className="h-4 w-4 rounded border-border accent-admin-accent"
-              />
-              Entrega inmediata
-            </label>
-          </div>
         </section>
 
-        {/* ─── Section 3: Publication ─── */}
-        <section className="space-y-4">
-          <div className="border-b border-border pb-2">
-            <h2 className="text-lg font-medium">Publicación</h2>
-            <p className="text-xs text-muted">Controlá si la pieza es visible y cuándo se lanza</p>
-          </div>
+        {/* ─── Section 6: Publication ─── */}
+        {!isWizardMode && (
+          <section className="space-y-4">
+            <div className="border-b border-border pb-2">
+              <h2 className="text-lg font-medium">Publicación</h2>
+              <p className="text-xs text-muted">Controlá si la pieza es visible y cuándo se lanza</p>
+            </div>
 
-          <div>
-            <Label htmlFor="fechaLanzamiento">Fecha de lanzamiento (colección)</Label>
-            <Input
-              id="fechaLanzamiento"
-              name="fechaLanzamiento"
-              type="datetime-local"
-              defaultValue={
-                producto?.fecha_lanzamiento
-                  ? new Date(producto.fecha_lanzamiento).toISOString().slice(0, 16)
-                  : ""
-              }
-            />
-            <p className="mt-1 text-[11px] text-muted">
-              Si tiene fecha de lanzamiento, la pieza aparece en la sección de Colecciones
-            </p>
-          </div>
-
-          <label className="flex items-center gap-3 rounded-lg border border-border p-4 cursor-pointer hover:bg-surface transition-colors">
-            <input
-              type="checkbox"
-              name="activo"
-              defaultChecked={producto?.activo ?? true}
-              className="h-5 w-5 rounded border-border accent-admin-accent"
-            />
             <div>
-              <p className="text-sm font-medium">Visible en la tienda</p>
-              <p className="text-xs text-muted">
-                Si está desactivado, la pieza no se muestra a los clientes
+              <Label htmlFor="fechaLanzamiento">Fecha de lanzamiento (colección)</Label>
+              <Input
+                id="fechaLanzamiento"
+                name="fechaLanzamiento"
+                type="datetime-local"
+                defaultValue={
+                  producto?.fecha_lanzamiento
+                    ? new Date(producto.fecha_lanzamiento).toISOString().slice(0, 16)
+                    : ""
+                }
+              />
+              <p className="mt-1 text-[11px] text-muted">
+                Si tiene fecha de lanzamiento, la pieza aparece en la sección de Colecciones
               </p>
             </div>
-          </label>
-        </section>
 
-        <div className="flex items-center gap-3 border-t border-border pt-6">
-          <Button type="submit" isLoading={pending}>
-            {producto ? "Guardar cambios" : "Crear pieza"}
+            <label className="flex items-center gap-3 rounded-lg border border-border p-4 cursor-pointer hover:bg-surface transition-colors">
+              <input
+                type="checkbox"
+                name="activo"
+                defaultChecked={producto?.activo ?? true}
+                className="h-5 w-5 rounded border-border accent-admin-accent"
+              />
+              <div>
+                <p className="text-sm font-medium">Visible en la tienda</p>
+                <p className="text-xs text-muted">
+                  Si está desactivado, la pieza no se muestra a los clientes
+                </p>
+              </div>
+            </label>
+          </section>
+        )}
+
+        {/* ─── Action Buttons requested by user ─── */}
+        <div className="flex flex-wrap items-center gap-3 border-t border-border pt-6">
+          {/* Main submit: Actualizar pieza or Crear pieza */}
+          <Button type="submit" isLoading={pending} className="cursor-pointer">
+            {submitText ?? (producto ? "💾 Actualizar pieza" : "💾 Crear pieza")}
           </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={() => router.push("/admin/productos")}
-          >
-            Cancelar
-          </Button>
+
+          {/* Option: Guardar y agregar otra pieza (wizard or standard) */}
+          {onSaveAndAddAnother && (
+            <Button
+              type="button"
+              variant="outline"
+              isLoading={pending}
+              onClick={() => processFormSubmit(onSaveAndAddAnother)}
+              className="cursor-pointer"
+            >
+              ➕ Guardar y agregar otra pieza
+            </Button>
+          )}
+
+          {/* Option: Finalizar producción */}
+          {onFinishProduction && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onFinishProduction}
+              className="cursor-pointer"
+            >
+              ➡️ Finalizar producción
+            </Button>
+          )}
+
+          {/* Option: Guardar borrador */}
+          {onSaveDraft && (
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={onSaveDraft}
+              className="cursor-pointer"
+            >
+              💾 Guardar borrador
+            </Button>
+          )}
+
+          {/* Option: Eliminar pieza (when editing) */}
+          {producto?.id && onDeletePiece && (
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={onDeletePiece}
+              className="text-destructive hover:bg-destructive/10 cursor-pointer ml-auto"
+            >
+              🗑️ Eliminar esta pieza
+            </Button>
+          )}
+
+          {/* Cancel button fallback */}
+          {!isWizardMode && (
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => {
+                if (onCancel) onCancel();
+                else router.push("/admin/productos");
+              }}
+            >
+              Cancelar
+            </Button>
+          )}
         </div>
       </form>
-
-      {/* ─── Section 4: Images (only for existing products) ─── */}
-      {producto && (
-        <section className="border-t border-border pt-8">
-          <div className="mb-4">
-            <h2 className="text-lg font-medium">Fotos</h2>
-            <p className="text-xs text-muted">
-              Subí fotos de la pieza. La primera será la imagen principal.
-            </p>
-          </div>
-          <ImageUpload productoId={producto.id} imagenes={imagenes ?? []} />
-        </section>
-      )}
-
-      {!producto && (
-        <div className="rounded-lg border border-dashed border-border p-6 text-center">
-          <p className="text-sm text-muted">
-            📷 Podés agregar fotos después de crear la pieza
-          </p>
-        </div>
-      )}
     </div>
   );
 }

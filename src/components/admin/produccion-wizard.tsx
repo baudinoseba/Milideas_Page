@@ -13,18 +13,19 @@ import {
   savePiezaProduccionAction,
   vincularProductoAProduccionAction,
   publicarProduccionAction,
+  actualizarProduccionSinRelanzarAction,
   deletePiezaProduccionAction,
   uploadProductoImageAction,
   deleteProductoImageAction,
+  generarDescripcionProductoIAAction,
 } from "@/lib/actions";
 
-
 import { ImageReorderGallery } from "@/components/admin/image-reorder-gallery";
-import { StorefrontPreviewModal } from "@/components/admin/storefront-preview-modal";
+import { ProductoForm } from "@/components/admin/producto-form";
 import type { Categoria, ProductoConImagenes, ProductoImagen, TipoCatalogo } from "@/types";
 
 type Step = "setup" | "pieces" | "preview";
-type PieceMode = "new" | "existing";
+type PieceMode = "new" | "existing" | "edit";
 
 type PiezaGuardada = ProductoConImagenes;
 
@@ -54,6 +55,7 @@ export function ProduccionWizard({
 
   // Pieces state
   const [piezas, setPiezas] = useState<PiezaGuardada[]>(piezasExistentes ?? []);
+  const [editingPieza, setEditingPieza] = useState<PiezaGuardada | null>(null);
   const [editingPiezaId, setEditingPiezaId] = useState<string | null>(null);
   const [currentPiezaImages, setCurrentPiezaImages] = useState<ProductoImagen[]>([]);
   const [currentPiezaId, setCurrentPiezaId] = useState<string | null>(null);
@@ -61,7 +63,6 @@ export function ProduccionWizard({
   const [precioVal, setPrecioVal] = useState<string>("");
   const [pieceMode, setPieceMode] = useState<PieceMode>("new");
   const [selectedExistingProductId, setSelectedExistingProductId] = useState<string>("");
-  const [showPreviewModal, setShowPreviewModal] = useState(false);
 
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -71,6 +72,36 @@ export function ProduccionWizard({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, startUpload] = useTransition();
   const [dragging, setDragging] = useState(false);
+
+  const [descripcionVal, setDescripcionVal] = useState<string>("");
+  const [generatingAi, setGeneratingAi] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+
+  const handleGenerateAiDescription = async () => {
+    const nombreInput = (document.getElementById("nombre") as HTMLInputElement)?.value ?? "";
+    const firstImgUrl = currentPiezaImages[0]?.url_imagen ?? null;
+
+    if (!firstImgUrl) {
+      setAiError("Subí al menos una foto de la pieza arriba para que Gemini pueda analizarla.");
+      return;
+    }
+
+    setGeneratingAi(true);
+    setAiError(null);
+
+    const res = await generarDescripcionProductoIAAction(firstImgUrl, nombreInput);
+    setGeneratingAi(false);
+
+    if (res.success && res.descripcion) {
+      setDescripcionVal(res.descripcion);
+      if (formRef.current) {
+        const descTextarea = formRef.current.elements.namedItem("descripcion") as HTMLTextAreaElement;
+        if (descTextarea) descTextarea.value = res.descripcion;
+      }
+    } else if (res.error) {
+      setAiError(res.error);
+    }
+  };
 
   const handleVincularProductoExistente = () => {
     if (!selectedExistingProductId || !categoriaId) return;
@@ -243,61 +274,67 @@ export function ProduccionWizard({
 
 
   const handleEditPieza = (pieza: PiezaGuardada) => {
+    setEditingPieza(pieza);
     setEditingPiezaId(pieza.id);
     setCurrentPiezaId(pieza.id);
     setCurrentPiezaImages(pieza.producto_imagenes ?? []);
-    setSelectedPieceCategoriaId(pieza.categoria_id ?? "");
-    setPrecioVal(String(pieza.precio_base ?? ""));
+    setPieceMode("edit");
     setStep("pieces");
-
-
-
-    // Pre-fill form after render
-    setTimeout(() => {
-      if (!formRef.current) return;
-      const form = formRef.current;
-      (form.elements.namedItem("nombre") as HTMLInputElement).value = pieza.nombre;
-      (form.elements.namedItem("descripcion") as HTMLTextAreaElement).value = pieza.descripcion ?? "";
-      (form.elements.namedItem("precioBase") as HTMLInputElement).value = String(pieza.precio_base);
-      (form.elements.namedItem("stockDisponible") as HTMLInputElement).value = String(pieza.stock_disponible);
-      const catSelect = form.elements.namedItem("categoriaId") as HTMLSelectElement;
-      if (catSelect && pieza.categoria_id) catSelect.value = pieza.categoria_id;
-      const personalizable = form.elements.namedItem("esPersonalizable") as HTMLInputElement;
-      if (personalizable) personalizable.checked = pieza.es_personalizable;
-      const altoInput = form.elements.namedItem("altoCm") as HTMLInputElement;
-      if (altoInput) altoInput.value = pieza.alto_cm != null ? String(pieza.alto_cm) : "";
-      const anchoInput = form.elements.namedItem("anchoCm") as HTMLInputElement;
-      if (anchoInput) anchoInput.value = pieza.ancho_cm != null ? String(pieza.ancho_cm) : "";
-      const dimInput = form.elements.namedItem("dimensiones") as HTMLInputElement;
-      if (dimInput) dimInput.value = pieza.dimensiones ?? "";
-    }, 50);
+    window.scrollTo({ top: 300, behavior: "smooth" });
   };
 
 
-  // ─── Image handling ───
   const handleImageUpload = (files: FileList | null) => {
-    if (!files || files.length === 0 || !currentPiezaId) return;
+    if (!files || files.length === 0) return;
 
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      if (!file) continue;
-      startUpload(async () => {
-        const formData = new FormData();
-        formData.set("image", file);
-        const result = await uploadProductoImageAction(currentPiezaId!, formData);
-        if (result.success && result.url) {
-          setCurrentPiezaImages((prev) => [
-            ...prev,
-            {
-              id: Date.now().toString() + i,
-              producto_id: currentPiezaId!,
-              url_imagen: result.url!,
-              orden: prev.length,
-            },
-          ]);
+    const uploadFilesToId = (targetId: string) => {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        if (!file) continue;
+        startUpload(async () => {
+          const formData = new FormData();
+          formData.set("image", file);
+          const result = await uploadProductoImageAction(targetId, formData);
+          if (result.success && result.url) {
+            setCurrentPiezaImages((prev) => [
+              ...prev,
+              {
+                id: Date.now().toString() + i,
+                producto_id: targetId,
+                url_imagen: result.url!,
+                orden: prev.length,
+              },
+            ]);
+          }
+        });
+      }
+    };
+
+    if (!currentPiezaId) {
+      if (!formRef.current || !categoriaId) return;
+      const formData = new FormData(formRef.current);
+      let nombre = String(formData.get("nombre") || "").trim();
+      if (!nombre) {
+        nombre = "Pieza sin título";
+        formData.set("nombre", nombre);
+        const nameInput = formRef.current.elements.namedItem("nombre") as HTMLInputElement;
+        if (nameInput) nameInput.value = nombre;
+      }
+
+      startTransition(async () => {
+        setError(null);
+        const result = await savePiezaProduccionAction(formData, categoriaId);
+        if (result.success && result.id) {
+          setCurrentPiezaId(result.id);
+          uploadFilesToId(result.id);
+        } else {
+          setError(result.error ?? "Error al asociar las fotos a la pieza");
         }
       });
+      return;
     }
+
+    uploadFilesToId(currentPiezaId);
   };
 
   const handleImageDelete = (imageId: string) => {
@@ -338,10 +375,27 @@ export function ProduccionWizard({
       setError(null);
       const result = await publicarProduccionAction(categoriaId);
       if (result.success) {
-        router.push("/admin");
+        router.push("/admin/produccion");
         router.refresh();
       } else {
         setError(result.error ?? "Error al publicar");
+      }
+    });
+  };
+
+  const handleUpdateWithoutRelauch = () => {
+    if (!categoriaId) return;
+    startTransition(async () => {
+      setError(null);
+      const result = await actualizarProduccionSinRelanzarAction(categoriaId);
+      if (result.success) {
+        setSuccessMsg("¡Producción actualizada correctamente sin relanzar ni modificar fechas!");
+        setTimeout(() => {
+          router.push("/admin/produccion");
+          router.refresh();
+        }, 1000);
+      } else {
+        setError(result.error ?? "Error al actualizar la producción");
       }
     });
   };
@@ -641,381 +695,74 @@ export function ProduccionWizard({
             </div>
           )}
 
-          {/* Mode 2: Formulario pieza nueva */}
-          {pieceMode === "new" && (
-
-
-
-          <form ref={formRef} className="space-y-6 rounded-lg border border-border p-6">
-            {/* Basic info */}
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="sm:col-span-2">
-                <Label htmlFor="nombre">Nombre de la pieza *</Label>
-                <Input id="nombre" name="nombre" placeholder="Ej: Taza Luna Llena" required />
-              </div>
-              <div className="sm:col-span-2">
-                <div className="flex items-center justify-between mb-1">
-                  <Label htmlFor="categoriaId">Categoría de la pieza</Label>
-                  {!showNuevaCategoria && (
-                    <button
-                      type="button"
-                      onClick={() => setShowNuevaCategoria(true)}
-                      className="text-xs font-semibold text-admin-accent hover:underline"
-                    >
-                      + Nueva Categoría
-                    </button>
-                  )}
-                </div>
-
-                {!showNuevaCategoria ? (
-                  <Select
-                    id="categoriaId"
-                    name="categoriaId"
-                    value={selectedPieceCategoriaId}
-                    onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setSelectedPieceCategoriaId(e.target.value)}
-                  >
-                    <option value="">Seleccioná tipo de producto (Taza, Platos, Bandejas, etc.)...</option>
-                    {categorias.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.nombre}
-                      </option>
-                    ))}
-                  </Select>
-                ) : (
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder="Ej: Bandejas, Azucareras, Macetas..."
-                      value={nuevaCategoria}
-                      onChange={(e) => setNuevaCategoria(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          handleCreateCategoria();
-                        }
-                      }}
-                      autoFocus
-                    />
-                    <Button
-                      type="button"
-                      onClick={handleCreateCategoria}
-                      isLoading={pending}
-                      className="shrink-0"
-                    >
-                      Crear
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      onClick={() => {
-                        setShowNuevaCategoria(false);
-                        setNuevaCategoria("");
-                      }}
-                      className="shrink-0"
-                    >
-                      Cancelar
-                    </Button>
-                  </div>
-                )}
-              </div>
-
-              <div className="sm:col-span-2">
-                <Label htmlFor="descripcion">Descripción</Label>
-                <Textarea
-                  id="descripcion"
-                  name="descripcion"
-                  placeholder="Material, tamaño, cuidados, qué la hace especial..."
-                  rows={3}
-                />
-              </div>
-
-              {/* Medidas y Dimensiones */}
-              <div className="sm:col-span-2 rounded-xl border border-border/60 bg-surface/50 p-4 space-y-3">
-                <Label className="text-sm font-semibold flex items-center gap-1.5">
-                  <span>📐</span>
-                  <span>Medidas Aproximadas (Alto, Ancho, Capacidad)</span>
-                </Label>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label htmlFor="altoCm" className="text-xs text-muted">Alto (cm)</Label>
-                    <Input
-                      id="altoCm"
-                      name="altoCm"
-                      type="number"
-                      step="0.1"
-                      placeholder="ej. 10"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="anchoCm" className="text-xs text-muted">Ancho / Diámetro (cm)</Label>
-                    <Input
-                      id="anchoCm"
-                      name="anchoCm"
-                      type="number"
-                      step="0.1"
-                      placeholder="ej. 15"
-                    />
-                  </div>
-                </div>
+          {/* Formulario unificado de Pieza (Nueva o Edición) */}
+          {(pieceMode === "new" || pieceMode === "edit") && (
+            <div className="rounded-xl border border-border p-6 bg-surface shadow-xs space-y-4">
+              <div className="border-b border-border pb-3 flex items-center justify-between">
                 <div>
-                  <Label htmlFor="dimensiones" className="text-xs text-muted">Detalle adicional o Capacidad (opcional)</Label>
-                  <Input
-                    id="dimensiones"
-                    name="dimensiones"
-                    placeholder="ej. Capacidad: 350 ml | Incluye posavasos"
-                  />
-                </div>
-              </div>
-
-              {/* Dynamic Catalog-Specific Attributes */}
-              <input type="hidden" name="tipoCatalogo" value={tipoCatalogo} />
-
-              {tipoCatalogo === "ceramica" && (
-                <div className="sm:col-span-2 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 space-y-3">
-                  <Label className="text-sm font-semibold flex items-center gap-1.5 text-chocolate">
-                    <span>🏺</span>
-                    <span>Especificaciones de Cerámica</span>
-                  </Label>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <div>
-                      <Label htmlFor="capacidadMl" className="text-xs text-muted">Capacidad (ml)</Label>
-                      <Input
-                        id="capacidadMl"
-                        name="capacidadMl"
-                        type="number"
-                        placeholder="ej. 350"
-                      />
-                    </div>
-                    <div className="flex items-center gap-2 pt-5">
-                      <input
-                        type="checkbox"
-                        id="aptoLavavajillas"
-                        name="aptoLavavajillas"
-                        defaultChecked
-                        className="h-4 w-4 rounded border-border text-admin-accent cursor-pointer"
-                      />
-                      <Label htmlFor="aptoLavavajillas" className="text-xs cursor-pointer">
-                        Apto Lavavajillas
-                      </Label>
-                    </div>
-                    <div className="flex items-center gap-2 pt-5">
-                      <input
-                        type="checkbox"
-                        id="aptoMicroondas"
-                        name="aptoMicroondas"
-                        defaultChecked
-                        className="h-4 w-4 rounded border-border text-admin-accent cursor-pointer"
-                      />
-                      <Label htmlFor="aptoMicroondas" className="text-xs cursor-pointer">
-                        Apto Microondas
-                      </Label>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {tipoCatalogo === "esculturas" && (
-                <div className="sm:col-span-2 rounded-xl border border-stone-500/30 bg-stone-500/5 p-4 space-y-3">
-                  <Label className="text-sm font-semibold flex items-center gap-1.5 text-chocolate">
-                    <span>🗿</span>
-                    <span>Especificaciones de Escultura</span>
-                  </Label>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <Label htmlFor="materialTecnica" className="text-xs text-muted">Material / Técnica</Label>
-                      <Input
-                        id="materialTecnica"
-                        name="materialTecnica"
-                        placeholder="ej. Gres modelado a mano, pátina natural"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="edicionNumerada" className="text-xs text-muted">Edición Numerada</Label>
-                      <Input
-                        id="edicionNumerada"
-                        name="edicionNumerada"
-                        placeholder="ej. Pieza única 1/1, Serie 1/5"
-                      />
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 pt-1">
-                    <input
-                      type="checkbox"
-                      id="pedestalIncluido"
-                      name="pedestalIncluido"
-                      className="h-4 w-4 rounded border-border text-admin-accent cursor-pointer"
-                    />
-                    <Label htmlFor="pedestalIncluido" className="text-xs cursor-pointer">
-                      Incluye pedestal o base de exposición
-                    </Label>
-                  </div>
-                </div>
-              )}
-
-              {tipoCatalogo === "ilustraciones" && (
-                <div className="sm:col-span-2 rounded-xl border border-rose-500/30 bg-rose-500/5 p-4 space-y-3">
-                  <Label className="text-sm font-semibold flex items-center gap-1.5 text-chocolate">
-                    <span>🎨</span>
-                    <span>Especificaciones de Ilustración</span>
-                  </Label>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <div>
-                      <Label htmlFor="papelSoporte" className="text-xs text-muted">Papel / Soporte</Label>
-                      <Input
-                        id="papelSoporte"
-                        name="papelSoporte"
-                        placeholder="ej. Papel Algodón 300g Libre de Ácido"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="tamanoLamina" className="text-xs text-muted">Tamaño de Lámina</Label>
-                      <Input
-                        id="tamanoLamina"
-                        name="tamanoLamina"
-                        placeholder="ej. A3 (30x42cm), A4, 50x70cm"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="materialTecnica" className="text-xs text-muted">Técnica Original</Label>
-                      <Input
-                        id="materialTecnica"
-                        name="materialTecnica"
-                        placeholder="ej. Acuarela, Tinta & Gouache"
-                      />
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 pt-1">
-                    <input
-                      type="checkbox"
-                      id="marcoIncluido"
-                      name="marcoIncluido"
-                      className="h-4 w-4 rounded border-border text-admin-accent cursor-pointer"
-                    />
-                    <Label htmlFor="marcoIncluido" className="text-xs cursor-pointer">
-                      Incluye enmarcado en madera
-                    </Label>
-                  </div>
-                </div>
-              )}
-              <div>
-                <Label htmlFor="precioBase">Precio (ARS) *</Label>
-                <Input
-                  id="precioBase"
-                  name="precioBase"
-                  type="number"
-                  placeholder="0"
-                  value={precioVal}
-                  onChange={(e) => setPrecioVal(e.target.value)}
-                  min={0}
-                  required
-                />
-                {Number(precioVal) > 0 && Number(precioVal) % 1000 === 0 && (
-                  <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50 p-2.5 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
-                    <span>
-                      💡 <strong>Sugerencia de marketing:</strong> Para ${Number(precioVal).toLocaleString("es-AR")}, se recomienda usar ${(Number(precioVal) - 1).toLocaleString("es-AR")} por impacto psicológico visual.
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setPrecioVal(String(Number(precioVal) - 1))}
-                      className="shrink-0 rounded bg-amber-200/80 px-2 py-1 font-semibold text-amber-900 hover:bg-amber-300 transition-colors dark:bg-amber-900/60 dark:text-amber-100"
-                    >
-                      Usar ${(Number(precioVal) - 1).toLocaleString("es-AR")}
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <Label htmlFor="stockDisponible">Stock disponible</Label>
-                <Input
-                  id="stockDisponible"
-                  name="stockDisponible"
-                  type="number"
-                  defaultValue={1}
-                  min={0}
-                />
-              </div>
-
-            </div>
-
-            <label className="flex items-center gap-2 text-sm cursor-pointer">
-              <input
-                type="checkbox"
-                name="esPersonalizable"
-                className="h-4 w-4 rounded border-border accent-admin-accent"
-              />
-              ¿Es personalizable?
-            </label>
-
-            {/* Photos section */}
-            <div className="border-t border-border pt-4">
-              <Label>Fotos de la pieza</Label>
-              {currentPiezaId ? (
-                <div className="mt-2 space-y-4">
-                  {/* Reorder gallery */}
-                  <ImageReorderGallery
-                    productoId={currentPiezaId}
-                    imagenes={currentPiezaImages}
-                    onImagesChange={(newImgs) => setCurrentPiezaImages(newImgs)}
-                  />
-
-
-                  {/* Drop zone */}
-                  <div
-                    className={`admin-dropzone ${dragging ? "dragging" : ""}`}
-                    onDragOver={(e) => {
-                      e.preventDefault();
-                      setDragging(true);
-                    }}
-                    onDragLeave={() => setDragging(false)}
-                    onDrop={(e) => {
-                      e.preventDefault();
-                      setDragging(false);
-                      handleImageUpload(e.dataTransfer.files);
-                    }}
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      className="hidden"
-                      onChange={(e) => handleImageUpload(e.target.files)}
-                    />
-                    {uploading ? (
-                      <div className="space-y-1">
-                        <p className="text-sm text-muted">Subiendo...</p>
-                        <div className="mx-auto h-1 w-24 overflow-hidden rounded-full bg-border">
-                          <div className="h-full rounded-full bg-admin-accent animate-pulse" style={{ width: "60%" }} />
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="space-y-1">
-                        <p className="text-xl">📷</p>
-                        <p className="text-sm font-medium">Arrastrá fotos acá o hacé click</p>
-                        <p className="text-xs text-muted">JPG, PNG o WebP</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ) : (
-                <div className="mt-2 rounded-lg border border-dashed border-border p-4 text-center">
-                  <p className="text-sm text-muted">
-                    📷 Guardá la pieza primero para poder subir fotos
+                  <h3 className="text-base font-semibold text-chocolate flex items-center gap-2">
+                    <span>{pieceMode === "edit" ? "✏️" : "✨"}</span>
+                    <span>{pieceMode === "edit" ? `Editar Pieza: ${editingPieza?.nombre}` : "Nueva Pieza para esta Producción"}</span>
+                  </h3>
+                  <p className="text-xs text-muted">
+                    {pieceMode === "edit"
+                      ? "Modificá la información de la pieza. Al presionar actualizar se sobreescribirán los datos existentes sin crear duplicados."
+                      : "Completá la información de la pieza. Las fotos y la descripción con IA están integradas en el mismo flujo."}
                   </p>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    className="mt-2"
-                    onClick={handleFirstSaveForImages}
-                    isLoading={pending}
-                  >
-                    Guardar borrador para subir fotos
-                  </Button>
                 </div>
-              )}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => {
+                    setEditingPieza(null);
+                    setPieceMode("existing");
+                  }}
+                >
+                  ✕ Cancelar
+                </Button>
+              </div>
+
+              <ProductoForm
+                key={pieceMode === "edit" ? editingPieza?.id : "new-piece"}
+                categorias={categorias}
+                producto={pieceMode === "edit" ? (editingPieza ?? undefined) : undefined}
+                imagenes={pieceMode === "edit" ? editingPieza?.producto_imagenes : undefined}
+                produccionId={categoriaId}
+                categoriaIdInicial={categoriaId}
+                isWizardMode={true}
+                submitText={pieceMode === "edit" ? "💾 Actualizar pieza" : "💾 Crear y guardar pieza"}
+                onSuccess={() => {
+                  setSuccessMsg(pieceMode === "edit" ? "¡Pieza actualizada correctamente!" : "¡Pieza guardada correctamente!");
+                  setEditingPieza(null);
+                  setPieceMode("existing");
+                  router.refresh();
+                }}
+                onSaveAndAddAnother={() => {
+                  setSuccessMsg("¡Pieza guardada! Podés cargar la siguiente.");
+                  setEditingPieza(null);
+                  setPieceMode("new");
+                  router.refresh();
+                }}
+                onFinishProduction={() => {
+                  setEditingPieza(null);
+                  router.refresh();
+                  setStep("preview");
+                }}
+                onSaveDraft={() => {
+                  router.push("/admin/produccion");
+                  router.refresh();
+                }}
+                onDeletePiece={
+                  pieceMode === "edit" && editingPieza
+                    ? () => handleDeletePieza(editingPieza.id, editingPieza.nombre)
+                    : undefined
+                }
+                onCancel={() => {
+                  setEditingPieza(null);
+                  setPieceMode("existing");
+                }}
+              />
             </div>
-          </form>
           )}
 
           {/* Actions */}
@@ -1150,41 +897,41 @@ export function ProduccionWizard({
 
               {/* Actions */}
               <div className="flex flex-wrap gap-3 border-t border-border pt-6">
-                <Button onClick={handlePublish} isLoading={pending}>
-                  🚀 Publicar colección ({piezas.length} pieza{piezas.length !== 1 ? "s" : ""})
+                <Button
+                  onClick={handleUpdateWithoutRelauch}
+                  isLoading={pending}
+                  className="bg-chocolate text-white hover:bg-chocolate/90 cursor-pointer"
+                >
+                  💾 Actualizar Producción (Sin relanzar)
                 </Button>
                 <Button
-                  type="button"
+                  onClick={handlePublish}
+                  isLoading={pending}
                   variant="outline"
-                  onClick={() => setShowPreviewModal(true)}
+                  className="cursor-pointer"
                 >
-                  🛍️ Vista Previa Fiel (Tienda Real)
+                  🚀 Relanzar / Publicar con Fecha de Hoy ({piezas.length} pieza{piezas.length !== 1 ? "s" : ""})
                 </Button>
-                <Button variant="ghost" onClick={() => setStep("pieces")}>
+                <Button
+                  variant="ghost"
+                  onClick={() => setStep("pieces")}
+                >
                   ✏️ Seguir editando
                 </Button>
                 <Button
                   variant="ghost"
                   onClick={() => {
-                    router.push("/admin");
+                    router.push("/admin/produccion");
                     router.refresh();
                   }}
                 >
-                  💾 Guardar como borrador
+                  ↩️ Volver al listado
                 </Button>
               </div>
             </>
           )}
         </div>
       )}
-
-      {/* Storefront Faithful Preview Modal */}
-      <StorefrontPreviewModal
-        open={showPreviewModal}
-        onClose={() => setShowPreviewModal(false)}
-        categoriaNombre={categoriaNombre || "Colección"}
-        piezas={piezas}
-      />
     </div>
   );
 }

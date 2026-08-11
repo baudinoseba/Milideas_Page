@@ -154,6 +154,34 @@ export async function loginAction(formData: FormData) {
   return { success: true };
 }
 
+export async function recuperarPasswordAction(email: string, redirectTo: string) {
+  try {
+    const supabase = await createClient();
+    console.log("recuperarPasswordAction: sending reset email to", email, "with redirectTo", redirectTo);
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo,
+    });
+    if (error) {
+      console.error("recuperarPasswordAction Supabase error:", error);
+      const status = (error as any).status;
+      const msg = error.message || "";
+
+      if (status === 429 || msg.includes("60 seconds") || msg.includes("rate limit")) {
+        return { error: "⏳ Por seguridad, solo podés solicitar el correo de recuperación 1 vez cada 60 segundos. Por favor aguardá 1 minuto e intentalo nuevamente." };
+      }
+      if (msg.includes("Error sending recovery email") || msg.includes("SMTP") || msg.includes("535") || msg.includes("Authentication failed")) {
+        return { error: "❌ Error en el servidor SMTP de Supabase al enviar el correo. Por favor verificá que la clave de aplicación de 16 letras de Gmail en el panel de Supabase siga activa." };
+      }
+      return { error: error.message || "Error al enviar el correo de recuperación. Verificá las credenciales SMTP en Supabase." };
+    }
+    console.log("recuperarPasswordAction: email sent successfully");
+    return { success: true };
+  } catch (err: any) {
+    console.error("recuperarPasswordAction catch error:", err);
+    return { error: err?.message || "Ocurrió un error inesperado al enviar el correo." };
+  }
+}
+
 export async function registroAction(formData: FormData) {
   try {
     const supabase = await createClient();
@@ -371,39 +399,54 @@ export async function saveProductoAction(
     apto_microondas: aptoMicroondas,
   };
 
-  const payload = {
+  const payload: Record<string, any> = {
     nombre,
     slug,
-    tipo_catalogo: tipoCatalogo as any,
     descripcion: String(formData.get("descripcion") || "") || null,
     categoria_id: (formData.get("categoriaId") as string) || null,
-    precio_base: Number(formData.get("precioBase")),
+    precio_base: Number(formData.get("precioBase")) || 0,
     es_personalizable: formData.get("esPersonalizable") === "on",
-    stock_disponible: Number(formData.get("stockDisponible")),
+    stock_disponible: Number(formData.get("stockDisponible")) || 0,
     es_entrega_inmediata: formData.get("esEntregaInmediata") === "on",
     fecha_lanzamiento: (formData.get("fechaLanzamiento") as string) || null,
     activo: formData.get("activo") === "on",
-    alto_cm: altoCm,
-    ancho_cm: anchoCm,
-    dimensiones,
-    capacidad_ml: capacidadMl,
-    papel_soporte: papelSoporte,
-    material_tecnica: materialTecnica,
-    edicion_numerada: edicionNumerada,
-    marco_incluido: marcoIncluido,
-    pedestal_incluido: pedestalIncluido,
-    apto_lavavajillas: aptoLavavajillas,
-    apto_microondas: aptoMicroondas,
-    atributos_especificos: atributosEspecificos,
   };
 
+  if (tipoCatalogo) payload.tipo_catalogo = tipoCatalogo;
+  const produccionId = (formData.get("produccionId") as string) || null;
+  if (produccionId) payload.produccion_id = produccionId;
+
+
+  let targetId = productoId;
 
   if (productoId) {
     const { error } = await supabase.from("productos").update(payload).eq("id", productoId);
     if (error) return { error: error.message };
   } else {
-    const { error } = await supabase.from("productos").insert(payload);
+    const { data: newProd, error } = await supabase.from("productos").insert(payload).select("id").single();
     if (error) return { error: error.message };
+    targetId = newProd.id;
+  }
+
+  // Upload any imageFiles passed in formData for new products
+  const imageFiles = formData.getAll("imageFiles") as File[];
+  if (imageFiles && imageFiles.length > 0 && targetId) {
+    for (let i = 0; i < imageFiles.length; i++) {
+      const file = imageFiles[i];
+      if (file && file.size > 0) {
+        const ext = file.name.split(".").pop() ?? "jpg";
+        const path = `${targetId}/${Date.now()}_${i}.${ext}`;
+        const { error: uploadError } = await supabase.storage.from("productos").upload(path, file);
+        if (!uploadError) {
+          const { data: urlData } = supabase.storage.from("productos").getPublicUrl(path);
+          await supabase.from("producto_imagenes").insert({
+            producto_id: targetId,
+            url_imagen: urlData.publicUrl,
+            orden: i,
+          });
+        }
+      }
+    }
   }
 
   revalidatePath("/admin/productos");
@@ -743,10 +786,9 @@ export async function savePiezaProduccionAction(
   const aptoLavavajillas = formData.get("aptoLavavajillas") === "on";
   const aptoMicroondas = formData.get("aptoMicroondas") === "on";
 
-  const payload = {
+  const payload: Record<string, any> = {
     nombre,
     slug: uniqueSlug,
-    tipo_catalogo: tipoCatalogo as any,
     descripcion: String(formData.get("descripcion") || "") || null,
     categoria_id: selectedCategoria,
     produccion_id: produccionId,
@@ -755,19 +797,9 @@ export async function savePiezaProduccionAction(
     stock_disponible: Number(formData.get("stockDisponible")) || 1,
     es_entrega_inmediata: false,
     activo: false, // Always draft in production mode until collection publication
-    alto_cm: altoCm,
-    ancho_cm: anchoCm,
-    dimensiones,
-    material_tecnica: materialTecnica,
-    papel_soporte: papelSoporte,
-    tamano_lamina: tamanoLamina,
-    capacidad_ml: capacidadMl,
-    edicion_numerada: edicionNumerada,
-    marco_incluido: marcoIncluido,
-    pedestal_incluido: pedestalIncluido,
-    apto_lavavajillas: aptoLavavajillas,
-    apto_microondas: aptoMicroondas,
   };
+
+  if (tipoCatalogo) payload.tipo_catalogo = tipoCatalogo;
 
 
   if (productoId) {
@@ -827,6 +859,34 @@ export async function publicarProduccionAction(
       activo: true,
       fecha_lanzamiento: now
     })
+    .eq("produccion_id", produccionId)
+    .select("id");
+
+  if (error) return { success: false, error: error.message };
+
+  revalidatePath("/admin/productos");
+  revalidatePath("/admin/produccion");
+  revalidatePath("/catalogo");
+  revalidatePath("/colecciones");
+  revalidatePath("/");
+  return { success: true, count: data?.length ?? 0 };
+}
+
+export async function actualizarProduccionSinRelanzarAction(
+  produccionId: string,
+): Promise<{ success: boolean; error?: string; count?: number }> {
+  const supabase = await createClient();
+
+  // Make sure produccion is marked active
+  await supabase
+    .from("producciones")
+    .update({ activa: true })
+    .eq("id", produccionId);
+
+  // Set all products in this production to active=true WITHOUT touching fecha_lanzamiento
+  const { data, error } = await supabase
+    .from("productos")
+    .update({ activo: true })
     .eq("produccion_id", produccionId)
     .select("id");
 
@@ -906,29 +966,29 @@ export async function reorderProductoImagesAction(
 }
 
 export async function deleteProduccionCompletaAction(
-  categoriaId: string,
+  targetId: string,
 ): Promise<{ success: boolean; error?: string }> {
   const supabase = await createClient();
 
-  // Get all products in category
-  const { data: productos } = await supabase
+  // Unlink products from this production so products stay in the catalog
+  await supabase
     .from("productos")
-    .select("id")
-    .eq("categoria_id", categoriaId);
+    .update({ produccion_id: null })
+    .or(`produccion_id.eq.${targetId},categoria_id.eq.${targetId}`);
 
-  if (productos && productos.length > 0) {
-    for (const p of productos) {
-      await deletePiezaProduccionAction(p.id);
-    }
+  // Delete production record and category record if applicable
+  const { error: prodErr } = await supabase.from("producciones").delete().eq("id", targetId);
+  const { error: catErr } = await supabase.from("categorias").delete().eq("id", targetId);
+
+  if (prodErr && catErr) {
+    return { success: false, error: catErr.message || prodErr.message };
   }
-
-  // Delete category
-  const { error } = await supabase.from("categorias").delete().eq("id", categoriaId);
-  if (error) return { success: false, error: error.message };
 
   revalidatePath("/admin/produccion");
   revalidatePath("/admin/categorias");
+  revalidatePath("/admin/productos");
   revalidatePath("/catalogo");
+  revalidatePath("/colecciones");
   revalidatePath("/");
   return { success: true };
 }
@@ -1283,5 +1343,561 @@ export async function saveConfiguracionEncargosAction(formData: FormData): Promi
   revalidatePath("/admin/encargos/configuracion");
   revalidatePath("/catalogo");
   return { success: true };
+}
+
+const MILIDEAS_GEMINI_PROMPT = `Sos la asistente de escritura de Milideas Arte, un emprendimiento de cerámica artesanal y piezas ilustradas a mano.
+
+Tu tarea es analizar la fotografía de una pieza y redactar automáticamente una descripción para la tienda online, como si la hubiera escrito la propia artista.
+
+La descripción debe sentirse humana, cercana y auténtica.
+
+NO escribas como una empresa.
+NO escribas como un catálogo industrial.
+NO escribas como una agencia de marketing.
+NO utilices lenguaje corporativo.
+NO hagas descripciones genéricas de ecommerce.
+
+Escribí como una artista argentina que está mostrando con ilusión una pieza que hizo con sus propias manos.
+
+==================================================
+IDENTIDAD DE MILIDEAS ARTE
+==================================================
+
+Milideas Arte es un emprendimiento artesanal de Sunchales, Argentina.
+
+La artista crea piezas de cerámica y otras obras ilustradas a mano.
+
+Sus piezas pueden incluir:
+
+- tazas
+- cuencos
+- bandejas
+- jarras
+- platos
+- objetos decorativos
+- piezas personalizadas
+- animales
+- flores
+- plantas
+- paisajes
+- personajes
+- soles
+- elementos de la naturaleza
+- escenas ilustradas
+- pequeños detalles modelados
+- relieves
+- acabados especiales
+
+Cada pieza tiene un componente artístico y artesanal.
+
+No debe sentirse como un producto fabricado en serie.
+
+La personalidad de la marca es:
+
+✨ cálida
+🌈 colorida
+💗 cercana
+🎨 artística
+🌿 natural
+🐱 juguetona
+🌞 alegre
+🖐️ artesanal
+🔎 curiosa
+📖 narrativa
+
+==================================================
+VOZ DE LA ARTISTA
+==================================================
+
+Escribí utilizando español argentino y voseo.
+
+La voz debe sentirse:
+
+- espontánea
+- cálida
+- alegre
+- cercana
+- imperfectamente humana
+- entusiasta
+- artesanal
+- conversacional
+
+La artista puede hablarle directamente a quien está mirando la pieza.
+
+Ejemplos del tipo de tono que buscamos:
+
+"Esta tacita nació..."
+"Me encantó cómo quedó..."
+"Una de esas piezas que..."
+"Si te gustan los..."
+"Ya sabés..."
+"Ojalá les guste tanto como a mí..."
+"Le fui sumando..."
+"Esta vez quise..."
+"Me llevó un tiempito..."
+"Quedó llena de..."
+"Me encanta cómo..."
+
+IMPORTANTE:
+
+Estos ejemplos son únicamente referencias de tono.
+
+NO copies literalmente estas frases en todas las descripciones.
+
+Variá la forma de expresarte para evitar que todas las descripciones parezcan generadas por la misma plantilla.
+
+==================================================
+ANÁLISIS DE LA IMAGEN
+==================================================
+
+Antes de escribir, analizá cuidadosamente la fotografía.
+
+Identificá, SOLO cuando puedas observarlo con suficiente seguridad:
+
+1. Tipo de pieza.
+2. Forma.
+3. Color principal.
+4. Colores secundarios.
+5. Ilustraciones.
+6. Animales.
+7. Plantas.
+8. Flores.
+9. Personajes.
+10. Paisajes.
+11. Objetos representados.
+12. Relieves.
+13. Elementos modelados.
+14. Texturas visibles.
+15. Acabado visual.
+16. Asa, borde, tapa u otros elementos.
+17. Detalles particulares.
+18. Combinaciones de colores.
+19. Sensación general de la pieza.
+
+Prestá especial atención a los pequeños detalles.
+
+Muchas piezas de Milideas Arte tienen elementos pequeños que forman parte de su encanto.
+
+==================================================
+REGLA FUNDAMENTAL: NO INVENTAR
+==================================================
+
+Nunca inventes información.
+
+Si algo no puede determinarse claramente a partir de la fotografía, NO lo afirmes como un hecho.
+
+Por ejemplo:
+
+Si no podés determinar que el esmalte es brillante:
+NO escribas "con esmalte brillante".
+
+Si no podés saber el material exacto:
+NO inventes el material.
+
+Si no podés determinar las dimensiones:
+NO inventes medidas.
+
+Si no podés saber si es apta para microondas:
+NO lo menciones.
+
+Si no podés identificar exactamente un animal:
+describilo de forma general.
+
+Si algo parece ser un gato pero no estás completamente segura:
+podés decir "un animalito" o "un pequeño personaje".
+
+Diferenciá siempre entre:
+
+HECHO OBSERVABLE
+e
+INTERPRETACIÓN ARTÍSTICA.
+
+Podés ser poética al interpretar la pieza, pero no inventes especificaciones técnicas.
+
+==================================================
+ESTILO DE REDACCIÓN
+==================================================
+
+La descripción debe tener aproximadamente 2 párrafos breves.
+
+Debe sentirse natural y no excesivamente elaborada.
+
+No busques utilizar palabras sofisticadas solamente para parecer premium.
+
+La personalidad debe surgir de los detalles.
+
+Preferí:
+
+"Una tacita llena de pequeños animalitos..."
+
+antes que:
+
+"Una exquisita pieza de cerámica de carácter contemporáneo..."
+
+Preferí:
+
+"Me encantó cómo se mezclaron estos colores..."
+
+antes que:
+
+"Esta pieza presenta una armoniosa combinación cromática..."
+
+La artista NO habla como una crítica de arte.
+
+Habla como alguien que disfruta profundamente crear sus piezas y compartirlas.
+
+==================================================
+NARRATIVA
+==================================================
+
+Cuando la imagen lo permita, intentá contar una pequeña historia.
+
+No describas únicamente lo que se ve.
+
+Podés explicar:
+
+- qué sensación transmite
+- qué detalle te llamó la atención
+- qué hace especial a la pieza
+- cómo se relacionan los colores
+- qué historia parece contar la ilustración
+- qué pequeño detalle puede descubrir quien la tenga en sus manos
+
+La descripción debe hacer que el comprador sienta ganas de mirar la pieza un poco más.
+
+==================================================
+EMOJIS
+==================================================
+
+Los emojis forman parte de la identidad de Milideas Arte.
+
+Podés utilizar entre 1 y 4 emojis cuando tengan sentido.
+
+Elegilos según la pieza.
+
+Ejemplos:
+
+🐱 animales
+🐶 perros
+🌸 flores
+🌿 naturaleza
+🌞 soles
+🌈 colores
+💗 cariño
+✨ detalles especiales
+🎨 arte
+🧡 calidez
+🍓 frutas
+🏔️ montañas
+
+NO llenes la descripción de emojis.
+
+No pongas emojis simplemente para decorar.
+
+Deben sentirse naturales dentro de la voz de la artista.
+
+==================================================
+TÍTULO DEL PRODUCTO
+==================================================
+
+Si recibís un título del producto, utilizalo como contexto.
+
+No lo repitas innecesariamente.
+
+Si el título contradice claramente lo que aparece en la fotografía, NO inventes una explicación.
+
+Indicá internamente que existe una posible inconsistencia.
+
+==================================================
+DESCRIPCIÓN PARA ECOMMERCE
+==================================================
+
+La descripción debe funcionar dentro de una tienda online.
+
+Debe ser emocional pero también útil.
+
+Cuando la información sea visible o haya sido proporcionada explícitamente, incorporá naturalmente:
+
+- tipo de pieza
+- características visibles
+- colores
+- ilustraciones
+- detalles
+- variantes
+- tamaño
+- cantidad
+- particularidades
+
+Pero nunca inventes datos técnicos.
+
+No conviertas la descripción en una ficha técnica.
+
+La información técnica deberá permanecer separada de la descripción narrativa.
+
+==================================================
+VARIACIÓN
+==================================================
+
+NO utilices siempre la misma estructura.
+
+Alterná entre diferentes formas de comenzar:
+
+- una observación sobre la pieza
+- una emoción de la artista
+- una historia
+- un detalle pequeño
+- los colores
+- el personaje principal
+- una escena
+- una frase espontánea
+
+Evitá comenzar siempre con:
+
+"Esta pieza..."
+
+"Esta hermosa..."
+
+"Una hermosa..."
+
+"Descubrí..."
+
+==================================================
+EVITAR
+==================================================
+
+No utilices:
+
+"producto premium"
+"experiencia única"
+"eleva tus espacios"
+"pieza exclusiva" salvo que realmente corresponda
+"diseño sofisticado"
+"calidad excepcional"
+"ideal para cualquier ocasión"
+"hecho con amor" como frase automática
+"una verdadera obra de arte" como cliché
+"must-have"
+"imperdible"
+"lujo"
+"exquisito"
+"sofisticado"
+
+No utilices lenguaje de publicidad genérica.
+
+No exageres.
+
+No conviertas cada pieza en una obra maestra grandilocuente.
+
+La autenticidad es más importante que vender agresivamente.
+
+==================================================
+LONGITUD
+==================================================
+
+Generá aproximadamente entre 50 y 100 palabras.
+
+Preferí una descripción breve y memorable antes que una descripción larga y repetitiva.
+
+Si la imagen tiene muchos detalles interesantes, podés acercarte al límite superior.
+
+==================================================
+IMPORTANTE SOBRE LA ARTISTA
+==================================================
+
+No digas:
+
+"La artista creó..."
+
+"El artesano realizó..."
+
+"La marca ofrece..."
+
+Escribí en primera persona cuando tenga sentido.
+
+Ejemplo:
+
+"Me encantó cómo quedó este..."
+
+"Para esta pieza quise..."
+
+"Le fui sumando..."
+
+"Esta vez apareció..."
+
+La descripción debe parecer escrita por la propia artista.
+
+==================================================
+CONTROL DE CALIDAD
+==================================================
+
+Antes de entregar la descripción, verificá internamente:
+
+✓ ¿Estoy describiendo realmente lo que aparece en la imagen?
+✓ ¿Inventé alguna característica?
+✓ ¿Suena como una persona real?
+✓ ¿Suena como una artista argentina?
+✓ ¿Estoy usando voseo correctamente?
+✓ ¿Tiene personalidad?
+✓ ¿Estoy destacando algún detalle particular?
+✓ ¿Es demasiado publicitaria?
+✓ ¿Estoy repitiendo una estructura utilizada anteriormente?
+✓ ¿Los emojis tienen sentido?
+✓ ¿La descripción ayuda a imaginar la pieza?
+✓ ¿Se siente como Milideas Arte?
+
+Si alguna respuesta es negativa, corregí la descripción antes de entregarla.
+
+==================================================
+FORMATO DE RESPUESTA
+==================================================
+
+Devolvé ÚNICAMENTE la descripción final.
+
+No expliques tu análisis.
+
+No enumeres los elementos detectados.
+
+No digas qué viste en la imagen antes de la descripción.
+
+No agregues títulos como "Descripción:".
+
+No utilices comillas.
+
+No agregues notas para la artista.
+
+La salida debe estar lista para copiar directamente en el campo "Descripción" del producto.`;
+
+export async function generarDescripcionProductoIAAction(
+  imageUrl: string | null,
+  nombreProducto?: string,
+): Promise<{ success: boolean; descripcion?: string; error?: string }> {
+  try {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      return {
+        success: false,
+        error: "Falta la clave GEMINI_API_KEY en las variables de entorno.",
+      };
+    }
+
+    const parts: any[] = [];
+
+    if (imageUrl) {
+      if (imageUrl.startsWith("data:")) {
+        const matches = imageUrl.match(/^data:(image\/[a-zA-Z+]+);base64,(.+)$/);
+        if (matches) {
+          parts.push({
+            inlineData: {
+              mimeType: matches[1],
+              data: matches[2],
+            },
+          });
+        }
+      } else {
+        try {
+          const imgRes = await fetch(imageUrl);
+          if (imgRes.ok) {
+            const arrayBuf = await imgRes.arrayBuffer();
+            const base64Data = Buffer.from(arrayBuf).toString("base64");
+            const contentType = imgRes.headers.get("content-type") || "image/jpeg";
+
+            parts.push({
+              inlineData: {
+                mimeType: contentType,
+                data: base64Data,
+              },
+            });
+          }
+        } catch (err) {
+          console.warn("No se pudo descargar la imagen para Gemini:", err);
+        }
+      }
+    }
+
+    const contextText = nombreProducto
+      ? `\n\n==================================================\nTÍTULO DEL PRODUCTO RECIBIDO:\n"${nombreProducto}"\n==================================================`
+      : "";
+
+    parts.push({
+      text: `${MILIDEAS_GEMINI_PROMPT}${contextText}`,
+    });
+
+    const isOAuthToken = apiKey.startsWith("AQ.") || apiKey.startsWith("ya29.");
+
+    const candidateModels = [
+      "gemini-3.5-flash",
+      "gemini-3.1-flash-lite",
+      "gemini-3.1-pro",
+      "gemini-3-flash",
+      "gemini-2.0-flash",
+      "gemini-2.0-flash-lite",
+    ];
+
+    let lastErrorStatus = 0;
+    let lastErrorText = "";
+
+    for (const model of candidateModels) {
+      const endpoint = isOAuthToken
+        ? `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`
+        : `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+
+      if (isOAuthToken) {
+        headers["Authorization"] = `Bearer ${apiKey}`;
+      } else {
+        headers["x-goog-api-key"] = apiKey;
+      }
+
+      try {
+        const res = await fetch(endpoint, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            contents: [{ parts }],
+          }),
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          const generatedText =
+            data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? "";
+
+          if (generatedText) {
+            return {
+              success: true,
+              descripcion: generatedText,
+            };
+          }
+        } else {
+          lastErrorStatus = res.status;
+          lastErrorText = await res.text();
+          console.warn(`Gemini model ${model} status ${res.status}:`, lastErrorText);
+        }
+      } catch (err: any) {
+        console.warn(`Fetch error for Gemini model ${model}:`, err);
+      }
+    }
+
+    if (lastErrorStatus === 429) {
+      return {
+        success: false,
+        error: "Se alcanzó el límite de solicitudes por minuto de la API gratuita de Gemini. Por favor esperá 30 segundos y volvé a presionar el botón.",
+      };
+    }
+
+    return {
+      success: false,
+      error: `Error de Gemini API (${lastErrorStatus || 404}). Detalle: ${lastErrorText.slice(0, 150)}`,
+    };
+  } catch (err: any) {
+    console.error("generarDescripcionProductoIAAction error:", err);
+    return {
+      success: false,
+      error: err?.message || "Error al conectar con el servicio de IA.",
+    };
+  }
 }
 

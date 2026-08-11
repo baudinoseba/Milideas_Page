@@ -3,6 +3,7 @@
 import { useTransition, useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Select } from "@/components/ui/select";
@@ -214,7 +215,7 @@ export function PerfilForm({ perfil, email }: { perfil: Perfil; email: string })
       )}
 
       {/* Main Profile Info Form */}
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form method="POST" onSubmit={handleSubmit} className="space-y-6">
         {/* Card: Datos Personales */}
         <Card className="space-y-4">
           <h2 className="text-base font-semibold border-b border-border pb-3">Datos personales</h2>
@@ -382,7 +383,7 @@ export function PerfilForm({ perfil, email }: { perfil: Perfil; email: string })
             </Button>
           </div>
           {showEmailForm && (
-            <form onSubmit={handleEmailUpdate} className="space-y-3 border-t border-border/60 pt-3 max-w-sm">
+            <form method="POST" onSubmit={handleEmailUpdate} className="space-y-3 border-t border-border/60 pt-3 max-w-sm">
               <div>
                 <Label htmlFor="nuevoEmail">Nuevo correo electrónico</Label>
                 <Input
@@ -422,23 +423,21 @@ export function PerfilForm({ perfil, email }: { perfil: Perfil; email: string })
             </Button>
           </div>
           {showPasswordForm && (
-            <form onSubmit={handlePasswordUpdate} className="space-y-3 border-t border-border/60 pt-3 max-w-sm">
+            <form method="POST" onSubmit={handlePasswordUpdate} className="space-y-3 border-t border-border/60 pt-3 max-w-sm">
               <div>
                 <Label htmlFor="nuevaContrasena">Nueva contraseña</Label>
-                <Input
+                <PasswordInput
                   id="nuevaContrasena"
                   name="nuevaContrasena"
-                  type="password"
                   required
                   placeholder="Mínimo 6 caracteres"
                 />
               </div>
               <div>
                 <Label htmlFor="confirmarContrasena">Confirmar nueva contraseña</Label>
-                <Input
+                <PasswordInput
                   id="confirmarContrasena"
                   name="confirmarContrasena"
-                  type="password"
                   required
                   placeholder="Repetí la contraseña"
                 />

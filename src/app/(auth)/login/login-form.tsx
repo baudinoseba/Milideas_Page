@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { GoogleButton } from "@/components/ui/google-button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { loginAction } from "@/lib/actions";
@@ -17,6 +19,17 @@ export default function LoginForm() {
   const redirect = searchParams.get("redirect") ?? "/cuenta/perfil";
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+
+  // Limpiar parámetros sensibles (email/password) de la URL si quedaron de una petición GET previa
+  useEffect(() => {
+    if (typeof window !== "undefined" && (searchParams.has("email") || searchParams.has("password"))) {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("email");
+      url.searchParams.delete("password");
+      const cleanSearch = url.searchParams.toString();
+      window.history.replaceState({}, "", url.pathname + (cleanSearch ? `?${cleanSearch}` : ""));
+    }
+  }, [searchParams]);
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -39,14 +52,24 @@ export default function LoginForm() {
       </div>
       <Card>
         <h1 className="mb-6 text-xl font-medium">Iniciar sesión</h1>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="space-y-4">
+          <GoogleButton label="Iniciar sesión con Google" disabled={true} />
+
+          <div className="relative my-5 flex items-center justify-center">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-border" />
+            </div>
+            <span className="relative bg-surface px-2 text-xs uppercase text-muted">o con email</span>
+          </div>
+
+          <form action="/login" method="POST" onSubmit={handleSubmit} className="space-y-4">
           <div>
             <Label htmlFor="email">Email</Label>
             <Input id="email" name="email" type="email" required />
           </div>
           <div>
             <Label htmlFor="password">Contraseña</Label>
-            <Input id="password" name="password" type="password" required />
+            <PasswordInput id="password" name="password" required />
           </div>
           {error && <p className="text-sm text-red-600">{error}</p>}
           <Button type="submit" className="w-full" isLoading={pending}>
@@ -64,6 +87,7 @@ export default function LoginForm() {
             Olvidé mi contraseña
           </Link>
         </p>
+        </div>
       </Card>
     </div>
   );

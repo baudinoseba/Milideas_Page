@@ -27,6 +27,11 @@ export function ProductCard({ producto }: { producto: ProductoConImagenes }) {
           />
           {/* Badges overlay */}
           <div className="absolute left-2.5 top-2.5 flex flex-col gap-1.5 z-10">
+            {producto.stock_disponible === 1 && (
+              <Badge variant="default" className="shadow-sm bg-terracota text-white border border-terracota/20 backdrop-blur-md text-[11px] font-medium">
+                🎨 Pieza Única
+              </Badge>
+            )}
             {producto.es_entrega_inmediata && (
               <Badge variant="success" className="shadow-sm bg-surface/90 text-terracota border border-terracota/20 backdrop-blur-md text-[11px] font-medium">
                 Entrega inmediata
