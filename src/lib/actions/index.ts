@@ -144,14 +144,65 @@ export async function subirComprobanteAction(
   return { success: true };
 }
 
-export async function loginAction(formData: FormData) {
-  const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword({
-    email: String(formData.get("email")),
-    password: String(formData.get("password")),
-  });
-  if (error) return { error: error.message };
-  return { success: true };
+export async function loginAction(formData: FormData): Promise<{ success?: boolean; error?: string }> {
+  try {
+    const email = String(formData.get("email") || "").trim();
+    const password = String(formData.get("password") || "");
+    let redirectTo = String(formData.get("redirect") || "");
+
+    if (!email || !password) {
+      return { error: "Por favor ingresá tu email y contraseña." };
+    }
+
+    const supabase = await createClient();
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) {
+      console.error("loginAction error:", error);
+      const msg = error.message || "";
+      if (msg.includes("Invalid login credentials") || (error as any).status === 400) {
+        return { error: "Email o contraseña incorrectos. Por favor verificá tus datos e intentalo nuevamente." };
+      }
+      if (msg.includes("Email not confirmed")) {
+        return { error: "Tu correo electrónico aún no ha sido confirmado. Por favor revisá tu casilla de correo." };
+      }
+      if (msg.includes("rate limit") || (error as any).status === 429) {
+        return { error: "Demasiados intentos fallidos. Por favor aguardá 1 minuto e intentalo de nuevo." };
+      }
+      return { error: error.message || "No se pudo iniciar sesión. Verificá tus datos." };
+    }
+
+    if (!data.session) {
+      return { error: "No se pudo iniciar sesión. Verificá tu usuario y contraseña." };
+    }
+
+    // Determine target redirect path if not explicitly passed
+    if (!redirectTo || redirectTo === "null" || redirectTo === "undefined") {
+      const { data: perfil } = await supabase
+        .from("perfiles")
+        .select("es_admin")
+        .eq("id", data.user.id)
+        .single();
+
+      if (perfil?.es_admin) {
+        redirectTo = "/admin";
+      } else {
+        redirectTo = "/cuenta/perfil";
+      }
+    }
+
+    revalidatePath("/", "layout");
+    redirect(redirectTo);
+  } catch (err: any) {
+    if (err?.digest?.startsWith("NEXT_REDIRECT") || err?.message === "NEXT_REDIRECT") {
+      throw err;
+    }
+    console.error("loginAction catch error:", err);
+    return { error: err?.message || "Ocurrió un error inesperado al intentar iniciar sesión." };
+  }
 }
 
 export async function recuperarPasswordAction(email: string, redirectTo: string) {

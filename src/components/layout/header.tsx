@@ -7,8 +7,9 @@ import { NAV_LINKS } from "@/lib/utils/constants";
 import { cn } from "@/lib/utils/cn";
 import { CartButton } from "@/components/cart/cart-button";
 import { createClient } from "@/lib/supabase/client";
+import { ThemeToggle } from "@/components/layout/theme-toggle";
 
-/* Inline SVG icons — no external dependencies */
+/* Inline SVG icons — uniform 20x20 sizing for clean alignment */
 function IconUser({ className }: { className?: string }) {
   return (
     <svg className={className} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -18,33 +19,47 @@ function IconUser({ className }: { className?: string }) {
   );
 }
 
-function IconCatalog({ className }: { className?: string }) {
+function IconCeramica({ className }: { className?: string }) {
   return (
-    <svg className={className} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="3" y="3" width="7" height="7" rx="1" />
-      <rect x="14" y="3" width="7" height="7" rx="1" />
-      <rect x="3" y="14" width="7" height="7" rx="1" />
-      <rect x="14" y="14" width="7" height="7" rx="1" />
+    <svg className={className} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M8 3h8a2 2 0 0 1 2 2v2a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V5a2 2 0 0 1 2-2z" />
+      <path d="M6 11v2a6 6 0 0 0 12 0v-2" />
+      <path d="M9 21h6" />
+      <path d="M12 17v4" />
+    </svg>
+  );
+}
+
+function IconEsculturas({ className }: { className?: string }) {
+  return (
+    <svg className={className} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 2a4 4 0 0 1 4 4v2a4 4 0 0 1-4 4 4 4 0 0 1-4-4V6a4 4 0 0 1 4-2z" />
+      <path d="M6 22v-3a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v3" />
+    </svg>
+  );
+}
+
+function IconIlustraciones({ className }: { className?: string }) {
+  return (
+    <svg className={className} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="13.5" cy="6.5" r=".5" fill="currentColor" />
+      <circle cx="17.5" cy="10.5" r=".5" fill="currentColor" />
+      <circle cx="8.5" cy="7.5" r=".5" fill="currentColor" />
+      <circle cx="6.5" cy="12.5" r=".5" fill="currentColor" />
+      <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.92 0 1.67-.75 1.67-1.67 0-.42-.16-.8-.42-1.08-.26-.28-.42-.66-.42-1.08 0-.92.75-1.67 1.67-1.67H16c3.31 0 6-2.69 6-6 0-4.96-4.49-9-10-9z" />
     </svg>
   );
 }
 
 function IconCollection({ className }: { className?: string }) {
   return (
-    <svg className={className} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M19 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V5a2 2 0 00-2-2z" />
-      <path d="M8.5 10a1.5 1.5 0 100-3 1.5 1.5 0 000 3z" />
+    <svg className={className} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="18" height="18" rx="2" />
+      <circle cx="8.5" cy="8.5" r="1.5" />
       <path d="M21 15l-5-5L5 21" />
     </svg>
   );
 }
-
-const MOBILE_ICONS: Record<string, typeof IconCatalog> = {
-  "/catalogo": IconCatalog,
-  "/colecciones": IconCollection,
-};
-
-import { ThemeToggle } from "@/components/layout/theme-toggle";
 
 export function Header() {
   const pathname = usePathname();
@@ -91,6 +106,7 @@ export function Header() {
           )}
         </Link>
 
+        {/* Desktop navigation */}
         <nav className="hidden items-center gap-1.5 sm:flex">
           {NAV_LINKS.map((link) => (
             <Link
@@ -99,8 +115,8 @@ export function Header() {
               className={cn(
                 "rounded-lg px-3.5 py-2 text-sm font-medium font-sans transition-all duration-200",
                 pathname === link.href
-                  ? "text-primary font-semibold bg-secondary/50"
-                  : "text-muted hover:text-primary hover:bg-secondary/35",
+                  ? "text-chocolate font-semibold bg-terracota/10"
+                  : "text-muted hover:text-chocolate hover:bg-secondary/35",
               )}
             >
               {link.label}
@@ -108,6 +124,7 @@ export function Header() {
           ))}
         </nav>
 
+        {/* Desktop actions */}
         <div className="flex items-center gap-2 text-sm">
           <ThemeToggle />
           <Link
@@ -120,11 +137,12 @@ export function Header() {
           <CartButton />
         </div>
       </div>
+
+      {/* Mobile navigation */}
       <MobileNav pathname={pathname} isLoggedIn={isLoggedIn} />
     </header>
   );
 }
-
 
 function MobileNav({
   pathname,
@@ -133,41 +151,53 @@ function MobileNav({
   pathname: string;
   isLoggedIn: boolean;
 }) {
+  const items = [
+    { href: "/catalogo/ceramica", label: "Cerámica", icon: IconCeramica },
+    { href: "/catalogo/esculturas", label: "Esculturas", icon: IconEsculturas },
+    { href: "/catalogo/ilustraciones", label: "Ilustraciones", icon: IconIlustraciones },
+    { href: "/colecciones", label: "Colecciones", icon: IconCollection },
+  ];
+
   return (
-    <nav className="flex border-t border-border sm:hidden">
-      {NAV_LINKS.map((link) => {
-        const Icon = MOBILE_ICONS[link.href];
-        const isActive = pathname === link.href;
-        return (
-          <Link
-            key={link.href}
-            href={link.href}
-            className={cn(
-              "flex flex-1 flex-col items-center gap-0.5 py-2.5 text-[10px] transition-all duration-205",
-              isActive ? "text-primary font-semibold" : "text-muted hover:text-primary",
-            )}
-          >
-            {Icon && <Icon className="h-4 w-4" />}
-            {link.label}
-          </Link>
-        );
-      })}
-      <Link
-        href={isLoggedIn ? "/cuenta/perfil" : "/login"}
-        className={cn(
-          "flex flex-1 flex-col items-center gap-0.5 py-2.5 text-[10px] transition-all duration-205",
-          (pathname.startsWith("/cuenta") ||
-            pathname === "/login" ||
-            pathname === "/registro") &&
-            "text-primary font-semibold",
-          !(pathname.startsWith("/cuenta") ||
-            pathname === "/login" ||
-            pathname === "/registro") && "text-muted hover:text-primary",
-        )}
-      >
-        <IconUser className="h-4 w-4" />
-        {isLoggedIn ? "Cuenta" : "Ingresar"}
-      </Link>
+    <nav className="flex items-center justify-between border-t border-border/70 bg-surface/95 px-3 py-1.5 sm:hidden">
+      <div className="flex flex-1 items-center justify-around">
+        {items.map((item) => {
+          const Icon = item.icon;
+          const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={cn(
+                "flex flex-col items-center justify-center gap-1 px-2 py-1 text-[11px] font-sans transition-all duration-200 rounded-lg",
+                isActive
+                  ? "text-chocolate font-semibold bg-terracota/10"
+                  : "text-muted hover:text-chocolate hover:bg-surface",
+              )}
+            >
+              <Icon className="h-4.5 w-4.5 shrink-0" />
+              <span className="leading-none">{item.label}</span>
+            </Link>
+          );
+        })}
+      </div>
+
+      {/* Universal Profile Icon ONLY (No text label per user request) */}
+      <div className="border-l border-border/60 pl-2">
+        <Link
+          href={isLoggedIn ? "/cuenta/perfil" : "/login"}
+          className={cn(
+            "flex h-9 w-9 items-center justify-center rounded-full transition-all duration-200",
+            (pathname.startsWith("/cuenta") || pathname === "/login" || pathname === "/registro")
+              ? "text-chocolate bg-terracota/15 ring-1 ring-terracota/40 font-semibold"
+              : "text-muted hover:text-chocolate hover:bg-surface",
+          )}
+          title={isLoggedIn ? "Mi Cuenta" : "Iniciar Sesión"}
+          aria-label={isLoggedIn ? "Mi Cuenta" : "Iniciar Sesión"}
+        >
+          <IconUser className="h-5 w-5 shrink-0" />
+        </Link>
+      </div>
     </nav>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition, useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { GoogleButton } from "@/components/ui/google-button";
@@ -10,38 +10,50 @@ import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { loginAction } from "@/lib/actions";
-
 import { BackButton } from "@/components/ui/back-button";
 
 export default function LoginForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
-  const redirect = searchParams.get("redirect") ?? "/cuenta/perfil";
+  const redirectParam = searchParams.get("redirect") ?? "";
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
-  // Limpiar parámetros sensibles (email/password) de la URL si quedaron de una petición GET previa
+  // Limpiar parámetros sensibles (email/password) de la barra de direcciones del navegador
   useEffect(() => {
-    if (typeof window !== "undefined" && (searchParams.has("email") || searchParams.has("password"))) {
+    if (typeof window !== "undefined" && window.location.search.match(/email|password/i)) {
       const url = new URL(window.location.href);
       url.searchParams.delete("email");
       url.searchParams.delete("password");
-      const cleanSearch = url.searchParams.toString();
-      window.history.replaceState({}, "", url.pathname + (cleanSearch ? `?${cleanSearch}` : ""));
+      window.history.replaceState(null, "", url.pathname + (url.search ? url.search : ""));
     }
-  }, [searchParams]);
+  }, []);
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setError(null);
+
     const formData = new FormData(e.currentTarget);
+    const email = String(formData.get("email") || "").trim();
+    const password = String(formData.get("password") || "");
+
+    if (!email || !password) {
+      setError("Por favor ingresá tu email y contraseña.");
+      return;
+    }
+
     startTransition(async () => {
-      const result = await loginAction(formData);
-      if (result.error) {
-        setError(result.error);
-        return;
+      try {
+        const result = await loginAction(formData);
+        if (result?.error) {
+          setError(result.error);
+        }
+      } catch (err: any) {
+        if (err?.digest?.startsWith("NEXT_REDIRECT") || err?.message === "NEXT_REDIRECT") {
+          return;
+        }
+        console.error("Error en login onSubmit:", err);
+        setError(err?.message || "Error de conexión al intentar iniciar sesión.");
       }
-      router.push(redirect);
-      router.refresh();
     });
   };
 
@@ -62,31 +74,50 @@ export default function LoginForm() {
             <span className="relative bg-surface px-2 text-xs uppercase text-muted">o con email</span>
           </div>
 
-          <form action="/login" method="POST" onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <Label htmlFor="email">Email</Label>
-            <Input id="email" name="email" type="email" required />
-          </div>
-          <div>
-            <Label htmlFor="password">Contraseña</Label>
-            <PasswordInput id="password" name="password" required />
-          </div>
-          {error && <p className="text-sm text-red-600">{error}</p>}
-          <Button type="submit" className="w-full" isLoading={pending}>
-            Entrar
-          </Button>
-        </form>
-        <p className="mt-4 text-center text-sm text-muted">
-          ¿No tenés cuenta?{" "}
-          <Link href="/registro" className="underline">
-            Registrate
-          </Link>
-        </p>
-        <p className="mt-2 text-center text-sm">
-          <Link href="/recuperar" className="text-muted underline">
-            Olvidé mi contraseña
-          </Link>
-        </p>
+          <form method="POST" onSubmit={handleSubmit} className="space-y-4">
+            <input type="hidden" name="redirect" value={redirectParam} />
+
+            <div>
+              <Label htmlFor="email">Email</Label>
+              <Input id="email" name="email" type="email" required placeholder="tu@email.com" />
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <Label htmlFor="password">Contraseña</Label>
+              </div>
+              <PasswordInput id="password" name="password" required placeholder="••••••••" />
+
+              {/* Popup de error justo debajo del campo de contraseña */}
+              {error && (
+                <div className="mt-2.5 animate-in fade-in slide-in-from-top-1 duration-200">
+                  <div className="relative rounded-xl border border-red-300/80 bg-red-50 p-3 text-xs font-medium text-red-800 shadow-sm dark:border-red-900/60 dark:bg-red-950/60 dark:text-red-200 space-y-1">
+                    <p className="flex items-center gap-1.5 font-semibold text-red-900 dark:text-red-100">
+                      <span>⚠️</span>
+                      <span>Error en los datos</span>
+                    </p>
+                    <p className="leading-snug">{error}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <Button type="submit" className="w-full cursor-pointer mt-2" isLoading={pending}>
+              Entrar
+            </Button>
+          </form>
+
+          <p className="mt-4 text-center text-sm text-muted">
+            ¿No tenés cuenta?{" "}
+            <Link href="/registro" className="underline font-medium hover:text-foreground">
+              Registrate
+            </Link>
+          </p>
+          <p className="mt-2 text-center text-sm">
+            <Link href="/recuperar" className="text-muted underline hover:text-foreground">
+              Olvidé mi contraseña
+            </Link>
+          </p>
         </div>
       </Card>
     </div>

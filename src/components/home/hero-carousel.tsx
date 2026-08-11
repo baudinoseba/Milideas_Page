@@ -51,7 +51,7 @@ export function HeroCarousel({ items }: HeroCarouselProps) {
       onMouseLeave={() => setIsHovered(false)}
     >
       {/* ─── Image Stage — Full Coverage with Rounded Corners ─── */}
-      <div className="relative h-[340px] sm:h-[440px] w-full overflow-hidden rounded-2xl shadow-lg border border-border/40 bg-surface/50">
+      <div className="relative h-[230px] sm:h-[380px] lg:h-[420px] w-full max-w-full overflow-hidden rounded-2xl shadow-md border border-border/40 bg-surface/50">
         {/* Soft Ambient Glow Reflection */}
         <div
           className="absolute inset-0 z-0 opacity-25 blur-3xl scale-125 transition-all duration-700 pointer-events-none"

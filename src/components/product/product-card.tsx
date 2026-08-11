@@ -7,15 +7,16 @@ import { QuickAddToCartButton } from "@/components/product/quick-add-cart-button
 import type { ProductoConImagenes } from "@/types";
 
 export function ProductCard({ producto }: { producto: ProductoConImagenes }) {
-  const imagen = producto.producto_imagenes.sort((a, b) => a.orden - b.orden)[0];
+  const imagen = producto.producto_imagenes?.sort((a, b) => a.orden - b.orden)[0];
   const stockStatus = getStockStatus(producto.stock_disponible);
 
   return (
-    <Link href={`/producto/${producto.slug}`} className="group block">
-      <article
-        className="space-y-3 rounded-2xl border border-border/50 bg-surface p-3 transition-all duration-300 hover:-translate-y-1 hover:border-border hover:shadow-piece"
-        style={{ boxShadow: "var(--shadow-subtle)" }}
-      >
+    <article
+      className="group relative flex flex-col justify-between space-y-3 rounded-2xl border border-border/50 bg-surface p-3 transition-all duration-300 hover:-translate-y-1 hover:border-border hover:shadow-piece w-full max-w-full overflow-hidden"
+      style={{ boxShadow: "var(--shadow-subtle)" }}
+    >
+      {/* Clickable Image & Details — Clean single <a> tag */}
+      <Link href={`/producto/${producto.slug}`} className="block space-y-3">
         {/* Image container — Full coverage with rounded corners */}
         <div className="relative overflow-hidden rounded-xl aspect-[4/5] w-full bg-surface/50">
           <OptimizedImage
@@ -65,26 +66,26 @@ export function ProductCard({ producto }: { producto: ProductoConImagenes }) {
           )}
         </div>
 
-        {/* Text info */}
-        <div className="space-y-2 px-1 pb-1">
-          <h3 className="text-base font-medium font-serif leading-tight text-chocolate transition-colors group-hover:text-terracota">
+        {/* Text info — Clean vertical hierarchy */}
+        <div className="space-y-1 px-1">
+          {producto.categorias && (
+            <p className="text-[10px] sm:text-[11px] font-semibold font-sans uppercase tracking-wider text-terracota/90 truncate">
+              {producto.categorias.nombre}
+            </p>
+          )}
+          <h3 className="text-base font-medium font-serif leading-tight text-chocolate transition-colors group-hover:text-terracota line-clamp-2">
             {producto.nombre}
           </h3>
-          <div className="flex items-center justify-between pt-0.5">
-            <p className="text-sm font-semibold font-sans text-chocolate">{formatPrecio(producto.precio_base)}</p>
-            {producto.categorias && (
-              <span className="text-[11px] font-medium text-barro font-sans">
-                {producto.categorias.nombre}
-              </span>
-            )}
-          </div>
-
-          <div className="pt-1">
-            <QuickAddToCartButton producto={producto} />
-          </div>
+          <p className="text-sm sm:text-base font-semibold font-sans text-chocolate pt-1">
+            {formatPrecio(producto.precio_base)}
+          </p>
         </div>
-      </article>
-    </Link>
+      </Link>
+
+      {/* Action Buttons — Sibling of Link (Prevents <a> nesting hydration error) */}
+      <div className="pt-1 px-1">
+        <QuickAddToCartButton producto={producto} />
+      </div>
+    </article>
   );
 }
-

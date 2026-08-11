@@ -1,6 +1,6 @@
 "use client";
 
-import { forwardRef, useState, InputHTMLAttributes } from "react";
+import { forwardRef, useState, useRef, useImperativeHandle, InputHTMLAttributes } from "react";
 import { cn } from "@/lib/utils/cn";
 
 export interface PasswordInputProps extends InputHTMLAttributes<HTMLInputElement> {}
@@ -8,17 +8,26 @@ export interface PasswordInputProps extends InputHTMLAttributes<HTMLInputElement
 export const PasswordInput = forwardRef<HTMLInputElement, PasswordInputProps>(
   ({ className, type: _type, ...props }, ref) => {
     const [showPassword, setShowPassword] = useState(false);
+    const internalRef = useRef<HTMLInputElement>(null);
+
+    useImperativeHandle(ref, () => internalRef.current!);
 
     const togglePassword = (e: React.MouseEvent<HTMLButtonElement>) => {
       e.preventDefault();
       e.stopPropagation();
-      setShowPassword((prev) => !prev);
+      setShowPassword((prev) => {
+        const next = !prev;
+        if (internalRef.current) {
+          internalRef.current.type = next ? "text" : "password";
+        }
+        return next;
+      });
     };
 
     return (
       <div className="relative flex items-center w-full">
         <input
-          ref={ref}
+          ref={internalRef}
           {...props}
           type={showPassword ? "text" : "password"}
           className={cn(
@@ -28,10 +37,9 @@ export const PasswordInput = forwardRef<HTMLInputElement, PasswordInputProps>(
         />
         <button
           type="button"
-          tabIndex={-1}
           onMouseDown={(e) => e.preventDefault()}
           onClick={togglePassword}
-          className="absolute right-2.5 top-1/2 -translate-y-1/2 z-10 rounded-md p-1.5 text-muted hover:text-foreground focus:outline-none focus:ring-1 focus:ring-ring/40 transition-colors cursor-pointer"
+          className="absolute right-2.5 top-1/2 -translate-y-1/2 z-10 flex h-7 w-7 items-center justify-center rounded-full text-muted hover:text-chocolate hover:bg-chocolate/10 transition-colors cursor-pointer select-none"
           aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
           title={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
         >

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { formatPrecio, calcularPrecioUnitario } from "@/lib/pricing";
 import { useCartStore } from "@/stores/cart-store";
@@ -23,7 +22,6 @@ export function ProductDetailClient({ producto, configEncargos }: ProductDetailP
   const precioBase = producto.precio_base;
   const esPersonalizable = producto.es_personalizable;
   const stockDisponible = producto.stock_disponible;
-  const esBajoPedido = (producto as any).es_bajo_pedido === true;
 
   const primerImagen = producto.producto_imagenes?.[0]?.url_imagen ?? null;
 
@@ -33,7 +31,22 @@ export function ProductDetailClient({ producto, configEncargos }: ProductDetailP
     personalizado,
   );
 
-  const handleAdd = useCallback(() => {
+  const handleBuyNow = useCallback(() => {
+    addItem({
+      productoId: producto.id,
+      slug: producto.slug,
+      nombre: producto.nombre,
+      imagenUrl: primerImagen,
+      precioBase: precioBase,
+      esPersonalizable: esPersonalizable,
+      personalizado,
+      stockDisponible: stockDisponible,
+      cantidad,
+    });
+    window.location.href = "/checkout";
+  }, [addItem, producto, primerImagen, precioBase, esPersonalizable, personalizado, stockDisponible, cantidad]);
+
+  const handleAddToCart = useCallback(() => {
     addItem({
       productoId: producto.id,
       slug: producto.slug,
@@ -162,40 +175,62 @@ export function ProductDetailClient({ producto, configEncargos }: ProductDetailP
         </div>
       )}
 
-      {/* Purchase Button */}
-      {stockDisponible > 0 && (
+      {/* Action Buttons */}
+      {stockDisponible > 0 ? (
+        <div className="space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* Comprar ahora -> Redirige directamente al flujo de pago seguro / checkout */}
+            <Button
+              type="button"
+              onClick={handleBuyNow}
+              className="w-full py-4 text-base font-semibold rounded-full shadow-md bg-terracota text-white hover:bg-terracota/90 hover:-translate-y-0.5 transition-all cursor-pointer"
+            >
+              🛍️ Comprar ahora →
+            </Button>
+
+            {/* Agregar al carrito -> Notifica sin salir de la página */}
+            <Button
+              type="button"
+              onClick={handleAddToCart}
+              variant="outline"
+              className={`w-full py-4 text-base font-semibold rounded-full border transition-all cursor-pointer ${
+                added
+                  ? "bg-verde-menta text-chocolate border-verde-menta font-bold"
+                  : "border-terracota/40 text-terracota bg-terracota/10 hover:bg-terracota/20"
+              }`}
+              disabled={added}
+            >
+              {added ? (
+                <span className="flex items-center justify-center gap-1.5">
+                  ✓ ¡Agregado al carrito!
+                </span>
+              ) : (
+                "🛒 Agregar al carrito"
+              )}
+            </Button>
+          </div>
+
+          {/* Encargo Special Request Button */}
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setIsEncargoOpen(true)}
+            className="w-full py-3.5 text-sm font-semibold rounded-full border border-admin-accent/30 bg-admin-accent/5 text-chocolate hover:bg-admin-accent/15 transition-all flex items-center justify-center gap-2 cursor-pointer"
+          >
+            <span>✨</span>
+            <span>Solicitar esta pieza por Encargo / Medida Especial</span>
+          </Button>
+        </div>
+      ) : (
         <Button
-          onClick={handleAdd}
-          className={`w-full py-4 text-base font-semibold rounded-full shadow-md transition-all ${
-            added
-              ? "bg-verde-menta text-chocolate hover:bg-verde-menta"
-              : "bg-terracota text-white hover:bg-terracota/90 hover:-translate-y-0.5"
-          }`}
-          disabled={added}
+          type="button"
+          onClick={() => setIsEncargoOpen(true)}
+          className="w-full py-4 text-base font-semibold rounded-full bg-chocolate text-crema-cruda hover:bg-chocolate/90 transition-all flex items-center justify-center gap-2 shadow-md cursor-pointer"
         >
-          {added ? (
-            <span className="flex items-center justify-center gap-2">
-              <svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="3.5 8.5 6.5 11.5 12.5 5.5" />
-              </svg>
-              ¡{cantidad > 1 ? `${cantidad} piezas agregadas` : "Pieza agregada"} a tu carrito!
-            </span>
-          ) : (
-            `Comprar ${cantidad > 1 ? `${cantidad} piezas` : "esta pieza"} →`
-          )}
+          <span>✨</span>
+          <span>Encargar esta pieza a Mili Ferrero</span>
         </Button>
       )}
-
-      {/* Encargo Special Request Button */}
-      <Button
-        type="button"
-        variant="outline"
-        onClick={() => setIsEncargoOpen(true)}
-        className="w-full py-3.5 text-sm font-semibold rounded-full border border-admin-accent/30 bg-admin-accent/5 text-chocolate hover:bg-admin-accent/15 transition-all flex items-center justify-center gap-2"
-      >
-        <span>✨</span>
-        <span>{stockDisponible > 0 ? "Solicitar esta pieza por Encargo / Medida Especial" : "Encargar esta pieza a Mili Ferrero"}</span>
-      </Button>
 
       {/* Modal de Encargo */}
       <EncargoModal

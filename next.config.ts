@@ -5,6 +5,11 @@ const supabaseHostname = process.env.NEXT_PUBLIC_SUPABASE_URL
   : "*.supabase.co";
 
 const nextConfig: NextConfig = {
+  allowedDevOrigins: [
+    "localhost:3000",
+    "192.168.1.19:3000",
+    "192.168.1.19",
+  ],
   images: {
     remotePatterns: [
       {
@@ -21,6 +26,11 @@ const nextConfig: NextConfig = {
   experimental: {
     serverActions: {
       bodySizeLimit: "50mb",
+      allowedOrigins: [
+        "localhost:3000",
+        "192.168.1.19:3000",
+        "192.168.1.19",
+      ],
     },
   },
   async headers() {
