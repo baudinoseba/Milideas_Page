@@ -6,6 +6,7 @@ import Link from "next/link";
 import { formatPrecio } from "@/lib/pricing";
 import { calcularTarifaPorProvincia } from "@/lib/shipping";
 import { crearEncargoAction } from "@/lib/actions";
+import { useCartStore } from "@/stores/cart-store";
 import { useEncargosCartStore, ItemEncargoCart } from "@/stores/encargos-cart-store";
 import { EncargosSteps } from "@/components/encargos/encargos-steps";
 import { Button } from "@/components/ui/button";
@@ -63,6 +64,8 @@ export function EncargosCheckoutClient() {
   const { items, removeItem, updateQuantity, updateItem, clearCart, getTotalPrice } =
     useEncargosCartStore();
 
+  const stockItems = useCartStore((s) => s.items);
+
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [isPending, startTransition] = useTransition();
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -92,8 +95,22 @@ export function EncargosCheckoutClient() {
           <p className="text-xs text-muted leading-relaxed">
             No tenés piezas por encargo seleccionadas en este momento. Explorá el catálogo de cerámica, esculturas e ilustraciones para encargar obras a medida.
           </p>
-          <Link href="/catalogo">
-            <Button className="rounded-full px-6 py-3 bg-terracota text-white hover:bg-terracota/90 mt-2 text-xs font-semibold">
+
+          {stockItems.length > 0 && (
+            <div className="rounded-2xl border border-terracota/30 bg-arena/30 p-4 space-y-2 text-left mt-2">
+              <p className="text-xs font-semibold text-chocolate">
+                📦 Tenés {stockItems.length} {stockItems.length === 1 ? "pieza" : "piezas"} de entrega inmediata en tu carrito
+              </p>
+              <Link href="/carrito">
+                <Button className="w-full bg-terracota text-white hover:bg-terracota/90 rounded-full text-xs font-semibold py-2">
+                  Ir a mi carrito de compra →
+                </Button>
+              </Link>
+            </div>
+          )}
+
+          <Link href="/catalogo" className="block pt-2">
+            <Button variant="outline" className="rounded-full px-6 py-3 border-border text-chocolate text-xs font-semibold">
               Explorar Catálogo de Autor →
             </Button>
           </Link>
@@ -261,6 +278,27 @@ ${emailContacto ? `*Email:* ${emailContacto}\n` : ""}${entregaText}
       {step === 1 && (
         <div className="grid gap-8 lg:grid-cols-12 lg:items-start">
           <div className="lg:col-span-8 space-y-6">
+            {stockItems.length > 0 && (
+              <Card className="border-terracota/30 bg-arena/30 p-4 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-xs">
+                <div className="flex items-center gap-2.5">
+                  <span className="text-xl">📦</span>
+                  <div>
+                    <h4 className="font-serif font-semibold text-chocolate text-xs">
+                      Tenés {stockItems.length} {stockItems.length === 1 ? "pieza" : "piezas"} de entrega inmediata en tu carrito
+                    </h4>
+                    <p className="text-[11px] text-barro font-sans">
+                      Podés realizar primero tus encargos o ir al checkout de compra directa.
+                    </p>
+                  </div>
+                </div>
+                <Link href="/carrito" className="shrink-0">
+                  <Button className="bg-terracota text-white hover:bg-terracota/90 rounded-full text-xs font-semibold px-4 py-1.5">
+                    Ir a Mi Carrito →
+                  </Button>
+                </Link>
+              </Card>
+            )}
+
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-serif font-semibold text-chocolate">
                 Configuración y Personalización de tus Encargos ({items.length})

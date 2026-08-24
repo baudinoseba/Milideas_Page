@@ -8,21 +8,21 @@ export type TipoCatalogo = "ceramica" | "esculturas" | "ilustraciones";
 export const CATALOGO_LABELS: Record<TipoCatalogo, { nombre: string; titulo: string; emoji: string; desc: string }> = {
   ceramica: {
     nombre: "Cerámica",
-    titulo: "Catálogo de Cerámica",
+    titulo: "Catálogo de Cerámica Artesanal",
     emoji: "🏺",
-    desc: "Piezas utilitarias y decorativas moldeadas e ilustradas a mano en Sunchales.",
+    desc: "Piezas de autor únicas, moldeadas e ilustradas 100% a mano por Mili Ferrero en Sunchales. Obra original no producida en serie ni industrialmente.",
   },
   esculturas: {
     nombre: "Esculturas",
-    titulo: "Catálogo de Esculturas",
+    titulo: "Catálogo de Esculturas de Autor",
     emoji: "🗿",
-    desc: "Obras tridimensionales modeladas a mano, piezas únicas de autor en gran detalle.",
+    desc: "Obras tridimensionales modeladas y pintadas a mano. Piezas únicas de colección creadas en piezas exclusivas sin moldes industriales ni réplicas masivas.",
   },
   ilustraciones: {
     nombre: "Ilustraciones",
-    titulo: "Catálogo de Ilustraciones",
+    titulo: "Catálogo de Ilustraciones Originales",
     emoji: "🎨",
-    desc: "Láminas, cuadros y obras sobre papel ilustradas a mano por Mili Ferrero.",
+    desc: "Obras de arte e ilustraciones originales pintadas a mano sobre papel de alta calidad por Mili Ferrero. Piezas auténticas, únicas y no fotocopiadas ni impresas en serie.",
   },
 };
 

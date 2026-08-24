@@ -310,6 +310,16 @@ export function CheckoutForm({
     e.preventDefault();
     setError(null);
 
+    // Validate stock levels
+    for (const item of items) {
+      if (typeof item.stockDisponible === "number" && item.cantidad > item.stockDisponible) {
+        setError(
+          `⚠️ El producto "${item.nombre}" supera el stock disponible (Stock disponible: ${item.stockDisponible}, en carrito: ${item.cantidad}). Por favor ajustá la cantidad en tu carrito para continuar.`
+        );
+        return;
+      }
+    }
+
     if (!aceptarTerminos) {
       setError("Debés aceptar los términos y condiciones para continuar");
       return;
@@ -469,7 +479,7 @@ export function CheckoutForm({
                         YA SOY MIEMBRO
                       </h2>
                       <div className="mb-4">
-                        <GoogleButton label="Ingresar con Google" disabled={true} />
+                        <GoogleButton label="Ingresar con Google" disabled={false} nextUrl="/checkout" />
                         <div className="relative my-4 flex items-center justify-center">
                           <div className="absolute inset-0 flex items-center">
                             <div className="w-full border-t border-border" />

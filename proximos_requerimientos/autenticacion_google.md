@@ -1,7 +1,7 @@
 # Próximo Requerimiento: Autenticación con Google (Google OAuth)
 
-**Estado:** En desarrollo / Próximamente (Deshabilitado en interfaz)  
-**Fecha de registro:** 10 de Agosto de 2026  
+**Estado:** Paso 1 Completado (Credenciales generadas y guardadas en `.env.local`)  
+**Fecha de registro:** 10 de Agosto de 2026 / Actualizado: 24 de Agosto de 2026  
 **Proyecto:** Milideas Arte
 
 ---

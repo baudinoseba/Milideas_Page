@@ -42,8 +42,8 @@ export function ProductDetailClient({ producto, configEncargos }: ProductDetailP
       personalizado,
       stockDisponible: stockDisponible,
       cantidad,
-    });
-    window.location.href = "/checkout";
+    }, false);
+    window.location.href = "/carrito";
   }, [addItem, producto, primerImagen, precioBase, esPersonalizable, personalizado, stockDisponible, cantidad]);
 
   const handleAddToCart = useCallback(() => {
@@ -57,7 +57,7 @@ export function ProductDetailClient({ producto, configEncargos }: ProductDetailP
       personalizado,
       stockDisponible: stockDisponible,
       cantidad,
-    });
+    }, false);
     setAdded(true);
   }, [addItem, producto, primerImagen, precioBase, esPersonalizable, personalizado, stockDisponible, cantidad]);
 

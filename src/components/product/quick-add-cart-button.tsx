@@ -28,7 +28,7 @@ export function QuickAddToCartButton({ producto }: { producto: ProductoConImagen
         personalizado: false,
         stockDisponible: producto.stock_disponible,
         cantidad: 1,
-      });
+      }, false);
 
       setAdded(true);
       setTimeout(() => setAdded(false), 1800);
@@ -51,9 +51,9 @@ export function QuickAddToCartButton({ producto }: { producto: ProductoConImagen
         personalizado: false,
         stockDisponible: producto.stock_disponible,
         cantidad: 1,
-      });
+      }, false);
 
-      window.location.href = "/checkout";
+      window.location.href = "/carrito";
     },
     [addItem, producto, imagen],
   );

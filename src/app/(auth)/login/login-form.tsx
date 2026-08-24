@@ -65,7 +65,7 @@ export default function LoginForm() {
       <Card>
         <h1 className="mb-6 text-xl font-medium">Iniciar sesión</h1>
         <div className="space-y-4">
-          <GoogleButton label="Iniciar sesión con Google" disabled={true} />
+          <GoogleButton label="Iniciar sesión con Google" disabled={false} nextUrl={redirectParam} />
 
           <div className="relative my-5 flex items-center justify-center">
             <div className="absolute inset-0 flex items-center">

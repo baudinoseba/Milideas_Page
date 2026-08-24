@@ -159,6 +159,8 @@ export default async function HomePage() {
                 <img
                   src="/mili-ferrero.jpg"
                   alt="Mili Ferrero con sus piezas de cerámica ilustradas"
+                  loading="eager"
+                  decoding="async"
                   className="rounded-2xl object-cover w-full h-full object-center"
                 />
                 <span className="absolute bottom-3 right-3 rounded-full bg-chocolate/85 backdrop-blur-md px-3 py-1 text-[10px] sm:text-[11px] font-medium text-crema-cruda shadow-md font-sans">

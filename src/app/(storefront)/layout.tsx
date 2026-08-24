@@ -2,6 +2,7 @@ import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
 import { CartHydration } from "@/hooks/use-cart-hydration";
 import { CartDrawer } from "@/components/cart/cart-drawer";
+import { CartToast } from "@/components/cart/cart-toast";
 
 export default function StorefrontLayout({
   children,
@@ -17,6 +18,7 @@ export default function StorefrontLayout({
       </main>
       <Footer />
       <CartDrawer />
+      <CartToast />
     </>
   );
 }

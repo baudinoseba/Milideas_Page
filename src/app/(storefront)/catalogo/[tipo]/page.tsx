@@ -1,6 +1,5 @@
 import { ProductCard } from "@/components/product/product-card";
 import { getCategorias, getProductos } from "@/lib/supabase/queries";
-import { BackButton } from "@/components/ui/back-button";
 import Link from "next/link";
 import { cn } from "@/lib/utils/cn";
 import { CATALOGO_LABELS, type TipoCatalogo } from "@/types";
@@ -48,40 +47,21 @@ export default async function CatalogoTipoPage({
 
   return (
     <div className="space-y-6 pb-12">
-      <div className="pt-1">
-        <BackButton fallbackHref="/">Volver al inicio</BackButton>
-      </div>
+      {/* Page Header with Original Artwork Value Badge */}
+      <div className="space-y-3 border-b border-border/60 pb-5">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5">
+          <h1 className="text-2xl font-medium font-serif text-chocolate sm:text-4xl flex items-center gap-2.5 leading-tight">
+            <span>{currentMeta.emoji}</span>
+            <span>{currentMeta.titulo}</span>
+          </h1>
 
-      {/* 3 Main Catalog Tabs */}
-      <div className="flex rounded-2xl bg-arena/30 p-1 border border-border/50 gap-1 overflow-x-auto">
-        {catalogTypes.map((t) => {
-          const info = CATALOGO_LABELS[t];
-          const isActive = t === currentTipo;
-          return (
-            <Link
-              key={t}
-              href={`/catalogo/${t}`}
-              className={cn(
-                "flex-1 min-w-[120px] text-center py-2.5 px-3 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1.5",
-                isActive
-                  ? "bg-terracota text-white shadow-sm font-bold"
-                  : "text-chocolate hover:bg-arena/60"
-              )}
-            >
-              <span>{info.emoji}</span>
-              <span>{info.nombre}</span>
-            </Link>
-          );
-        })}
-      </div>
+          <div className="inline-flex items-center gap-1.5 rounded-full border border-terracota/20 bg-arena/40 px-3.5 py-1 text-xs font-semibold text-terracota shadow-xs self-start sm:self-auto font-sans shrink-0">
+            <span>✨</span>
+            <span>Obra Original de Autor · Piezas Únicas No Seriadas</span>
+          </div>
+        </div>
 
-      {/* Page Header */}
-      <div className="space-y-1.5 border-b border-border/60 pb-4">
-        <h1 className="text-3xl font-medium font-serif text-chocolate sm:text-4xl flex items-center gap-2">
-          <span>{currentMeta.emoji}</span>
-          <span>{currentMeta.titulo}</span>
-        </h1>
-        <p className="text-sm font-sans text-barro leading-relaxed">
+        <p className="text-xs sm:text-sm font-sans text-barro leading-relaxed max-w-3xl">
           {currentMeta.desc}
         </p>
       </div>

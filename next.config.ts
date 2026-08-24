@@ -7,10 +7,13 @@ const supabaseHostname = process.env.NEXT_PUBLIC_SUPABASE_URL
 const nextConfig: NextConfig = {
   allowedDevOrigins: [
     "localhost:3000",
+    "192.168.1.110:3000",
+    "192.168.1.110",
     "192.168.1.19:3000",
     "192.168.1.19",
   ],
   images: {
+    unoptimized: process.env.NODE_ENV === "development",
     remotePatterns: [
       {
         protocol: "https",
@@ -28,6 +31,8 @@ const nextConfig: NextConfig = {
       bodySizeLimit: "50mb",
       allowedOrigins: [
         "localhost:3000",
+        "192.168.1.110:3000",
+        "192.168.1.110",
         "192.168.1.19:3000",
         "192.168.1.19",
       ],

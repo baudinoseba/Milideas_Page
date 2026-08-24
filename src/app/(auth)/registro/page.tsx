@@ -40,7 +40,7 @@ export default function RegistroPage() {
       <Card>
         <h1 className="mb-6 text-xl font-medium">Crear cuenta</h1>
         <div className="space-y-4">
-          <GoogleButton label="Registrarse con Google" disabled={true} />
+          <GoogleButton label="Registrarse con Google" disabled={false} nextUrl="/cuenta/perfil" />
 
           <div className="relative my-5 flex items-center justify-center">
             <div className="absolute inset-0 flex items-center">

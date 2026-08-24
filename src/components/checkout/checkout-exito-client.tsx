@@ -13,9 +13,14 @@ import Link from "next/link";
 
 import { WhatsAppIcon } from "@/components/ui/whatsapp-icon";
 
+import { useEncargosCartStore } from "@/stores/encargos-cart-store";
+
 export function CheckoutExitoClient({ pedido }: { pedido: PedidoConItems }) {
   const limite = new Date(pedido.fecha_limite_pago);
   const [whatsappUrl, setWhatsappUrl] = useState<string>("#");
+
+  const encargoItems = useEncargosCartStore((s) => s.items);
+  const totalEncargosCount = useEncargosCartStore((s) => s.getTotalItems());
 
   useEffect(() => {
     let dir: any = pedido.direccion_envio;
@@ -139,6 +144,28 @@ ${window.location.origin}/checkout/exito/${pedido.id}`;
           Enviar Pedido por WhatsApp
         </a>
       </Card>
+
+      {/* Continuation Banner for Encargos if items exist in Encargos Cart */}
+      {encargoItems.length > 0 && (
+        <Card className="border-terracota/40 bg-gradient-to-r from-arena/40 to-arena/10 p-5 space-y-3 shadow-md">
+          <div className="flex items-center gap-3">
+            <span className="text-3xl">🎨</span>
+            <div className="space-y-0.5">
+              <h3 className="font-serif font-semibold text-chocolate text-base">
+                ¡Aún tenés {totalEncargosCount} {totalEncargosCount === 1 ? "pieza" : "piezas"} en tu Bolsa de Encargos!
+              </h3>
+              <p className="text-xs text-barro font-sans">
+                Tu reserva de piezas en stock ya fue procesada. ¿Querés coordinar ahora tus encargos a medida con Mili por WhatsApp?
+              </p>
+            </div>
+          </div>
+          <Link href="/encargos" className="block pt-1">
+            <Button className="w-full bg-terracota text-white hover:bg-terracota/90 rounded-full text-xs font-semibold py-3 shadow-xs">
+              🎨 Continuar y Solicitar Encargos por WhatsApp →
+            </Button>
+          </Link>
+        </Card>
+      )}
 
       <Card className="space-y-3 text-sm">
         <div className="flex justify-between">

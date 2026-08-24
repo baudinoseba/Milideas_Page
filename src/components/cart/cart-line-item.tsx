@@ -66,8 +66,8 @@ export function CartLineItem({
           )}
         </div>
 
-        {/* Quantity Controls with improved touch targets */}
-        <div className="mt-2 flex items-center gap-2">
+        {/* Quantity Controls with improved touch targets & stock limit enforcement */}
+        <div className="mt-2 flex items-center justify-between gap-2">
           <div className="flex items-center rounded-lg border border-border bg-background">
             <button
               type="button"
@@ -80,13 +80,20 @@ export function CartLineItem({
             <span className="w-8 text-center text-xs font-semibold">{item.cantidad}</span>
             <button
               type="button"
-              className="flex h-8 w-8 items-center justify-center text-sm font-medium transition-colors hover:bg-border/40 active:scale-95"
+              disabled={typeof item.stockDisponible === "number" && item.cantidad >= item.stockDisponible}
+              className="flex h-8 w-8 items-center justify-center text-sm font-medium transition-colors hover:bg-border/40 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed"
               onClick={() => updateQty(item.productoId, item.cantidad + 1)}
               aria-label="Aumentar cantidad"
+              title={typeof item.stockDisponible === "number" && item.cantidad >= item.stockDisponible ? `Stock máximo disponible (${item.stockDisponible})` : undefined}
             >
               +
             </button>
           </div>
+          {typeof item.stockDisponible === "number" && item.cantidad >= item.stockDisponible && (
+            <span className="text-[10px] font-semibold text-terracota bg-terracota/10 px-2 py-0.5 rounded-full border border-terracota/20">
+              Máx. disponible ({item.stockDisponible})
+            </span>
+          )}
         </div>
       </div>
     </li>

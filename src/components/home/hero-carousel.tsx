@@ -68,6 +68,8 @@ export function HeroCarousel({ items }: HeroCarouselProps) {
             key={currentItem.id}
             src={mainImageUrl}
             alt={currentItem.nombre}
+            loading="eager"
+            decoding="async"
             className="h-full w-full object-cover rounded-2xl transition-all duration-500 group-hover:scale-[1.03]"
           />
         </div>

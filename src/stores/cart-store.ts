@@ -18,11 +18,22 @@ interface CartState {
   expiresAt: number | null;
   hydrated: boolean;
   isOpen: boolean;
+  lastAddedItem: {
+    productoId: string;
+    nombre: string;
+    imagenUrl: string | null;
+    cantidad: number;
+    timestamp: number;
+  } | null;
   openCart: () => void;
   closeCart: () => void;
   toggleCart: () => void;
   setHydrated: () => void;
-  addItem: (item: Omit<LineaCarrito, "cantidad"> & { cantidad?: number }) => void;
+  clearLastAddedItem: () => void;
+  addItem: (
+    item: Omit<LineaCarrito, "cantidad"> & { cantidad?: number },
+    openCart?: boolean,
+  ) => void;
   removeItem: (productoId: string) => void;
   updateQty: (productoId: string, cantidad: number) => void;
   togglePersonalizacion: (productoId: string) => void;
@@ -46,12 +57,14 @@ export const useCartStore = create<CartState>()(
       expiresAt: null,
       hydrated: false,
       isOpen: false,
+      lastAddedItem: null,
       openCart: () => set({ isOpen: true }),
       closeCart: () => set({ isOpen: false }),
       toggleCart: () => set((state) => ({ isOpen: !state.isOpen })),
       setHydrated: () => set({ hydrated: true }),
+      clearLastAddedItem: () => set({ lastAddedItem: null }),
 
-      addItem: (item) => {
+      addItem: (item, openCart = false) => {
         const cantidad = item.cantidad ?? 1;
         const now = Date.now();
         set((state) => {
@@ -60,22 +73,38 @@ export const useCartStore = create<CartState>()(
               ? now + CART_RESERVATION_MS
               : state.expiresAt;
 
+          const maxStock = typeof item.stockDisponible === "number" && item.stockDisponible >= 0
+            ? item.stockDisponible
+            : 999;
+
           const existing = state.items.find((i) => i.productoId === item.productoId);
+          const nextLastAdded = {
+            productoId: item.productoId,
+            nombre: item.nombre,
+            imagenUrl: item.imagenUrl || null,
+            cantidad,
+            timestamp: now,
+          };
+
           if (existing) {
+            const finalQty = Math.min(existing.cantidad + cantidad, maxStock);
             return {
-              isOpen: true,
+              isOpen: openCart ? true : state.isOpen,
               expiresAt: newExpiresAt,
+              lastAddedItem: nextLastAdded,
               items: state.items.map((i) =>
                 i.productoId === item.productoId
-                  ? { ...i, cantidad: i.cantidad + cantidad }
+                  ? { ...i, cantidad: finalQty, stockDisponible: maxStock }
                   : i,
               ),
             };
           }
+          const finalQty = Math.min(cantidad, maxStock);
           return {
-            isOpen: true,
+            isOpen: openCart ? true : state.isOpen,
             expiresAt: newExpiresAt,
-            items: [...state.items, { ...item, cantidad }],
+            lastAddedItem: nextLastAdded,
+            items: [...state.items, { ...item, cantidad: finalQty, stockDisponible: maxStock }],
           };
         });
       },
@@ -95,9 +124,16 @@ export const useCartStore = create<CartState>()(
           return;
         }
         set((state) => ({
-          items: state.items.map((i) =>
-            i.productoId === productoId ? { ...i, cantidad } : i,
-          ),
+          items: state.items.map((i) => {
+            if (i.productoId === productoId) {
+              const maxStock = typeof i.stockDisponible === "number" && i.stockDisponible >= 0
+                ? i.stockDisponible
+                : 999;
+              const clampedQty = Math.min(cantidad, maxStock);
+              return { ...i, cantidad: clampedQty };
+            }
+            return i;
+          }),
         }));
       },
 

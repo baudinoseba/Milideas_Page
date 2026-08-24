@@ -230,27 +230,35 @@ ${emailContacto ? `*Email:* ${emailContacto}\n` : ""}${entregaText}
 
             {/* Sub-Header Tabs if both or encargos exist */}
             {(items.length > 0 && encargoItems.length > 0) && (
-              <div className="flex border-b border-border bg-arena/30 text-xs font-semibold">
-                <button
-                  onClick={() => { setActiveTab("stock"); setIsEncargosFormOpen(false); }}
-                  className={`flex-1 py-2.5 text-center transition-colors border-b-2 ${
-                    activeTab === "stock"
-                      ? "border-terracota text-terracota bg-surface"
-                      : "border-transparent text-muted hover:text-chocolate"
-                  }`}
-                >
-                  📦 En Stock ({items.length})
-                </button>
-                <button
-                  onClick={() => setActiveTab("encargos")}
-                  className={`flex-1 py-2.5 text-center transition-colors border-b-2 ${
-                    activeTab === "encargos"
-                      ? "border-admin-accent text-admin-accent bg-surface"
-                      : "border-transparent text-muted hover:text-chocolate"
-                  }`}
-                >
-                  🎨 Encargos ({totalEncargosCount})
-                </button>
+              <div className="space-y-2 border-b border-border bg-arena/30 p-2.5">
+                <div className="flex rounded-xl bg-surface/80 p-1 border border-border/50 text-xs font-semibold">
+                  <button
+                    onClick={() => { setActiveTab("stock"); setIsEncargosFormOpen(false); }}
+                    className={`flex-1 py-1.5 text-center transition-all rounded-lg ${
+                      activeTab === "stock"
+                        ? "bg-terracota text-white shadow-xs"
+                        : "text-muted hover:text-chocolate"
+                    }`}
+                  >
+                    📦 En Stock ({items.length})
+                  </button>
+                  <button
+                    onClick={() => setActiveTab("encargos")}
+                    className={`flex-1 py-1.5 text-center transition-all rounded-lg ${
+                      activeTab === "encargos"
+                        ? "bg-admin-accent text-white shadow-xs"
+                        : "text-muted hover:text-chocolate"
+                    }`}
+                  >
+                    🎨 Encargos ({totalEncargosCount})
+                  </button>
+                </div>
+                <div className="rounded-lg bg-surface/60 p-2 border border-terracota/20 text-[11px] text-barro font-sans flex items-start gap-1.5 leading-snug">
+                  <span>💡</span>
+                  <span>
+                    Tenés piezas en <strong>Stock ({items.length})</strong> y piezas por <strong>Encargo ({totalEncargosCount})</strong>. Podés hacer la compra de tu stock primero y, al finalizar, el sistema te guiará para realizar tu encargo.
+                  </span>
+                </div>
               </div>
             )}
 
@@ -285,6 +293,7 @@ ${emailContacto ? `*Email:* ${emailContacto}\n` : ""}${entregaText}
                           item.esPersonalizable,
                           item.personalizado
                         );
+                        const isMaxStock = typeof item.stockDisponible === "number" && item.cantidad >= item.stockDisponible;
 
                         return (
                           <li
@@ -326,24 +335,33 @@ ${emailContacto ? `*Email:* ${emailContacto}\n` : ""}${entregaText}
                                   {formatPrecio(unitario * item.cantidad)}
                                 </span>
 
-                                <div className="flex items-center rounded-lg border border-border bg-arena/40">
-                                  <button
-                                    type="button"
-                                    onClick={() => updateQty(item.productoId, item.cantidad - 1)}
-                                    className="flex h-7 w-7 items-center justify-center text-xs font-semibold text-chocolate hover:bg-surface transition-colors"
-                                  >
-                                    −
-                                  </button>
-                                  <span className="w-6 text-center text-xs font-semibold text-chocolate">
-                                    {item.cantidad}
-                                  </span>
-                                  <button
-                                    type="button"
-                                    onClick={() => updateQty(item.productoId, item.cantidad + 1)}
-                                    className="flex h-7 w-7 items-center justify-center text-xs font-semibold text-chocolate hover:bg-surface transition-colors"
-                                  >
-                                    +
-                                  </button>
+                                <div className="flex items-center gap-1">
+                                  {isMaxStock && (
+                                    <span className="text-[10px] font-semibold text-terracota">
+                                      Máx ({item.stockDisponible})
+                                    </span>
+                                  )}
+                                  <div className="flex items-center rounded-lg border border-border bg-arena/40">
+                                    <button
+                                      type="button"
+                                      onClick={() => updateQty(item.productoId, item.cantidad - 1)}
+                                      className="flex h-7 w-7 items-center justify-center text-xs font-semibold text-chocolate hover:bg-surface transition-colors"
+                                    >
+                                      −
+                                    </button>
+                                    <span className="w-6 text-center text-xs font-semibold text-chocolate">
+                                      {item.cantidad}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      disabled={isMaxStock}
+                                      onClick={() => updateQty(item.productoId, item.cantidad + 1)}
+                                      className="flex h-7 w-7 items-center justify-center text-xs font-semibold text-chocolate hover:bg-surface transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                                      title={isMaxStock ? `Stock máximo disponible: ${item.stockDisponible}` : undefined}
+                                    >
+                                      +
+                                    </button>
+                                  </div>
                                 </div>
                               </div>
                             </div>
