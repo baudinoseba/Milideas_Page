@@ -62,8 +62,10 @@ export function ProductoForm({
     producto?.precio_base != null ? String(producto.precio_base) : ""
   );
   const [localCategorias, setLocalCategorias] = useState<Categoria[]>(categorias);
+  const prodRecord = producto as (Record<string, unknown> & typeof producto);
+
   const [selectedTipoCatalogo, setSelectedTipoCatalogo] = useState<string>(
-    (producto as any)?.tipo_catalogo ?? "ceramica"
+    prodRecord?.tipo_catalogo ? String(prodRecord.tipo_catalogo) : "ceramica"
   );
 
   const [selectedCategoriaId, setSelectedCategoriaId] = useState<string>(
@@ -85,8 +87,9 @@ export function ProductoForm({
   // Sync state if producto prop changes
   useEffect(() => {
     if (producto) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setPrecioVal(producto.precio_base != null ? String(producto.precio_base) : "");
-      setSelectedTipoCatalogo((producto as any)?.tipo_catalogo ?? "ceramica");
+      setSelectedTipoCatalogo((producto as Record<string, unknown>)?.tipo_catalogo ? String((producto as Record<string, unknown>).tipo_catalogo) : "ceramica");
       setSelectedCategoriaId(producto.categoria_id ?? categoriaIdInicial ?? "");
       setDescripcionVal(producto.descripcion ?? "");
     }
@@ -165,7 +168,7 @@ export function ProductoForm({
       const newCat: Categoria = {
         id: res.id,
         nombre: res.nombre,
-        tipo_catalogo: selectedTipoCatalogo as any,
+        tipo_catalogo: selectedTipoCatalogo as TipoCatalogo,
         created_at: new Date().toISOString(),
       };
       setLocalCategorias((prev) => [...prev, newCat]);
@@ -186,7 +189,7 @@ export function ProductoForm({
     startTransition(async () => {
       const result = await saveProductoAction(formData, producto?.id);
       if (!result.error) {
-        const savedId = (result as any).id;
+        const savedId = (result as { id?: string }).id;
         if (onDone) {
           onDone(savedId);
         } else if (onSuccess) {
@@ -205,7 +208,7 @@ export function ProductoForm({
     processFormSubmit(onSuccess);
   };
 
-  const attr = (producto as any)?.atributos_especificos ?? {};
+  const attr = ((producto as Record<string, unknown> | null)?.atributos_especificos as Record<string, unknown> | undefined) ?? {};
 
   return (
     <div className={isWizardMode ? "space-y-6" : "max-w-2xl space-y-8"}>
@@ -467,7 +470,7 @@ export function ProductoForm({
                     id="capacidadMl"
                     name="capacidadMl"
                     type="number"
-                    defaultValue={(producto as any)?.capacidad_ml ?? attr.capacidad_ml ?? ""}
+                    defaultValue={((producto as Record<string, unknown>)?.capacidad_ml as string | number) ?? (attr.capacidad_ml as string | number) ?? ""}
                     placeholder="ej. 350"
                   />
                 </div>
@@ -476,7 +479,7 @@ export function ProductoForm({
                     <input
                       type="checkbox"
                       name="aptoLavavajillas"
-                      defaultChecked={(producto as any)?.apto_lavavajillas ?? attr.apto_lavavajillas ?? true}
+                      defaultChecked={((producto as Record<string, unknown>)?.apto_lavavajillas as boolean) ?? (attr.apto_lavavajillas as boolean) ?? true}
                       className="h-4 w-4 rounded border-border accent-admin-accent"
                     />
                     🧽 Apto lavavajillas
@@ -485,7 +488,7 @@ export function ProductoForm({
                     <input
                       type="checkbox"
                       name="aptoMicroondas"
-                      defaultChecked={(producto as any)?.apto_microondas ?? attr.apto_microondas ?? true}
+                      defaultChecked={((producto as Record<string, unknown>)?.apto_microondas as boolean) ?? (attr.apto_microondas as boolean) ?? true}
                       className="h-4 w-4 rounded border-border accent-admin-accent"
                     />
                     ♨️ Apto microondas
@@ -503,7 +506,7 @@ export function ProductoForm({
                     <Input
                       id="papelSoporte"
                       name="papelSoporte"
-                      defaultValue={(producto as any)?.papel_soporte ?? attr.papel_soporte ?? "Papel Canson 300g Acuarela"}
+                      defaultValue={((producto as Record<string, unknown>)?.papel_soporte as string) ?? (attr.papel_soporte as string) ?? "Papel Canson 300g Acuarela"}
                       placeholder="ej. Papel Canson 300g"
                     />
                   </div>
@@ -512,7 +515,7 @@ export function ProductoForm({
                     <Input
                       id="materialTecnica"
                       name="materialTecnica"
-                      defaultValue={(producto as any)?.material_tecnica ?? attr.material_tecnica ?? ""}
+                      defaultValue={((producto as Record<string, unknown>)?.material_tecnica as string) ?? (attr.material_tecnica as string) ?? ""}
                       placeholder="ej. Acuarela y tinta china"
                     />
                   </div>
@@ -521,7 +524,7 @@ export function ProductoForm({
                   <input
                     type="checkbox"
                     name="marcoIncluido"
-                    defaultChecked={(producto as any)?.marco_incluido ?? attr.marco_incluido ?? false}
+                    defaultChecked={((producto as Record<string, unknown>)?.marco_incluido as boolean) ?? (attr.marco_incluido as boolean) ?? false}
                     className="h-4 w-4 rounded border-border accent-admin-accent"
                   />
                   🖼️ Incluye marco artesanal de madera
@@ -538,7 +541,7 @@ export function ProductoForm({
                     <Input
                       id="materialTecnica"
                       name="materialTecnica"
-                      defaultValue={(producto as any)?.material_tecnica ?? attr.material_tecnica ?? ""}
+                      defaultValue={((producto as Record<string, unknown>)?.material_tecnica as string) ?? (attr.material_tecnica as string) ?? ""}
                       placeholder="ej. Pasta Gres modelada a mano"
                     />
                   </div>
@@ -547,7 +550,7 @@ export function ProductoForm({
                     <Input
                       id="edicionNumerada"
                       name="edicionNumerada"
-                      defaultValue={(producto as any)?.edicion_numerada ?? attr.edicion_numerada ?? ""}
+                      defaultValue={((producto as Record<string, unknown>)?.edicion_numerada as string) ?? (attr.edicion_numerada as string) ?? ""}
                       placeholder="ej. Edición Única 1/1 o 3/10"
                     />
                   </div>
@@ -556,7 +559,7 @@ export function ProductoForm({
                   <input
                     type="checkbox"
                     name="pedestalIncluido"
-                    defaultChecked={(producto as any)?.pedestal_incluido ?? attr.pedestal_incluido ?? false}
+                    defaultChecked={((producto as Record<string, unknown>)?.pedestal_incluido as boolean) ?? (attr.pedestal_incluido as boolean) ?? false}
                     className="h-4 w-4 rounded border-border accent-admin-accent"
                   />
                   🗿 Incluye pedestal o base de exposición

@@ -28,7 +28,10 @@ export async function GET(request: Request) {
     const supabase = await createClient();
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
-      const sanitizedNext = next.startsWith("/") ? next : `/${next}`;
+      // SECURITY (B2): Prevent open redirect via `next` parameter.
+      // Must be a relative path starting with / but NOT // (protocol-relative URL).
+      const sanitizedNext =
+        next.startsWith("/") && !next.startsWith("//") ? next : "/cuenta/perfil";
       const forwardUrl = new URL(sanitizedNext, origin);
       return NextResponse.redirect(forwardUrl);
     }

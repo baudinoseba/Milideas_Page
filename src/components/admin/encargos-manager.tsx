@@ -157,7 +157,7 @@ Te iremos avisando el avance de tu pieza. ¡Muchas gracias!`;
                     <p className="font-semibold text-chocolate">🎨 Piezas & Especificaciones</p>
                     {enc.items_encargo && enc.items_encargo.length > 0 ? (
                       <div className="space-y-2 divide-y divide-border/40">
-                        {enc.items_encargo.map((it: any) => (
+                        {enc.items_encargo.map((it: { id: string; nombre_producto: string; tipo_catalogo?: string; cantidad: number; medida_seleccionada?: string; con_marco?: boolean; es_personalizado?: boolean; detalle_personalizacion?: string }) => (
                           <div key={it.id} className="pt-1.5 first:pt-0">
                             <p className="font-medium text-foreground">
                               {it.nombre_producto} ({it.tipo_catalogo?.toUpperCase()}) x {it.cantidad}

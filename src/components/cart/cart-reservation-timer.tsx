@@ -15,6 +15,7 @@ export function CartReservationTimer({ className = "" }: { className?: string })
 
   useEffect(() => {
     if (!hydrated || items.length === 0 || !expiresAt) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setTimeLeftMs(null);
       return;
     }

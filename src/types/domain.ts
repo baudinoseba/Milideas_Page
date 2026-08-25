@@ -74,7 +74,7 @@ export type Encargo = {
   medida_seleccionada: string | null;
   con_marco: boolean;
   metodo_entrega: string;
-  direccion_envio: any;
+  direccion_envio: Record<string, unknown> | null;
   precio_estimado: number;
   recargo_personalizado: number;
   adicional_medida: number;
@@ -86,7 +86,7 @@ export type Encargo = {
   created_at: string;
   updated_at: string;
   productos?: ProductoConImagenes | null;
-  items_encargo?: any[];
+  items_encargo?: Record<string, unknown>[];
 };
 
 

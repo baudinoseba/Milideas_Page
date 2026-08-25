@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
 "use server";
 
 import { revalidatePath } from "next/cache";
@@ -14,7 +15,9 @@ export type CheckoutResult =
 export async function crearPedidoAction(
   formData: FormData,
   items: CrearPedidoItem[],
-  pricing: {
+  // NOTE: The pricing parameter from the client is intentionally IGNORED for security.
+  // All monetary values are recalculated server-side from DB data.
+  _clientPricing?: {
     subtotal: number;
     descuentoAplicado: number;
     costoEnvio: number;
@@ -25,8 +28,9 @@ export async function crearPedidoAction(
     nombreContacto: formData.get("nombreContacto"),
     whatsappContacto: formData.get("whatsappContacto"),
     emailContacto: formData.get("emailContacto") ?? "",
-    zonaLogisticaId: formData.get("zonaLogisticaId"),
+    zonaLogisticaId: formData.get("zonaLogisticaId") ?? "",
     tipoEnvio: formData.get("tipoEnvio"),
+
     metodoPago: formData.get("metodoPago"),
     direccionEnvio:
       formData.get("tipoEnvio") === "domicilio"
@@ -51,6 +55,64 @@ export async function crearPedidoAction(
 
   const supabase = await createClient();
 
+  // ── SECURITY: Recalculate pricing server-side ──────────────────────────────
+  // Fetch authoritative prices from DB to prevent client-side price manipulation.
+  const productoIds = [...new Set(items.map((i) => i.producto_id))];
+  const { data: productosDB, error: prodErr } = await supabase
+    .from("productos")
+    .select("id, precio_base, es_personalizable, stock_disponible, activo")
+    .in("id", productoIds);
+
+  if (prodErr || !productosDB) {
+    return { success: false, error: "Error al verificar los productos del carrito." };
+  }
+
+  // Build a map of DB prices for fast lookup
+  const preciosDB = new Map(productosDB.map((p) => [p.id, p]));
+
+  // Verify all products exist and are active, then compute subtotal
+  let serverSubtotal = 0;
+  for (const item of items) {
+    const prod = preciosDB.get(item.producto_id);
+    if (!prod || !prod.activo) {
+      return { success: false, error: "Uno de los productos ya no está disponible." };
+    }
+    const PERSONALIZATION_SURCHARGE = 0.15;
+    const precioUnitario = item.es_personalizado && prod.es_personalizable
+      ? Math.round(prod.precio_base * (1 + PERSONALIZATION_SURCHARGE))
+      : prod.precio_base;
+    serverSubtotal += precioUnitario * item.cantidad;
+  }
+
+  // Fetch shipping cost from DB if a logistic zone is selected
+  let serverCostoEnvio = 0;
+  if (parsed.data.zonaLogisticaId && parsed.data.tipoEnvio !== "taller") {
+    const { data: zona } = await supabase
+      .from("configuracion_logistica")
+      .select("precio_agencia, precio_domicilio")
+      .eq("id", parsed.data.zonaLogisticaId)
+      .eq("activa", true)
+      .single();
+
+    if (zona) {
+      serverCostoEnvio = parsed.data.tipoEnvio === "domicilio"
+        ? Number(zona.precio_domicilio)
+        : Number(zona.precio_agencia);
+    }
+  }
+
+  // Apply wholesale discount tiers (same logic as client-side calcularPricing)
+  const totalPiezas = items.reduce((acc, i) => acc + i.cantidad, 0);
+  const WHOLESALE_TIERS = [
+    { minPieces: 35, discount: 0.2 },
+    { minPieces: 20, discount: 0.15 },
+    { minPieces: 15, discount: 0.1 },
+  ];
+  const tier = WHOLESALE_TIERS.find((t) => totalPiezas >= t.minPieces);
+  const serverDescuento = tier ? Math.round(serverSubtotal * tier.discount) : 0;
+  const serverTotal = serverSubtotal - serverDescuento + serverCostoEnvio;
+  // ────────────────────────────────────────────────────────────────────────────
+
   const direccionPayload =
     parsed.data.tipoEnvio === "taller"
       ? { taller: true, tipo: "taller", retiro: "Florentino Ameghino 1576, Sunchales, Santa Fe" }
@@ -65,10 +127,10 @@ export async function crearPedidoAction(
     p_zona_logistica_id: parsed.data.zonaLogisticaId || null,
     p_direccion_envio: direccionPayload,
     p_metodo_pago: parsed.data.metodoPago,
-    p_subtotal: pricing.subtotal,
-    p_descuento_aplicado: pricing.descuentoAplicado,
-    p_costo_envio: pricing.costoEnvio,
-    p_total: pricing.total,
+    p_subtotal: serverSubtotal,
+    p_descuento_aplicado: serverDescuento,
+    p_costo_envio: serverCostoEnvio,
+    p_total: serverTotal,
   });
 
   // Fallback if remote Postgres enum 'tipo_envio' does not have 'taller' added yet
@@ -82,10 +144,10 @@ export async function crearPedidoAction(
       p_zona_logistica_id: parsed.data.zonaLogisticaId || null,
       p_direccion_envio: { taller: true, tipo: "taller", retiro: "Florentino Ameghino 1576, Sunchales, Santa Fe" },
       p_metodo_pago: parsed.data.metodoPago,
-      p_subtotal: pricing.subtotal,
-      p_descuento_aplicado: pricing.descuentoAplicado,
+      p_subtotal: serverSubtotal,
+      p_descuento_aplicado: serverDescuento,
       p_costo_envio: 0,
-      p_total: pricing.total,
+      p_total: serverSubtotal - serverDescuento,
     });
     data = fallbackRes.data;
     error = fallbackRes.error;
@@ -112,12 +174,44 @@ export async function subirComprobanteAction(
   pedidoId: string,
   formData: FormData,
 ): Promise<{ success: boolean; error?: string }> {
+
+  // SECURITY: Verify the caller owns this order before allowing file upload.
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  // Fetch the order and check ownership
+  const { data: pedido, error: pedidoErr } = await supabase
+    .from("pedidos")
+    .select("id, usuario_id")
+    .eq("id", pedidoId)
+    .single();
+
+  if (pedidoErr || !pedido) {
+    return { success: false, error: "Pedido no encontrado." };
+  }
+
+  // Allow: the authenticated owner, or anonymous orders (usuario_id IS NULL), or admins
+  const isOwner = user && pedido.usuario_id === user.id;
+  const isAnonymousOrder = pedido.usuario_id === null;
+  if (!isOwner && !isAnonymousOrder) {
+    return { success: false, error: "No tenés permiso para modificar este pedido." };
+  }
+
   const file = formData.get("comprobante") as File | null;
   if (!file || file.size === 0) {
     return { success: false, error: "Seleccioná un archivo" };
   }
 
-  const supabase = await createClient();
+  // SECURITY: Validate file type and size
+  const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif", "application/pdf"];
+  const MAX_SIZE_BYTES = 10 * 1024 * 1024; // 10MB for receipts
+  if (!ALLOWED_TYPES.includes(file.type)) {
+    return { success: false, error: "Tipo de archivo no permitido. Usá JPG, PNG, WEBP, GIF o PDF." };
+  }
+  if (file.size > MAX_SIZE_BYTES) {
+    return { success: false, error: "El archivo supera el tamaño máximo (10MB)." };
+  }
+
   const ext = file.name.split(".").pop() ?? "jpg";
   const path = `${pedidoId}/${Date.now()}.${ext}`;
 
@@ -143,6 +237,7 @@ export async function subirComprobanteAction(
   revalidatePath(`/checkout/exito/${pedidoId}`);
   return { success: true };
 }
+
 
 export async function loginAction(formData: FormData): Promise<{ success?: boolean; error?: string }> {
   try {
@@ -194,8 +289,14 @@ export async function loginAction(formData: FormData): Promise<{ success?: boole
       }
     }
 
+    // SECURITY (B1): Prevent open redirect — ensure redirectTo is a relative path on this domain.
+    const safeRedirectTo =
+      redirectTo.startsWith("/") && !redirectTo.startsWith("//")
+        ? redirectTo
+        : "/";
+
     revalidatePath("/", "layout");
-    redirect(redirectTo);
+    redirect(safeRedirectTo);
   } catch (err: any) {
     if (err?.digest?.startsWith("NEXT_REDIRECT") || err?.message === "NEXT_REDIRECT") {
       throw err;
@@ -208,7 +309,8 @@ export async function loginAction(formData: FormData): Promise<{ success?: boole
 export async function recuperarPasswordAction(email: string, redirectTo: string) {
   try {
     const supabase = await createClient();
-    console.log("recuperarPasswordAction: sending reset email to", email, "with redirectTo", redirectTo);
+    // C6: Do not log user email addresses in production
+    console.log("recuperarPasswordAction: sending password reset email");
     const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
       redirectTo,
     });
@@ -321,35 +423,41 @@ export async function updatePerfilAction(formData: FormData) {
   } = await supabase.auth.getUser();
   if (!user) return { error: "No autenticado" };
 
-  const nombreCompleto = formData.get("nombreCompleto");
-  const whatsapp = formData.get("whatsapp");
-  const nombreUsuario = formData.get("nombreUsuario");
-  const dni = formData.get("dni");
-  const direccionCalle = formData.get("direccionCalle");
-  const direccionNumero = formData.get("direccionNumero");
-  const direccionPiso = formData.get("direccionPiso");
-  const direccionDepto = formData.get("direccionDepto");
-  const direccionCiudad = formData.get("direccionCiudad");
-  const direccionProvincia = formData.get("direccionProvincia");
-  const direccionCodigoPostal = formData.get("direccionCodigoPostal");
-  const direccionReferencia = formData.get("direccionReferencia");
+  const sanitizeString = (val: FormDataEntryValue | null, maxLength = 100) => {
+    if (!val) return null;
+    const str = String(val).trim();
+    return str.length > 0 ? str.slice(0, maxLength) : null;
+  };
+
+  const nombreCompleto = sanitizeString(formData.get("nombreCompleto"), 100);
+  const whatsapp = sanitizeString(formData.get("whatsapp"), 30);
+  const nombreUsuario = sanitizeString(formData.get("nombreUsuario"), 50);
+  const dni = sanitizeString(formData.get("dni"), 20);
+  const direccionCalle = sanitizeString(formData.get("direccionCalle"), 100);
+  const direccionNumero = sanitizeString(formData.get("direccionNumero"), 20);
+  const direccionPiso = sanitizeString(formData.get("direccionPiso"), 10);
+  const direccionDepto = sanitizeString(formData.get("direccionDepto"), 10);
+  const direccionCiudad = sanitizeString(formData.get("direccionCiudad"), 100);
+  const direccionProvincia = sanitizeString(formData.get("direccionProvincia"), 100);
+  const direccionCodigoPostal = sanitizeString(formData.get("direccionCodigoPostal"), 20);
+  const direccionReferencia = sanitizeString(formData.get("direccionReferencia"), 200);
 
   const { error } = await supabase
     .from("perfiles")
     .upsert({
       id: user.id,
-      nombre_completo: nombreCompleto ? String(nombreCompleto) : null,
-      whatsapp: whatsapp ? String(whatsapp) : null,
-      nombre_usuario: nombreUsuario ? String(nombreUsuario) : null,
-      dni: dni ? String(dni) : null,
-      direccion_calle: direccionCalle ? String(direccionCalle) : null,
-      direccion_numero: direccionNumero ? String(direccionNumero) : null,
-      direccion_piso: direccionPiso ? String(direccionPiso) : null,
-      direccion_depto: direccionDepto ? String(direccionDepto) : null,
-      direccion_ciudad: direccionCiudad ? String(direccionCiudad) : null,
-      direccion_provincia: direccionProvincia ? String(direccionProvincia) : null,
-      direccion_codigo_postal: direccionCodigoPostal ? String(direccionCodigoPostal) : null,
-      direccion_referencia: direccionReferencia ? String(direccionReferencia) : null,
+      nombre_completo: nombreCompleto,
+      whatsapp: whatsapp,
+      nombre_usuario: nombreUsuario,
+      dni: dni,
+      direccion_calle: direccionCalle,
+      direccion_numero: direccionNumero,
+      direccion_piso: direccionPiso,
+      direccion_depto: direccionDepto,
+      direccion_ciudad: direccionCiudad,
+      direccion_provincia: direccionProvincia,
+      direccion_codigo_postal: direccionCodigoPostal,
+      direccion_referencia: direccionReferencia,
     });
 
   if (error) return { error: error.message };
@@ -358,20 +466,42 @@ export async function updatePerfilAction(formData: FormData) {
 }
 
 export async function updateEmailAction(email: string) {
+  const trimmed = email.trim();
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!trimmed || !emailRegex.test(trimmed)) {
+    return { error: "Formato de email inválido" };
+  }
+
   const supabase = await createClient();
-  const { error } = await supabase.auth.updateUser({ email });
+  const { error } = await supabase.auth.updateUser({ email: trimmed });
   if (error) return { error: error.message };
   return { success: true };
 }
 
 export async function updatePasswordAction(password: string) {
+  if (!password || password.length < 6) {
+    return { error: "La contraseña debe tener al menos 6 caracteres" };
+  }
+
   const supabase = await createClient();
   const { error } = await supabase.auth.updateUser({ password });
   if (error) return { error: error.message };
   return { success: true };
 }
 
-export async function makeMeAdminAction() {
+
+export async function makeMeAdminAction(setupSecret?: string) {
+  // SECURITY: This action is protected by a server-side secret.
+  // The ADMIN_SETUP_SECRET env var must be set and must match the provided secret.
+  // Without it, this action is completely disabled to prevent privilege escalation.
+  const configuredSecret = process.env.ADMIN_SETUP_SECRET;
+  if (!configuredSecret) {
+    return { error: "Esta función está deshabilitada en este entorno." };
+  }
+  if (!setupSecret || setupSecret !== configuredSecret) {
+    return { error: "Secreto de configuración inválido." };
+  }
+
   const supabase = await createClient();
   const {
     data: { user },
@@ -398,8 +528,24 @@ export async function makeMeAdminAction() {
   return { success: true };
 }
 
-export async function confirmarPagoAction(pedidoId: string) {
+// ─── SECURITY HELPER (B3): Defense-in-depth admin auth check ────────────────
+// This helper ensures server actions that mutate critical data explicitly verify
+// admin status in the application layer, not relying solely on RLS.
+async function requireAdmin(): Promise<{ supabase: Awaited<ReturnType<typeof createClient>>; userId: string } | { error: string }> {
   const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "No autenticado" };
+  const { isUserAdmin } = await import("@/lib/supabase/queries");
+  const admin = await isUserAdmin(user.id);
+  if (!admin) return { error: "No autorizado" };
+  return { supabase, userId: user.id };
+}
+// ────────────────────────────────────────────────────────────────────────────
+
+export async function confirmarPagoAction(pedidoId: string) {
+  const auth = await requireAdmin();
+  if ("error" in auth) return auth;
+  const { supabase } = auth;
   const { error } = await supabase.rpc("confirmar_pago", { p_pedido_id: pedidoId });
   if (error) return { error: error.message };
   revalidatePath("/admin/pedidos");
@@ -407,13 +553,16 @@ export async function confirmarPagoAction(pedidoId: string) {
 }
 
 export async function cancelarPedidoAction(pedidoId: string) {
-  const supabase = await createClient();
+  const auth = await requireAdmin();
+  if ("error" in auth) return auth;
+  const { supabase } = auth;
   const { error } = await supabase.rpc("cancelar_pedido", { p_pedido_id: pedidoId });
   if (error) return { error: error.message };
   revalidatePath("/admin/pedidos");
   revalidatePath("/catalogo");
   return { success: true };
 }
+
 
 export async function saveProductoAction(
   formData: FormData,
@@ -544,14 +693,28 @@ export async function uploadProductoImageAction(
   productoId: string,
   formData: FormData,
 ): Promise<{ success: boolean; error?: string; url?: string }> {
+  const auth = await requireAdmin();
+  if ("error" in auth) return auth;
+  const { supabase } = auth;
+
   const file = formData.get("image") as File | null;
   if (!file || file.size === 0) {
     return { success: false, error: "Seleccioná una imagen" };
   }
 
-  const supabase = await createClient();
-  const ext = file.name.split(".").pop() ?? "jpg";
-  const path = `${productoId}/${Date.now()}.${ext}`;
+  // SECURITY (B5): Validate MIME type and file size
+  const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+  const MAX_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
+  if (!ALLOWED_TYPES.includes(file.type)) {
+    return { success: false, error: "Tipo de archivo no permitido. Usá JPG, PNG, WEBP o GIF." };
+  }
+  if (file.size > MAX_SIZE_BYTES) {
+    return { success: false, error: "La imagen supera el tamaño máximo permitido (10MB)." };
+  }
+
+  const ext = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
+  const safeExt = ["jpg", "jpeg", "png", "webp", "gif"].includes(ext) ? ext : "jpg";
+  const path = `${productoId}/${Date.now()}.${safeExt}`;
 
   const { error: uploadError } = await supabase.storage
     .from("productos")
@@ -588,6 +751,7 @@ export async function uploadProductoImageAction(
   revalidatePath("/catalogo");
   return { success: true, url: urlData.publicUrl };
 }
+
 
 export async function deleteProductoImageAction(
   imageId: string,
@@ -1019,7 +1183,15 @@ export async function reorderProductoImagesAction(
 export async function deleteProduccionCompletaAction(
   targetId: string,
 ): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createClient();
+  const auth = await requireAdmin();
+  if ("error" in auth) return auth;
+  const { supabase } = auth;
+
+  // SECURITY (C7): Validate UUID format strictly before using in query filter
+  const isValidUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(targetId);
+  if (!isValidUUID) {
+    return { success: false, error: "Identificador inválido." };
+  }
 
   // Unlink products from this production so products stay in the catalog
   await supabase
@@ -1043,6 +1215,7 @@ export async function deleteProduccionCompletaAction(
   revalidatePath("/");
   return { success: true };
 }
+
 
 export async function saveConfiguracionSitioAction(
   formData: FormData,
@@ -1101,17 +1274,31 @@ export async function saveConfiguracionSitioAction(
 export async function uploadLogoAction(
   formData: FormData,
 ): Promise<{ success: boolean; error?: string; url?: string }> {
+  const auth = await requireAdmin();
+  if ("error" in auth) return auth;
+  const { supabase } = auth;
+
   const file = formData.get("logo") as File | null;
   if (!file || file.size === 0) {
     return { success: false, error: "Seleccioná un archivo de logo" };
   }
 
-  const supabase = await createClient();
-  const ext = file.name.split(".").pop() ?? "png";
-  const path = `logo_${Date.now()}.${ext}`;
+  // SECURITY (B5): Validate MIME type and file size
+  const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/svg+xml"];
+  const MAX_SIZE_BYTES = 5 * 1024 * 1024; // 5MB
+  if (!ALLOWED_TYPES.includes(file.type)) {
+    return { success: false, error: "Tipo de archivo no permitido para logo. Usá PNG, JPG, WEBP o SVG." };
+  }
+  if (file.size > MAX_SIZE_BYTES) {
+    return { success: false, error: "El logo supera el tamaño máximo permitido (5MB)." };
+  }
+
+  const ext = file.name.split(".").pop()?.toLowerCase() ?? "png";
+  const safeExt = ["png", "jpg", "jpeg", "webp", "svg"].includes(ext) ? ext : "png";
+  const path = `logo_${Date.now()}.${safeExt}`;
 
   // Use 'productos' bucket as primary storage bucket
-  let { error: uploadError } = await supabase.storage.from("productos").upload(path, file);
+  const { error: uploadError } = await supabase.storage.from("productos").upload(path, file);
   if (uploadError) {
     const { error: fallbackErr } = await supabase.storage.from("sitio").upload(path, file);
     if (fallbackErr && uploadError) {
@@ -1141,17 +1328,31 @@ export async function uploadLogoAction(
 export async function uploadHeroImageAction(
   formData: FormData,
 ): Promise<{ success: boolean; error?: string; url?: string }> {
+  const auth = await requireAdmin();
+  if ("error" in auth) return auth;
+  const { supabase } = auth;
+
   const file = formData.get("heroImage") as File | null;
   if (!file || file.size === 0) {
     return { success: false, error: "Seleccioná una imagen de portada" };
   }
 
-  const supabase = await createClient();
-  const ext = file.name.split(".").pop() ?? "jpg";
-  const path = `hero_${Date.now()}.${ext}`;
+  // SECURITY (B5): Validate MIME type and file size
+  const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
+  const MAX_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
+  if (!ALLOWED_TYPES.includes(file.type)) {
+    return { success: false, error: "Tipo de archivo no permitido. Usá JPG, PNG o WEBP." };
+  }
+  if (file.size > MAX_SIZE_BYTES) {
+    return { success: false, error: "La imagen supera el tamaño máximo permitido (10MB)." };
+  }
+
+  const ext = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
+  const safeExt = ["jpg", "jpeg", "png", "webp"].includes(ext) ? ext : "jpg";
+  const path = `hero_${Date.now()}.${safeExt}`;
 
   // Use 'productos' bucket as primary storage bucket
-  let { error: uploadError } = await supabase.storage.from("productos").upload(path, file);
+  const { error: uploadError } = await supabase.storage.from("productos").upload(path, file);
   if (uploadError) {
     const { error: fallbackErr } = await supabase.storage.from("sitio").upload(path, file);
     if (fallbackErr && uploadError) {
@@ -1177,6 +1378,7 @@ export async function uploadHeroImageAction(
   revalidatePath("/admin/personalizacion");
   return { success: true, url: urlData.publicUrl };
 }
+
 
 export async function bulkAdjustZonasAction(
   porcentaje: number,
@@ -1218,7 +1420,14 @@ export async function expirarPedidosVencidosAction(): Promise<{
   error?: string;
   count?: number;
 }> {
+  // SECURITY (B4): Only admins should be able to manually trigger order expiration.
   const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { success: false, error: "No autenticado" };
+
+  const { isUserAdmin } = await import("@/lib/supabase/queries");
+  const admin = await isUserAdmin(user.id);
+  if (!admin) return { success: false, error: "No autorizado" };
 
   const { data, error } = await supabase.rpc("expirar_pedidos_vencidos");
 
@@ -1230,6 +1439,7 @@ export async function expirarPedidosVencidosAction(): Promise<{
   revalidatePath("/catalogo");
   return { success: true, count: data ?? 0 };
 }
+
 
 export async function crearEncargoAction(formData: FormData): Promise<{
   success: boolean;
@@ -1249,11 +1459,15 @@ export async function crearEncargoAction(formData: FormData): Promise<{
   const conMarco = formData.get("conMarco") === "true";
   const metodoEntrega = String(formData.get("metodoEntrega") || "taller").trim();
 
-  const precioEstimado = Number(formData.get("precioEstimado")) || 0;
-  const recargoPersonalizado = Number(formData.get("recargoPersonalizado")) || 0;
-  const adicionalMedida = Number(formData.get("adicionalMedida")) || 0;
-  const adicionalMarco = Number(formData.get("adicionalMarco")) || 0;
-  const totalEstimado = Number(formData.get("totalEstimado")) || 0;
+  // SECURITY: Ignore client-supplied prices. Recalculate from DB configuration.
+  const { data: configEncargos } = await supabase
+    .from("configuracion_encargos")
+    .select("precio_marco_madera, porcentaje_recargo_personalizado, medidas_ilustraciones")
+    .limit(1)
+    .single();
+
+  const precioMarcoMadera = Number(configEncargos?.precio_marco_madera ?? 8500);
+  const porcentajeRecargo = Number(configEncargos?.porcentaje_recargo_personalizado ?? 0.15);
 
   let direccionEnvio = null;
   if (metodoEntrega === "domicilio") {
@@ -1270,15 +1484,55 @@ export async function crearEncargoAction(formData: FormData): Promise<{
     };
   }
 
+  // SECURITY: Parse and validate itemsJson structure (C5)
   const itemsJsonRaw = formData.get("itemsJson") as string;
   let itemsArray: any[] = [];
   if (itemsJsonRaw) {
     try {
-      itemsArray = JSON.parse(itemsJsonRaw);
-    } catch (e) {}
+      const parsed = JSON.parse(itemsJsonRaw);
+      if (Array.isArray(parsed)) {
+        itemsArray = parsed;
+      }
+    } catch (e) { /* invalid JSON — use empty */ }
   }
 
   const firstItem = itemsArray[0];
+
+  // SECURITY: Recalculate totals server-side
+  let serverPrecioEstimado = 0;
+  let serverRecargoPersonalizado = 0;
+  const serverAdicionalMedida = 0;
+  let serverAdicionalMarco = 0;
+
+
+  for (const it of itemsArray) {
+    const precioBase = Number(it.precioBase) || 0;
+    const cantidad = Number(it.cantidad) || 1;
+    const itemEsPersonalizado = Boolean(it.esPersonalizado);
+    const itemConMarco = Boolean(it.conMarco);
+
+    // If the item references a real product, verify the price from DB
+    let precioBaseVerificado = precioBase;
+    if (it.productoId) {
+      const { data: prod } = await supabase
+        .from("productos")
+        .select("precio_base")
+        .eq("id", it.productoId)
+        .eq("activo", true)
+        .single();
+      if (prod) precioBaseVerificado = Number(prod.precio_base);
+    }
+
+    const recargo = itemEsPersonalizado ? Math.round(precioBaseVerificado * porcentajeRecargo) : 0;
+    const adicionalMarco = itemConMarco ? precioMarcoMadera : 0;
+    const precioUnitarioFinal = precioBaseVerificado + recargo + adicionalMarco;
+
+    serverPrecioEstimado += precioBaseVerificado * cantidad;
+    serverRecargoPersonalizado += recargo * cantidad;
+    serverAdicionalMarco += adicionalMarco * cantidad;
+  }
+
+  const serverTotalEstimado = serverPrecioEstimado + serverRecargoPersonalizado + serverAdicionalMedida + serverAdicionalMarco;
 
   const { data, error } = await supabase
     .from("encargos")
@@ -1295,11 +1549,11 @@ export async function crearEncargoAction(formData: FormData): Promise<{
       con_marco: itemsArray.some((i) => i.conMarco) || conMarco,
       metodo_entrega: metodoEntrega,
       direccion_envio: direccionEnvio,
-      precio_estimado: precioEstimado,
-      recargo_personalizado: recargoPersonalizado,
-      adicional_medida: adicionalMedida,
-      adicional_marco: adicionalMarco,
-      total_estimado: totalEstimado,
+      precio_estimado: serverPrecioEstimado,
+      recargo_personalizado: serverRecargoPersonalizado,
+      adicional_medida: serverAdicionalMedida,
+      adicional_marco: serverAdicionalMarco,
+      total_estimado: serverTotalEstimado,
       estado: "pendiente",
     })
     .select("id")
@@ -1336,6 +1590,7 @@ export async function crearEncargoAction(formData: FormData): Promise<{
 }
 
 export async function actualizarEstadoEncargoAction(
+
   id: string,
   nuevoEstado: string,
   demoraDias?: number,
@@ -1822,6 +2077,9 @@ export async function generarDescripcionProductoIAAction(
   imageUrl: string | null,
   nombreProducto?: string,
 ): Promise<{ success: boolean; descripcion?: string; error?: string }> {
+  const auth = await requireAdmin();
+  if ("error" in auth) return auth;
+
   try {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
@@ -1835,7 +2093,7 @@ export async function generarDescripcionProductoIAAction(
 
     if (imageUrl) {
       if (imageUrl.startsWith("data:")) {
-        const matches = imageUrl.match(/^data:(image\/[a-zA-Z+]+);base64,(.+)$/);
+        const matches = imageUrl.match(/^data:(image\/(?:jpeg|png|webp|gif|svg\+xml));base64,(.+)$/);
         if (matches) {
           parts.push({
             inlineData: {
@@ -1845,25 +2103,46 @@ export async function generarDescripcionProductoIAAction(
           });
         }
       } else {
+        // SECURITY (B6): SSRF Protection — only allow safe HTTPS URLs, disallow private/internal IPs
         try {
-          const imgRes = await fetch(imageUrl);
-          if (imgRes.ok) {
-            const arrayBuf = await imgRes.arrayBuffer();
-            const base64Data = Buffer.from(arrayBuf).toString("base64");
-            const contentType = imgRes.headers.get("content-type") || "image/jpeg";
+          const parsedUrl = new URL(imageUrl);
+          const isHttps = parsedUrl.protocol === "https:";
+          const hostname = parsedUrl.hostname.toLowerCase();
 
-            parts.push({
-              inlineData: {
-                mimeType: contentType,
-                data: base64Data,
-              },
-            });
+          const isForbiddenHost =
+            hostname === "localhost" ||
+            hostname === "127.0.0.1" ||
+            hostname === "0.0.0.0" ||
+            hostname === "169.254.169.254" || // AWS/GCP/Azure instance metadata
+            hostname.startsWith("10.") ||
+            hostname.startsWith("192.168.") ||
+            hostname.startsWith("172.16.") ||
+            hostname.endsWith(".internal") ||
+            hostname.endsWith(".local");
+
+          if (isHttps && !isForbiddenHost) {
+            const imgRes = await fetch(imageUrl, { signal: AbortSignal.timeout(8000) });
+            if (imgRes.ok) {
+              const arrayBuf = await imgRes.arrayBuffer();
+              const base64Data = Buffer.from(arrayBuf).toString("base64");
+              const contentType = imgRes.headers.get("content-type") || "image/jpeg";
+
+              if (contentType.startsWith("image/")) {
+                parts.push({
+                  inlineData: {
+                    mimeType: contentType,
+                    data: base64Data,
+                  },
+                });
+              }
+            }
           }
         } catch (err) {
           console.warn("No se pudo descargar la imagen para Gemini:", err);
         }
       }
     }
+
 
     const contextText = nombreProducto
       ? `\n\n==================================================\nTÍTULO DEL PRODUCTO RECIBIDO:\n"${nombreProducto}"\n==================================================`

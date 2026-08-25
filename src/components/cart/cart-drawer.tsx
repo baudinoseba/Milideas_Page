@@ -50,6 +50,7 @@ export function CartDrawer() {
   // Auto-switch to "encargos" if stock is empty but encargos has items
   useEffect(() => {
     if (items.length === 0 && encargoItems.length > 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setActiveTab("encargos");
     } else if (items.length > 0 && encargoItems.length === 0) {
       setActiveTab("stock");
@@ -137,7 +138,7 @@ export function CartDrawer() {
       // Build consolidated WhatsApp message
       const itemsFormattedText = encargoItems
         .map((it, idx) => {
-          let specs = [];
+          const specs = [];
           if (it.medidaSeleccionada) specs.push(`Medida: ${it.medidaSeleccionada}`);
           if (it.conMarco) specs.push("Con marco de madera");
           if (it.esPersonalizado) {

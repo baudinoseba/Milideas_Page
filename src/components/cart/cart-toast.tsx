@@ -14,6 +14,7 @@ export function CartToast() {
 
   useEffect(() => {
     if (lastAdded) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setCurrentNotification(lastAdded);
       setVisible(true);
 

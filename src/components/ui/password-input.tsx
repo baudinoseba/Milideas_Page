@@ -3,10 +3,10 @@
 import { forwardRef, useState, useRef, useImperativeHandle, InputHTMLAttributes } from "react";
 import { cn } from "@/lib/utils/cn";
 
-export interface PasswordInputProps extends InputHTMLAttributes<HTMLInputElement> {}
+export type PasswordInputProps = InputHTMLAttributes<HTMLInputElement>;
 
 export const PasswordInput = forwardRef<HTMLInputElement, PasswordInputProps>(
-  ({ className, type: _type, ...props }, ref) => {
+  ({ className, ...props }, ref) => {
     const [showPassword, setShowPassword] = useState(false);
     const internalRef = useRef<HTMLInputElement>(null);
 

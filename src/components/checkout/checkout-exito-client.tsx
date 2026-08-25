@@ -1,12 +1,9 @@
 "use client";
 
-import { useState, useTransition, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { formatPrecio } from "@/lib/pricing";
-import { subirComprobanteAction } from "@/lib/actions";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
-import { PAYMENT_GRACE_HOURS } from "@/lib/utils/constants";
 import type { PedidoConItems } from "@/types";
 
 import Link from "next/link";
@@ -23,11 +20,11 @@ export function CheckoutExitoClient({ pedido }: { pedido: PedidoConItems }) {
   const totalEncargosCount = useEncargosCartStore((s) => s.getTotalItems());
 
   useEffect(() => {
-    let dir: any = pedido.direccion_envio;
+    let dir: unknown = pedido.direccion_envio;
     if (typeof dir === "string") {
       try {
         dir = JSON.parse(dir);
-      } catch (e) {}
+      } catch (_e) {}
     }
 
     const dateFormatted = new Date(pedido.created_at).toLocaleDateString("es-AR", {
@@ -101,6 +98,7 @@ ${window.location.origin}/checkout/exito/${pedido.id}`;
 
     const vendorWhatsapp = process.env.NEXT_PUBLIC_VENDOR_WHATSAPP || "5493493668308";
     const generatedUrl = `https://wa.me/${vendorWhatsapp}?text=${encodeURIComponent(text)}`;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setWhatsappUrl(generatedUrl);
 
     // Auto open WhatsApp in a new tab if coming directly from checkout submit

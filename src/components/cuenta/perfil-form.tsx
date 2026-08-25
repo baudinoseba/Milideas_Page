@@ -59,6 +59,7 @@ export function PerfilForm({ perfil, email }: { perfil: Perfil; email: string })
 
   useEffect(() => {
     const active = localStorage.getItem("mfa_active") === "true";
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMfaActive(active);
   }, []);
 

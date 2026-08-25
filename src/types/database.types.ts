@@ -284,7 +284,7 @@ export type Database = {
           pedestal_incluido?: boolean | null;
           apto_lavavajillas?: boolean | null;
           apto_microondas?: boolean | null;
-          atributos_especificos?: any;
+          atributos_especificos?: Json;
           created_at: string;
           updated_at: string;
         };
@@ -312,7 +312,7 @@ export type Database = {
           pedestal_incluido?: boolean | null;
           apto_lavavajillas?: boolean | null;
           apto_microondas?: boolean | null;
-          atributos_especificos?: any;
+          atributos_especificos?: Json;
           created_at?: string;
           updated_at?: string;
         };
@@ -340,7 +340,7 @@ export type Database = {
           pedestal_incluido?: boolean | null;
           apto_lavavajillas?: boolean | null;
           apto_microondas?: boolean | null;
-          atributos_especificos?: any;
+          atributos_especificos?: Json;
           created_at?: string;
           updated_at?: string;
         };

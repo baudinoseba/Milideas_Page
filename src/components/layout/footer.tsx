@@ -62,7 +62,7 @@ export function Footer() {
             Cerámica de autor ilustrada por <strong className="font-semibold text-chocolate">Mili Ferrero</strong>. Cada pieza es moldeada y pintada a mano en ediciones limitadas desde Sunchales, Santa Fe, Argentina.
           </p>
           <p className="font-handwritten text-lg text-terracota pt-1">
-            "Donde el barro cobra vida y cada pieza te mira de vuelta."
+            &quot;Donde el barro cobra vida y cada pieza te mira de vuelta.&quot;
           </p>
         </div>
 

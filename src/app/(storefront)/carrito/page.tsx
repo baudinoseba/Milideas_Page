@@ -47,7 +47,7 @@ export default function CarritoPage() {
           Tu Carrito ({items.length} {items.length === 1 ? "pieza" : "piezas"})
         </h1>
         <span className="font-handwritten text-xl text-terracota">
-          "Piezas elegidas para iluminar tu hogar"
+          &quot;Piezas elegidas para iluminar tu hogar&quot;
         </span>
       </div>
 

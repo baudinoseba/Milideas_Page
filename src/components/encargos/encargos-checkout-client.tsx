@@ -79,7 +79,7 @@ export function EncargosCheckoutClient() {
   const [ciudad, setCiudad] = useState("");
   const [calle, setCalle] = useState("");
   const [numero, setNumero] = useState("");
-  const [codigoPostal, setCodigoPostal] = useState("");
+  const [codigoPostal, _setCodigoPostal] = useState("");
 
   if (!isClient) return null;
 
@@ -208,7 +208,7 @@ export function EncargosCheckoutClient() {
       // Build consolidated WhatsApp text
       const itemsFormattedText = items
         .map((it, idx) => {
-          let specs = [];
+          const specs = [];
           if (it.medidaSeleccionada) specs.push(`Medida: ${it.medidaSeleccionada}`);
           if (it.conMarco) specs.push("Con marco de madera artesanal");
           if (it.esPersonalizado) {

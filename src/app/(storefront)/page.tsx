@@ -5,34 +5,7 @@ import { HeroCarousel } from "@/components/home/hero-carousel";
 import { FadeIn } from "@/components/ui/fade-in";
 import { getHeroProductos, getConfiguracionSitio, getProductos } from "@/lib/supabase/queries";
 
-function IconSparkles() {
-  return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 3l1.912 5.813a2 2 0 001.275 1.275L21 12l-5.813 1.912a2 2 0 00-1.275 1.275L12 21l-1.912-5.813a2 2 0 00-1.275-1.275L3 12l5.813-1.912a2 2 0 001.275-1.275L12 3z" />
-    </svg>
-  );
-}
 
-function IconPalette() {
-  return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="13.5" cy="6.5" r=".5" fill="currentColor" />
-      <circle cx="17.5" cy="10.5" r=".5" fill="currentColor" />
-      <circle cx="8.5" cy="7.5" r=".5" fill="currentColor" />
-      <circle cx="6.5" cy="12.5" r=".5" fill="currentColor" />
-      <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.92 0 1.67-.75 1.67-1.67 0-.42-.16-.8-.44-1.08-.27-.28-.44-.68-.44-1.1 0-.92.75-1.67 1.67-1.67H16c3.3 0 6-2.7 6-6 0-4.97-4.48-9-10-9z" />
-    </svg>
-  );
-}
-
-function IconShieldHeart() {
-  return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-      <path d="M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" />
-    </svg>
-  );
-}
 
 export default async function HomePage() {
   const config = await getConfiguracionSitio().catch(() => ({
@@ -145,7 +118,7 @@ export default async function HomePage() {
                 La artista detrás del torno
               </span>
               <h2 className="text-2xl font-medium text-chocolate font-serif sm:text-4xl leading-tight">
-                "Cada pieza tiene alma propia y provoca una sonrisa."
+                &quot;Cada pieza tiene alma propia y provoca una sonrisa.&quot;
               </h2>
               <p className="text-xs sm:text-base leading-relaxed text-barro font-sans max-w-2xl">
                 Hola, soy Mili Ferrero. Desde mi taller en Sunchales, Santa Fe, produzco objetos de diseño que acompañan y hacen un poquito más linda tu rutina diaria ❤️ haciendo foco en los procesos lentos y el amor por el oficio.

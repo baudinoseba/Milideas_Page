@@ -6,7 +6,6 @@ import { formatPrecio } from "@/lib/pricing";
 import { useCartStore } from "@/stores/cart-store";
 import { useEncargosCartStore } from "@/stores/encargos-cart-store";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -25,7 +24,7 @@ export function EncargoModal({
 }: EncargoModalProps) {
   const addEncargoItem = useEncargosCartStore((s) => s.addEncargoItem);
 
-  const tipoCatalogo: TipoCatalogo = ((producto as any).tipo_catalogo as TipoCatalogo) || "ceramica";
+  const tipoCatalogo: TipoCatalogo = (((producto as Record<string, unknown>).tipo_catalogo as TipoCatalogo) || "ceramica");
   const precioBase = producto.precio_base;
 
   // Customization state

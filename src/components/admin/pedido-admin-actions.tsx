@@ -26,7 +26,7 @@ type PedidoAdmin = {
   metodo_pago: string;
   fecha_limite_pago: string;
   comprobante_url: string | null;
-  direccion_envio: Record<string, string> | null;  // eslint-disable-line @typescript-eslint/no-explicit-any
+  direccion_envio: Record<string, string> | null;
   created_at: string;
   items_pedido: Array<{
     id: string;

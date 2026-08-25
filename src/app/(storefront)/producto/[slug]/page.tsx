@@ -6,8 +6,7 @@ import { ProductDetailClient } from "@/components/product/product-detail-client"
 import { ProductCard } from "@/components/product/product-card";
 import { Badge } from "@/components/ui/badge";
 import { BackButton } from "@/components/ui/back-button";
-import { formatPrecio } from "@/lib/pricing";
-import { getStockStatus, getStockLabel, puedeComprar } from "@/lib/stock";
+import { getStockStatus, getStockLabel } from "@/lib/stock";
 import { getProductoBySlug, getProductoSlugs, getProductos, getConfiguracionEncargos } from "@/lib/supabase/queries";
 
 export const revalidate = 60;
@@ -47,7 +46,6 @@ export default async function ProductoPage({
   if (!producto) notFound();
 
   const stockStatus = getStockStatus(producto.stock_disponible);
-  const comprable = puedeComprar(stockStatus);
   const configEncargos = await getConfiguracionEncargos().catch(() => undefined);
 
   // Fetch related products from the same category

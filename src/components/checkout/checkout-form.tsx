@@ -12,8 +12,8 @@ import { Select } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
 import { Toast } from "@/components/ui/modal";
 import { formatPrecio } from "@/lib/pricing";
-import { calcularCostoEnvio, obtenerCostoAutomaticoProximidad, getTipoEnvioLabel } from "@/lib/shipping";
-import { crearPedidoAction, loginAction } from "@/lib/actions";
+import { obtenerCostoAutomaticoProximidad } from "@/lib/shipping";
+import { crearPedidoAction } from "@/lib/actions";
 import { useCartStore } from "@/stores/cart-store";
 import { CheckoutSteps } from "@/components/checkout/checkout-steps";
 import { TerminosModal } from "@/components/checkout/terminos-modal";
@@ -99,7 +99,7 @@ export function CheckoutForm({
     barrio: "",
   });
 
-  const [metodoPago, setMetodoPago] = useState<MetodoPago>("transferencia");
+  const [metodoPago, _setMetodoPago] = useState<MetodoPago>("transferencia");
   const [aceptarTerminos, setAceptarTerminos] = useState(false);
 
   // Errors
@@ -135,6 +135,7 @@ export function CheckoutForm({
   // Sync profile values if they change (e.g. after login)
   useEffect(() => {
     if (perfilState) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setStep2Data((prev) => ({
         ...prev,
         nombreContacto: perfilState.nombre_completo?.split(" ")[0] ?? prev.nombreContacto,
@@ -366,7 +367,7 @@ export function CheckoutForm({
 
       if (!result.success) {
         setError(result.error);
-        if ((result as any).isStockCollision || result.error?.includes("reservada por otro")) {
+        if ((result as { isStockCollision?: boolean }).isStockCollision || result.error?.includes("reservada por otro")) {
           useCartStore.getState().openCart();
           setTimeout(() => {
             router.push("/carrito");
@@ -990,7 +991,7 @@ export function CheckoutForm({
                       <span>Empresa de Transporte: Vía Cargo</span>
                     </div>
                     <p className="leading-relaxed font-sans text-xs font-medium text-amber-900 dark:text-amber-200">
-                      "Los valores de cotización son únicamente informativos y están sujetos a variaciones según cargo por manejo, peso y/o medidas reales registradas en el momento de la venta. El valor del servicio contraentrega tiene un costo adicional que no está contemplado en esta cotización. El valor del envío puede variar en el momento de la entrega en el punto de venta."
+                      &quot;Los valores de cotización son únicamente informativos y están sujetos a variaciones según cargo por manejo, peso y/o medidas reales registradas en el momento de la venta. El valor del servicio contraentrega tiene un costo adicional que no está contemplado en esta cotización. El valor del envío puede variar en el momento de la entrega en el punto de venta.&quot;
                     </p>
                     <div className="pt-2 border-t border-amber-300 dark:border-amber-700/60 text-xs font-semibold text-amber-950 dark:text-amber-300 space-y-1">
                       <p>• La cotización mostrada es un valor aproximado para tu zona y está a cargo del comprador.</p>

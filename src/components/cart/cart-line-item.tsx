@@ -1,6 +1,5 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
 import { formatPrecio, calcularPrecioUnitario } from "@/lib/pricing";
 import { useCartStore } from "@/stores/cart-store";
 import type { LineaCarrito } from "@/types";

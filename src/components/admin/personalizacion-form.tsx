@@ -366,7 +366,7 @@ export function PersonalizacionForm({ config, categorias, producciones = [] }: P
       <section className="space-y-4 rounded-xl border border-border bg-surface p-6">
         <h2 className="text-base font-semibold">🌟 Colección Destacada Activa</h2>
         <p className="text-xs text-muted">
-          Elegí qué colección se mostrará en el banner principal de la portada. Si elegís "Detección automática", se mostrará siempre la última colección publicada.
+          Elegí qué colección se mostrará en el banner principal de la portada. Si elegís &quot;Detección automática&quot;, se mostrará siempre la última colección publicada.
         </p>
 
         <div>
@@ -472,7 +472,7 @@ export function PersonalizacionForm({ config, categorias, producciones = [] }: P
           <span>📍 Dirección del Taller y WhatsApp de Atención</span>
         </h2>
         <p className="text-xs text-muted">
-          Ubicación del emprendimiento para la opción "Retiro en Taller" y teléfono oficial de contacto. Podés modificarlo si la artista o el taller se mudan.
+          Ubicación del emprendimiento para la opción &quot;Retiro en Taller&quot; y teléfono oficial de contacto. Podés modificarlo si la artista o el taller se mudan.
         </p>
 
         <div className="grid gap-4 sm:grid-cols-2">

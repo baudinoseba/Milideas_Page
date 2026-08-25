@@ -47,12 +47,13 @@ export default function LoginForm() {
         if (result?.error) {
           setError(result.error);
         }
-      } catch (err: any) {
-        if (err?.digest?.startsWith("NEXT_REDIRECT") || err?.message === "NEXT_REDIRECT") {
+      } catch (err: unknown) {
+        const errorObj = err as { digest?: string; message?: string } | null;
+        if (errorObj?.digest?.startsWith("NEXT_REDIRECT") || errorObj?.message === "NEXT_REDIRECT") {
           return;
         }
         console.error("Error en login onSubmit:", err);
-        setError(err?.message || "Error de conexión al intentar iniciar sesión.");
+        setError(errorObj?.message || "Error de conexión al intentar iniciar sesión.");
       }
     });
   };
