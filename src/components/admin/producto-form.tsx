@@ -13,7 +13,7 @@ import {
   createCategoriaInlineAction,
   generarDescripcionProductoIAAction,
 } from "@/lib/actions";
-import type { Categoria, Producto, ProductoImagen } from "@/types";
+import type { Categoria, Producto, ProductoImagen, TipoCatalogo } from "@/types";
 
 function slugify(text: string) {
   return text
@@ -582,7 +582,7 @@ export function ProductoForm({
                   name="altoCm"
                   type="number"
                   step="0.1"
-                  defaultValue={producto?.alto_cm ?? attr.alto_cm ?? ""}
+                  defaultValue={((producto as Record<string, unknown>)?.alto_cm as number | undefined) ?? ""}
                   placeholder="ej. 10"
                 />
               </div>
@@ -593,7 +593,7 @@ export function ProductoForm({
                   name="anchoCm"
                   type="number"
                   step="0.1"
-                  defaultValue={producto?.ancho_cm ?? attr.ancho_cm ?? ""}
+                  defaultValue={((producto as Record<string, unknown>)?.ancho_cm as number | undefined) ?? ""}
                   placeholder="ej. 15"
                 />
               </div>

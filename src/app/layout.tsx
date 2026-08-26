@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { DM_Sans, Caveat, Playfair_Display } from "next/font/google";
+import { DM_Sans, Caveat, Playfair_Display, Amatic_SC } from "next/font/google";
 import "./globals.css";
 import { APP_DESCRIPTION, APP_NAME } from "@/lib/utils/constants";
 
@@ -18,6 +18,13 @@ const caveat = Caveat({
 const playfairDisplay = Playfair_Display({
   subsets: ["latin"],
   variable: "--font-recoleta",
+  display: "swap",
+});
+
+const amaticSc = Amatic_SC({
+  weight: ["400", "700"],
+  subsets: ["latin"],
+  variable: "--font-amatic",
   display: "swap",
 });
 
@@ -45,9 +52,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es" data-scroll-behavior="smooth" className={`${dmSans.variable} ${caveat.variable} ${playfairDisplay.variable} h-full`}>
-      <body className="min-h-full flex flex-col antialiased">{children}</body>
+    <html
+      lang="es"
+      data-scroll-behavior="smooth"
+      className={`${dmSans.variable} ${caveat.variable} ${playfairDisplay.variable} ${amaticSc.variable} h-full`}
+    >
+      <body className="min-h-full flex flex-col antialiased bg-background text-foreground transition-colors duration-300">
+        {children}
+      </body>
     </html>
   );
 }
-

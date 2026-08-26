@@ -20,10 +20,10 @@ export function CheckoutExitoClient({ pedido }: { pedido: PedidoConItems }) {
   const totalEncargosCount = useEncargosCartStore((s) => s.getTotalItems());
 
   useEffect(() => {
-    let dir: unknown = pedido.direccion_envio;
-    if (typeof dir === "string") {
+    let dir: Record<string, any> = (pedido.direccion_envio as Record<string, any>) || {};
+    if (typeof pedido.direccion_envio === "string") {
       try {
-        dir = JSON.parse(dir);
+        dir = JSON.parse(pedido.direccion_envio);
       } catch (_e) {}
     }
 

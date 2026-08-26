@@ -694,7 +694,7 @@ export async function uploadProductoImageAction(
   formData: FormData,
 ): Promise<{ success: boolean; error?: string; url?: string }> {
   const auth = await requireAdmin();
-  if ("error" in auth) return auth;
+  if ("error" in auth) return { success: false, error: auth.error };
   const { supabase } = auth;
 
   const file = formData.get("image") as File | null;
@@ -1184,7 +1184,7 @@ export async function deleteProduccionCompletaAction(
   targetId: string,
 ): Promise<{ success: boolean; error?: string }> {
   const auth = await requireAdmin();
-  if ("error" in auth) return auth;
+  if ("error" in auth) return { success: false, error: auth.error };
   const { supabase } = auth;
 
   // SECURITY (C7): Validate UUID format strictly before using in query filter
@@ -1275,7 +1275,7 @@ export async function uploadLogoAction(
   formData: FormData,
 ): Promise<{ success: boolean; error?: string; url?: string }> {
   const auth = await requireAdmin();
-  if ("error" in auth) return auth;
+  if ("error" in auth) return { success: false, error: auth.error };
   const { supabase } = auth;
 
   const file = formData.get("logo") as File | null;
@@ -1329,7 +1329,7 @@ export async function uploadHeroImageAction(
   formData: FormData,
 ): Promise<{ success: boolean; error?: string; url?: string }> {
   const auth = await requireAdmin();
-  if ("error" in auth) return auth;
+  if ("error" in auth) return { success: false, error: auth.error };
   const { supabase } = auth;
 
   const file = formData.get("heroImage") as File | null;
@@ -2078,7 +2078,7 @@ export async function generarDescripcionProductoIAAction(
   nombreProducto?: string,
 ): Promise<{ success: boolean; descripcion?: string; error?: string }> {
   const auth = await requireAdmin();
-  if ("error" in auth) return auth;
+  if ("error" in auth) return { success: false, error: auth.error };
 
   try {
     const apiKey = process.env.GEMINI_API_KEY;

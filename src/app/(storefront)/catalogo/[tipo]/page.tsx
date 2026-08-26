@@ -2,7 +2,7 @@ import { ProductCard } from "@/components/product/product-card";
 import { getCategorias, getProductos } from "@/lib/supabase/queries";
 import Link from "next/link";
 import { cn } from "@/lib/utils/cn";
-import { CATALOGO_LABELS, type TipoCatalogo } from "@/types";
+import { getCatalogoMeta, type TipoCatalogo } from "@/types";
 import { notFound } from "next/navigation";
 
 export async function generateMetadata({
@@ -11,10 +11,7 @@ export async function generateMetadata({
   params: Promise<{ tipo: string }>;
 }) {
   const { tipo } = await params;
-  const validTipo = (["ceramica", "esculturas", "ilustraciones"].includes(tipo)
-    ? tipo
-    : "ceramica") as TipoCatalogo;
-  const meta = CATALOGO_LABELS[validTipo];
+  const meta = getCatalogoMeta(tipo);
   return {
     title: meta.titulo,
     description: meta.desc,
@@ -31,12 +28,12 @@ export default async function CatalogoTipoPage({
   const { tipo } = await params;
   const { categoria } = await searchParams;
 
-  if (!["ceramica", "esculturas", "ilustraciones"].includes(tipo)) {
+  if (!["ceramica", "esculturas", "ilustraciones", "ilustracion"].includes(tipo)) {
     notFound();
   }
 
   const currentTipo = tipo as TipoCatalogo;
-  const currentMeta = CATALOGO_LABELS[currentTipo];
+  const currentMeta = getCatalogoMeta(currentTipo);
 
   const [productos, categorias] = await Promise.all([
     getProductos({ tipoCatalogo: currentTipo, categoriaId: categoria }).catch(() => []),
@@ -116,16 +113,19 @@ export default async function CatalogoTipoPage({
             Las piezas de este lanzamiento se encuentran en proceso de producción o fueron agotadas. Explorá los demás catálogos.
           </p>
           <div className="flex flex-wrap justify-center gap-3 pt-2">
-            {catalogTypes.filter((t) => t !== currentTipo).map((t) => (
-              <Link
-                key={t}
-                href={`/catalogo/${t}`}
-                className="inline-flex items-center gap-1.5 rounded-full bg-terracota px-5 py-2 text-xs font-semibold text-white transition-all hover:bg-terracota/90 shadow-sm"
-              >
-                <span>{CATALOGO_LABELS[t].emoji}</span>
-                <span>Ver {CATALOGO_LABELS[t].nombre}</span>
-              </Link>
-            ))}
+            {catalogTypes.filter((t) => t !== currentTipo).map((t) => {
+              const itemMeta = getCatalogoMeta(t);
+              return (
+                <Link
+                  key={t}
+                  href={`/catalogo/${t}`}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-terracota px-5 py-2 text-xs font-semibold text-white transition-all hover:bg-terracota/90 shadow-sm"
+                >
+                  <span>{itemMeta.emoji}</span>
+                  <span>Ver {itemMeta.nombre}</span>
+                </Link>
+              );
+            })}
           </div>
         </div>
       ) : (

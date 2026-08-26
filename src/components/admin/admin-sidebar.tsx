@@ -140,11 +140,11 @@ export function AdminSidebar({
 
 /* ─── Mobile hamburger menu ─── */
 function MobileMenu({
-  _pathname,
+  pathname,
   isActive,
   pedidosPendientes,
 }: {
-  _pathname?: string;
+  pathname: string;
   isActive: (href: string, exact?: boolean) => boolean;
   pedidosPendientes: number;
 }) {

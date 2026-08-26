@@ -18,6 +18,10 @@ import type {
   TipoCatalogo,
   ConfiguracionEncargos,
   Encargo,
+  FormatoCatalogo,
+  PortfolioColeccion,
+  ObraProyecto,
+  CategoriaObra,
 } from "@/types";
 
 export async function getCategorias(tipoCatalogo?: TipoCatalogo): Promise<Categoria[]> {
@@ -507,6 +511,123 @@ export async function getEncargoById(id: string): Promise<Encargo | null> {
   if (error) return null;
   return data as Encargo;
 }
+
+// ─── Formatos de Catálogo Base (Mates, Cuencos, Bandejas, etc.) ───
+
+export async function getFormatosCatalogo(rubro: "ceramica" | "ilustracion" = "ceramica"): Promise<FormatoCatalogo[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("formatos_catalogo")
+    .select("*")
+    .eq("rubro", rubro)
+    .eq("activo", true)
+    .order("orden", { ascending: true });
+
+  if (error) {
+    console.error("getFormatosCatalogo error:", error);
+    return [];
+  }
+  return (data ?? []) as FormatoCatalogo[];
+}
+
+export async function getFormatosCatalogoAdmin(rubro?: "ceramica" | "ilustracion"): Promise<FormatoCatalogo[]> {
+  const adminClient = createAdminClient();
+  let query = adminClient
+    .from("formatos_catalogo")
+    .select("*")
+    .order("orden", { ascending: true });
+
+  if (rubro) {
+    query = query.eq("rubro", rubro);
+  }
+
+  const { data, error } = await query;
+  if (error) {
+    console.error("getFormatosCatalogoAdmin error:", error);
+    return [];
+  }
+  return (data ?? []) as FormatoCatalogo[];
+}
+
+// ─── Portfolio de Colecciones ───
+
+export async function getPortfolioColecciones(rubro: "ceramica" | "ilustracion" = "ceramica"): Promise<PortfolioColeccion[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("portfolio_colecciones")
+    .select("*")
+    .eq("rubro", rubro)
+    .eq("activa", true)
+    .order("orden", { ascending: true });
+
+  if (error) {
+    console.error("getPortfolioColecciones error:", error);
+    return [];
+  }
+  return (data ?? []) as PortfolioColeccion[];
+}
+
+export async function getPortfolioColeccionesAdmin(rubro?: "ceramica" | "ilustracion"): Promise<PortfolioColeccion[]> {
+  const adminClient = createAdminClient();
+  let query = adminClient
+    .from("portfolio_colecciones")
+    .select("*")
+    .order("orden", { ascending: true });
+
+  if (rubro) {
+    query = query.eq("rubro", rubro);
+  }
+
+  const { data, error } = await query;
+  if (error) {
+    console.error("getPortfolioColeccionesAdmin error:", error);
+    return [];
+  }
+  return (data ?? []) as PortfolioColeccion[];
+}
+
+// ─── Obras & Proyectos Especiales (Murales, Esculturas Mascotas, Packaging, B2B) ───
+
+export async function getObrasProyectos(options?: {
+  categoria?: CategoriaObra;
+  soloDestacados?: boolean;
+}): Promise<ObraProyecto[]> {
+  const supabase = await createClient();
+  let query = supabase
+    .from("obras_proyectos")
+    .select("*")
+    .eq("activo", true)
+    .order("orden", { ascending: true });
+
+  if (options?.categoria) {
+    query = query.eq("categoria", options.categoria);
+  }
+  if (options?.soloDestacados) {
+    query = query.eq("destacado_home", true);
+  }
+
+  const { data, error } = await query;
+  if (error) {
+    console.error("getObrasProyectos error:", error);
+    return [];
+  }
+  return (data ?? []) as ObraProyecto[];
+}
+
+export async function getObrasProyectosAdmin(): Promise<ObraProyecto[]> {
+  const adminClient = createAdminClient();
+  const { data, error } = await adminClient
+    .from("obras_proyectos")
+    .select("*")
+    .order("orden", { ascending: true });
+
+  if (error) {
+    console.error("getObrasProyectosAdmin error:", error);
+    return [];
+  }
+  return (data ?? []) as ObraProyecto[];
+}
+
 
 
 

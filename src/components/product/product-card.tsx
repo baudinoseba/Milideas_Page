@@ -6,7 +6,7 @@ import { getStockStatus } from "@/lib/stock";
 import { QuickAddToCartButton } from "@/components/product/quick-add-cart-button";
 import type { ProductoConImagenes } from "@/types";
 
-export function ProductCard({ producto }: { producto: ProductoConImagenes }) {
+export function ProductCard({ producto, priority = false }: { producto: ProductoConImagenes; priority?: boolean }) {
   const imagen = producto.producto_imagenes?.sort((a, b) => a.orden - b.orden)[0];
   const stockStatus = getStockStatus(producto.stock_disponible);
 
@@ -24,6 +24,7 @@ export function ProductCard({ producto }: { producto: ProductoConImagenes }) {
             alt={producto.nombre}
             aspectRatio="none"
             objectFit="cover"
+            priority={priority}
             className="h-full w-full object-cover rounded-xl transition-transform duration-500 ease-out group-hover:scale-[1.03]"
           />
           {/* Badges overlay */}

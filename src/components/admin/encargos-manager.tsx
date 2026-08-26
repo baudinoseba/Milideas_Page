@@ -157,21 +157,24 @@ Te iremos avisando el avance de tu pieza. ¡Muchas gracias!`;
                     <p className="font-semibold text-chocolate">🎨 Piezas & Especificaciones</p>
                     {enc.items_encargo && enc.items_encargo.length > 0 ? (
                       <div className="space-y-2 divide-y divide-border/40">
-                        {enc.items_encargo.map((it: { id: string; nombre_producto: string; tipo_catalogo?: string; cantidad: number; medida_seleccionada?: string; con_marco?: boolean; es_personalizado?: boolean; detalle_personalizacion?: string }) => (
-                          <div key={it.id} className="pt-1.5 first:pt-0">
-                            <p className="font-medium text-foreground">
-                              {it.nombre_producto} ({it.tipo_catalogo?.toUpperCase()}) x {it.cantidad}
-                            </p>
-                            {it.medida_seleccionada && <p className="text-muted">· Medida: {it.medida_seleccionada}</p>}
-                            {it.con_marco && <p className="text-emerald-600 dark:text-emerald-400 font-semibold">· Con marco de madera</p>}
-                            {it.es_personalizado && (
-                              <p className="text-terracota">
-                                · Personalizado (+15%) {it.detalle_personalizacion ? `"${it.detalle_personalizacion}"` : ""}
+                        {enc.items_encargo.map((itemRaw) => {
+                          const it = itemRaw as Record<string, unknown>;
+                          return (
+                            <div key={String(it.id ?? Math.random())} className="pt-1.5 first:pt-0">
+                              <p className="font-medium text-foreground">
+                                {String(it.nombre_producto ?? "")} ({String(it.tipo_catalogo ?? "").toUpperCase()}) x {Number(it.cantidad ?? 1)}
                               </p>
-                            )}
-                            <p className="text-muted font-mono">{formatPrecio(it.subtotal)}</p>
-                          </div>
-                        ))}
+                              {Boolean(it.medida_seleccionada) && <p className="text-muted">· Medida: {String(it.medida_seleccionada)}</p>}
+                              {Boolean(it.con_marco) && <p className="text-emerald-600 dark:text-emerald-400 font-semibold">· Con marco de madera</p>}
+                              {Boolean(it.es_personalizado) && (
+                                <p className="text-terracota">
+                                  · Personalizado (+15%) {it.detalle_personalizacion ? `"${String(it.detalle_personalizacion)}"` : ""}
+                                </p>
+                              )}
+                              <p className="text-muted font-mono">{formatPrecio(Number(it.subtotal ?? it.precio_unitario ?? 0))}</p>
+                            </div>
+                          );
+                        })}
                       </div>
                     ) : (
                       <>

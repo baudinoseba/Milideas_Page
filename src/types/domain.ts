@@ -3,28 +3,43 @@ import type { Tables, Enums } from "./database.types";
 export type EstadoPedido = Enums<"estado_pedido">;
 export type MetodoPago = Enums<"metodo_pago">;
 export type TipoEnvio = Enums<"tipo_envio"> | "taller";
-export type TipoCatalogo = "ceramica" | "esculturas" | "ilustraciones";
+export type TipoRubro = "ceramica" | "ilustracion";
+export type TipoCatalogo = "ceramica" | "esculturas" | "ilustraciones" | "ilustracion";
 
-export const CATALOGO_LABELS: Record<TipoCatalogo, { nombre: string; titulo: string; emoji: string; desc: string }> = {
-  ceramica: {
-    nombre: "Cerámica",
-    titulo: "Catálogo de Cerámica Artesanal",
-    emoji: "🏺",
-    desc: "Piezas de autor únicas, moldeadas e ilustradas 100% a mano por Mili Ferrero en Sunchales. Obra original no producida en serie ni industrialmente.",
-  },
-  esculturas: {
-    nombre: "Esculturas",
-    titulo: "Catálogo de Esculturas de Autor",
-    emoji: "🗿",
-    desc: "Obras tridimensionales modeladas y pintadas a mano. Piezas únicas de colección creadas en piezas exclusivas sin moldes industriales ni réplicas masivas.",
+export const CATALOGO_DEFAULT_LABEL = {
+  nombre: "Cerámica",
+  titulo: "Catálogo de Cerámica Artesanal",
+  emoji: "🏺",
+  desc: "Piezas de autor únicas, moldeadas e ilustradas 100% a mano por Mili Ferrero en Sunchales. Obra original no producida en serie.",
+};
+
+export const CATALOGO_LABELS: Record<string, { nombre: string; titulo: string; emoji: string; desc: string }> = {
+  ceramica: CATALOGO_DEFAULT_LABEL,
+  ilustracion: {
+    nombre: "Ilustración",
+    titulo: "Catálogo de Ilustración & Prints",
+    emoji: "🎨",
+    desc: "Obras de arte e ilustraciones originales pintadas y diseñadas por Mili Ferrero en papel texturado de alta calidad.",
   },
   ilustraciones: {
     nombre: "Ilustraciones",
-    titulo: "Catálogo de Ilustraciones Originales",
+    titulo: "Catálogo de Ilustración & Prints",
     emoji: "🎨",
-    desc: "Obras de arte e ilustraciones originales pintadas a mano sobre papel de alta calidad por Mili Ferrero. Piezas auténticas, únicas y no fotocopiadas ni impresas en serie.",
+    desc: "Obras de arte e ilustraciones originales pintadas y diseñadas por Mili Ferrero en papel texturado de alta calidad.",
+  },
+  esculturas: {
+    nombre: "Esculturas",
+    titulo: "Esculturas y Obras de Autor",
+    emoji: "🗿",
+    desc: "Obras tridimensionales modeladas y pintadas a mano.",
   },
 };
+
+export function getCatalogoMeta(tipo?: string): { nombre: string; titulo: string; emoji: string; desc: string } {
+  if (!tipo) return CATALOGO_DEFAULT_LABEL;
+  return CATALOGO_LABELS[tipo] ?? CATALOGO_DEFAULT_LABEL;
+}
+
 
 export type Producto = Tables<"productos">;
 export type ProductoImagen = Tables<"producto_imagenes">;
@@ -62,6 +77,61 @@ export type ConfiguracionEncargos = {
   updated_at?: string;
 };
 
+export type FormatoCatalogo = {
+  id: string;
+  rubro: "ceramica" | "ilustracion";
+  nombre: string;
+  categoria: string | null;
+  medidas: string | null;
+  precio_base: number;
+  foto_url: string | null;
+  orden: number;
+  activo: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type PortfolioColeccion = {
+  id: string;
+  rubro: "ceramica" | "ilustracion";
+  nombre: string;
+  descripcion: string | null;
+  portada_url: string | null;
+  fotos: string[];
+  disenos_disponibles: string[];
+  orden: number;
+  activa: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CategoriaObra = "murales" | "esculturas" | "ilustraciones" | "gran_dimension_b2b" | "miniaturas";
+
+export type ObraProyecto = {
+  id: string;
+  categoria: CategoriaObra;
+  titulo: string;
+  subtitulo: string | null;
+  descripcion: string | null;
+  cliente_lugar: string | null;
+  portada_url: string | null;
+  fotos: string[];
+  destacado_home: boolean;
+  orden: number;
+  activo: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ItemEncargoSeleccionado = {
+  formato: FormatoCatalogo;
+  cantidad: number;
+  disenoSeleccionado: string;
+  detallePersonalizacion?: string;
+  precioUnitario: number;
+  subtotal: number;
+};
+
 export type Encargo = {
   id: string;
   producto_id: string | null;
@@ -89,7 +159,6 @@ export type Encargo = {
   items_encargo?: Record<string, unknown>[];
 };
 
-
 export type ConfiguracionSitio = {
   id: string;
   logo_url: string | null;
@@ -115,7 +184,6 @@ export type ProductoConImagenes = Producto & {
   categorias: Categoria | null;
   producciones?: Produccion | null;
 };
-
 
 export type PedidoConItems = Pedido & {
   items_pedido: (ItemPedido & { productos: Producto | null })[];

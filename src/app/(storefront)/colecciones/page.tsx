@@ -3,7 +3,7 @@ import { getProductos } from "@/lib/supabase/queries";
 import { BackButton } from "@/components/ui/back-button";
 import Link from "next/link";
 import { cn } from "@/lib/utils/cn";
-import { CATALOGO_LABELS, type TipoCatalogo, type ProductoConImagenes } from "@/types";
+import { getCatalogoMeta, type TipoCatalogo, type ProductoConImagenes } from "@/types";
 
 export const metadata = {
   title: "Colecciones",
@@ -78,21 +78,24 @@ export default async function ColeccionesPage({
         >
           ✨ Todas las Colecciones
         </Link>
-        {catalogTypes.map((t) => (
-          <Link
-            key={t}
-            href={`/colecciones?filtro=${filtro}&tipo=${t}`}
-            className={cn(
-              "rounded-full px-4 py-1.5 text-xs font-semibold font-sans transition-all border flex items-center gap-1.5 shadow-xs",
-              tipo === t
-                ? "bg-terracota text-white border-terracota font-bold"
-                : "bg-surface text-chocolate border-border hover:bg-arena/50"
-            )}
-          >
-            <span>{CATALOGO_LABELS[t].emoji}</span>
-            <span>{CATALOGO_LABELS[t].nombre}</span>
-          </Link>
-        ))}
+        {catalogTypes.map((t) => {
+          const itemMeta = getCatalogoMeta(t);
+          return (
+            <Link
+              key={t}
+              href={`/colecciones?filtro=${filtro}&tipo=${t}`}
+              className={cn(
+                "rounded-full px-4 py-1.5 text-xs font-semibold font-sans transition-all border flex items-center gap-1.5 shadow-xs",
+                tipo === t
+                  ? "bg-terracota text-white border-terracota font-bold"
+                  : "bg-surface text-chocolate border-border hover:bg-arena/50"
+              )}
+            >
+              <span>{itemMeta.emoji}</span>
+              <span>{itemMeta.nombre}</span>
+            </Link>
+          );
+        })}
       </div>
 
       {/* Primary Tabs: Colección Actual vs Colecciones Pasadas */}
