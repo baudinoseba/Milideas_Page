@@ -212,6 +212,17 @@ export function ProductoForm({
 
   return (
     <div className={isWizardMode ? "space-y-6" : "max-w-2xl space-y-8"}>
+      {!isWizardMode && (
+        <div className="mb-2">
+          <button
+            type="button"
+            onClick={() => router.back()}
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted hover:text-chocolate font-sans cursor-pointer py-1"
+          >
+            <span>← Volver a la sección anterior</span>
+          </button>
+        </div>
+      )}
       <form ref={formRef} onSubmit={handleSubmit} className="space-y-8">
         {produccionId && <input type="hidden" name="produccionId" value={produccionId} />}
         {producto?.id && <input type="hidden" name="productoId" value={producto.id} />}

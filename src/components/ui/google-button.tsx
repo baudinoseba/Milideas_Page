@@ -29,12 +29,16 @@ export function GoogleButton({
         origin = origin.replace("0.0.0.0", "localhost");
       }
 
-      const targetNext = nextUrl ?? redirectTo ?? "/cuenta/perfil";
+      const targetNext = nextUrl ?? redirectTo ?? "/?auth=success";
 
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
           redirectTo: `${origin}/auth/callback?next=${encodeURIComponent(targetNext)}`,
+          queryParams: {
+            prompt: "select_account",
+            access_type: "offline",
+          },
         },
       });
 

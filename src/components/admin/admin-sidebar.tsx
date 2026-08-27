@@ -12,19 +12,19 @@ const navItems = [
     exact: true,
   },
   {
-    href: "/admin/produccion",
-    label: "Producciones",
-    icon: "🎬",
+    href: "/admin/ceramica",
+    label: "Cerámica",
+    icon: "🏺",
   },
   {
-    href: "/admin/personalizacion",
-    label: "Portada & Sitio",
+    href: "/admin/ilustracion",
+    label: "Ilustración",
     icon: "🎨",
   },
   {
-    href: "/admin/productos",
-    label: "Productos",
-    icon: "🏺",
+    href: "/admin/obras",
+    label: "Obras y Proyectos",
+    icon: "🌟",
   },
   {
     href: "/admin/pedidos",
@@ -40,6 +40,11 @@ const navItems = [
     href: "/admin/logistica",
     label: "Logística",
     icon: "🚚",
+  },
+  {
+    href: "/admin/personalizacion",
+    label: "Portada & Sitio",
+    icon: "⚙️",
   },
 ];
 

@@ -752,6 +752,45 @@ export async function uploadProductoImageAction(
   return { success: true, url: urlData.publicUrl };
 }
 
+export async function uploadGenericImageAction(
+  formData: FormData,
+  folder: string = "catalogo",
+): Promise<{ success: boolean; error?: string; url?: string }> {
+  const auth = await requireAdmin();
+  if ("error" in auth) return { success: false, error: auth.error };
+  const { supabase } = auth;
+
+  const file = formData.get("file") as File | null;
+  if (!file || file.size === 0) {
+    return { success: false, error: "Seleccioná un archivo de imagen válido." };
+  }
+
+  const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif", "image/avif"];
+  const MAX_SIZE_BYTES = 15 * 1024 * 1024; // 15MB
+  if (!ALLOWED_TYPES.includes(file.type)) {
+    return { success: false, error: "Tipo de archivo no permitido. Usá JPG, PNG, WEBP o GIF." };
+  }
+  if (file.size > MAX_SIZE_BYTES) {
+    return { success: false, error: "La imagen supera el tamaño máximo permitido (15MB)." };
+  }
+
+  const ext = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
+  const safeExt = ["jpg", "jpeg", "png", "webp", "gif", "avif"].includes(ext) ? ext : "jpg";
+  const cleanFolder = folder.replace(/[^a-zA-Z0-9_-]/g, "");
+  const path = `${cleanFolder}/${Date.now()}_${Math.random().toString(36).slice(2, 7)}.${safeExt}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from("productos")
+    .upload(path, file, { cacheControl: "3600", upsert: true });
+
+  if (uploadError) {
+    return { success: false, error: uploadError.message };
+  }
+
+  const { data: urlData } = supabase.storage.from("productos").getPublicUrl(path);
+  return { success: true, url: urlData.publicUrl };
+}
+
 
 export async function deleteProductoImageAction(
   imageId: string,
@@ -2230,4 +2269,307 @@ export async function generarDescripcionProductoIAAction(
     };
   }
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ACCIONES ADMIN: FORMATOS DE CATÁLOGO BASE (Cerámica e Ilustración)
+// ═══════════════════════════════════════════════════════════════════════════
+
+export async function updateFormatoPrecioAction(
+  id: string,
+  nuevoPrecio: number,
+): Promise<{ success: boolean; error?: string }> {
+  const auth = await requireAdmin();
+  if ("error" in auth) return { success: false, error: auth.error };
+  const { supabase } = auth;
+
+  if (isNaN(nuevoPrecio) || nuevoPrecio < 0) {
+    return { success: false, error: "El precio debe ser un número válido mayor o igual a 0." };
+  }
+
+  const { error } = await supabase
+    .from("formatos_catalogo")
+    .update({ precio_base: nuevoPrecio, updated_at: new Date().toISOString() })
+    .eq("id", id);
+
+  if (error) return { success: false, error: error.message };
+
+  revalidatePath("/ceramica");
+  revalidatePath("/ilustracion");
+  revalidatePath("/admin/ceramica");
+  revalidatePath("/admin/ilustracion");
+  return { success: true };
+}
+
+export async function saveFormatoAction(
+  formData: FormData,
+): Promise<{ success: boolean; error?: string }> {
+  const auth = await requireAdmin();
+  if ("error" in auth) return { success: false, error: auth.error };
+  const { supabase } = auth;
+
+  const id = formData.get("id") as string | null;
+  const rubro = (formData.get("rubro") as string) || "ceramica";
+  const nombre = String(formData.get("nombre") || "").trim();
+  const categoria = String(formData.get("categoria") || "").trim() || null;
+  const medidas = String(formData.get("medidas") || "").trim() || null;
+  const precioBase = Number(formData.get("precioBase") || 0);
+  const fotoUrl = (formData.get("fotoUrl") as string) || null;
+  const orden = Number(formData.get("orden") || 0);
+  const activo = formData.get("activo") !== "false";
+
+  if (!nombre) {
+    return { success: false, error: "El nombre de la pieza es obligatorio." };
+  }
+
+  const payload = {
+    rubro,
+    nombre,
+    categoria,
+    medidas,
+    precio_base: precioBase,
+    foto_url: fotoUrl,
+    orden,
+    activo,
+    updated_at: new Date().toISOString(),
+  };
+
+  if (id) {
+    const { error } = await supabase.from("formatos_catalogo").update(payload).eq("id", id);
+    if (error) return { success: false, error: error.message };
+  } else {
+    const { error } = await supabase.from("formatos_catalogo").insert(payload);
+    if (error) return { success: false, error: error.message };
+  }
+
+  revalidatePath("/ceramica");
+  revalidatePath("/ilustracion");
+  revalidatePath("/admin/ceramica");
+  revalidatePath("/admin/ilustracion");
+  return { success: true };
+}
+
+export async function deleteFormatoAction(
+  id: string,
+): Promise<{ success: boolean; error?: string }> {
+  const auth = await requireAdmin();
+  if ("error" in auth) return { success: false, error: auth.error };
+  const { supabase } = auth;
+
+  const { error } = await supabase.from("formatos_catalogo").delete().eq("id", id);
+  if (error) return { success: false, error: error.message };
+
+  revalidatePath("/ceramica");
+  revalidatePath("/ilustracion");
+  revalidatePath("/admin/ceramica");
+  revalidatePath("/admin/ilustracion");
+  return { success: true };
+}
+
+export async function aumentarPreciosMasivoAction(
+  rubro: "ceramica" | "ilustracion",
+  porcentaje: number,
+  categoria?: string,
+): Promise<{ success: boolean; actualizados?: number; error?: string }> {
+  const auth = await requireAdmin();
+  if ("error" in auth) return { success: false, error: auth.error };
+  const { supabase } = auth;
+
+  if (isNaN(porcentaje) || porcentaje === 0) {
+    return { success: false, error: "Ingresá un porcentaje de ajuste válido (ej. 5 para +5%)." };
+  }
+
+  let query = supabase
+    .from("formatos_catalogo")
+    .select("id, precio_base")
+    .eq("rubro", rubro);
+
+  if (categoria && categoria !== "todas") {
+    query = query.eq("categoria", categoria);
+  }
+
+  const { data: formatos, error: fetchErr } = await query;
+  if (fetchErr || !formatos) {
+    return { success: false, error: fetchErr?.message || "Error al consultar los formatos." };
+  }
+
+  const factor = 1 + porcentaje / 100;
+  let count = 0;
+
+  for (const f of formatos) {
+    const nuevoPrecio = Math.round(Number(f.precio_base) * factor);
+    const { error: updErr } = await supabase
+      .from("formatos_catalogo")
+      .update({ precio_base: nuevoPrecio, updated_at: new Date().toISOString() })
+      .eq("id", f.id);
+    if (!updErr) count++;
+  }
+
+  revalidatePath("/ceramica");
+  revalidatePath("/ilustracion");
+  revalidatePath("/admin/ceramica");
+  revalidatePath("/admin/ilustracion");
+  return { success: true, actualizados: count };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ACCIONES ADMIN: PORTFOLIO DE COLECCIONES
+// ═══════════════════════════════════════════════════════════════════════════
+
+export async function savePortfolioColeccionAction(
+  formData: FormData,
+): Promise<{ success: boolean; error?: string }> {
+  const auth = await requireAdmin();
+  if ("error" in auth) return { success: false, error: auth.error };
+  const { supabase } = auth;
+
+  const id = formData.get("id") as string | null;
+  const rubro = (formData.get("rubro") as string) || "ceramica";
+  const nombre = String(formData.get("nombre") || "").trim();
+  const descripcion = String(formData.get("descripcion") || "").trim() || null;
+  const portadaUrl = (formData.get("portadaUrl") as string) || null;
+  const fotosRaw = String(formData.get("fotos") || "[]");
+  const disenosRaw = String(formData.get("disenosDisponibles") || "[]");
+  const orden = Number(formData.get("orden") || 0);
+  const activa = formData.get("activa") !== "false";
+
+  if (!nombre) {
+    return { success: false, error: "El nombre de la colección es obligatorio." };
+  }
+
+  let fotos = [];
+  try {
+    fotos = JSON.parse(fotosRaw);
+  } catch {
+    fotos = [];
+  }
+
+  let disenosDisponibles = [];
+  try {
+    disenosDisponibles = JSON.parse(disenosRaw);
+  } catch {
+    disenosDisponibles = [];
+  }
+
+  const payload = {
+    rubro,
+    nombre,
+    descripcion,
+    portada_url: portadaUrl || (fotos[0] ?? null),
+    fotos,
+    disenos_disponibles: disenosDisponibles,
+    orden,
+    activa,
+    updated_at: new Date().toISOString(),
+  };
+
+  if (id) {
+    const { error } = await supabase.from("portfolio_colecciones").update(payload).eq("id", id);
+    if (error) return { success: false, error: error.message };
+  } else {
+    const { error } = await supabase.from("portfolio_colecciones").insert(payload);
+    if (error) return { success: false, error: error.message };
+  }
+
+  revalidatePath("/ceramica");
+  revalidatePath("/ilustracion");
+  revalidatePath("/admin/ceramica");
+  revalidatePath("/admin/ilustracion");
+  return { success: true };
+}
+
+export async function deletePortfolioColeccionAction(
+  id: string,
+): Promise<{ success: boolean; error?: string }> {
+  const auth = await requireAdmin();
+  if ("error" in auth) return { success: false, error: auth.error };
+  const { supabase } = auth;
+
+  const { error } = await supabase.from("portfolio_colecciones").delete().eq("id", id);
+  if (error) return { success: false, error: error.message };
+
+  revalidatePath("/ceramica");
+  revalidatePath("/ilustracion");
+  revalidatePath("/admin/ceramica");
+  revalidatePath("/admin/ilustracion");
+  return { success: true };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ACCIONES ADMIN: OBRAS & PROYECTOS ESPECIALES
+// ═══════════════════════════════════════════════════════════════════════════
+
+export async function saveObraProyectoAction(
+  formData: FormData,
+): Promise<{ success: boolean; error?: string }> {
+  const auth = await requireAdmin();
+  if ("error" in auth) return { success: false, error: auth.error };
+  const { supabase } = auth;
+
+  const id = formData.get("id") as string | null;
+  const categoria = (formData.get("categoria") as string) || "murales";
+  const titulo = String(formData.get("titulo") || "").trim();
+  const subtitulo = String(formData.get("subtitulo") || "").trim() || null;
+  const descripcion = String(formData.get("descripcion") || "").trim() || null;
+  const clienteLugar = String(formData.get("clienteLugar") || "").trim() || null;
+  const portadaUrl = (formData.get("portadaUrl") as string) || null;
+  const fotosRaw = String(formData.get("fotos") || "[]");
+  const destacadoHome = formData.get("destacadoHome") === "true";
+  const orden = Number(formData.get("orden") || 0);
+  const activo = formData.get("activo") !== "false";
+
+  if (!titulo) {
+    return { success: false, error: "El título del proyecto es obligatorio." };
+  }
+
+  let fotos = [];
+  try {
+    fotos = JSON.parse(fotosRaw);
+  } catch {
+    fotos = [];
+  }
+
+  const payload = {
+    categoria,
+    titulo,
+    subtitulo,
+    descripcion,
+    cliente_lugar: clienteLugar,
+    portada_url: portadaUrl || (fotos[0] ?? null),
+    fotos,
+    destacado_home: destacadoHome,
+    orden,
+    activo,
+    updated_at: new Date().toISOString(),
+  };
+
+  if (id) {
+    const { error } = await supabase.from("obras_proyectos").update(payload).eq("id", id);
+    if (error) return { success: false, error: error.message };
+  } else {
+    const { error } = await supabase.from("obras_proyectos").insert(payload);
+    if (error) return { success: false, error: error.message };
+  }
+
+  revalidatePath("/");
+  revalidatePath("/obras");
+  revalidatePath("/admin/obras");
+  return { success: true };
+}
+
+export async function deleteObraProyectoAction(
+  id: string,
+): Promise<{ success: boolean; error?: string }> {
+  const auth = await requireAdmin();
+  if ("error" in auth) return { success: false, error: auth.error };
+  const { supabase } = auth;
+
+  const { error } = await supabase.from("obras_proyectos").delete().eq("id", id);
+  if (error) return { success: false, error: error.message };
+
+  revalidatePath("/");
+  revalidatePath("/obras");
+  revalidatePath("/admin/obras");
+  return { success: true };
+}
+
 

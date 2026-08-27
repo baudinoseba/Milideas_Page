@@ -105,7 +105,7 @@ export type PortfolioColeccion = {
   updated_at: string;
 };
 
-export type CategoriaObra = "murales" | "esculturas" | "ilustraciones" | "gran_dimension_b2b" | "miniaturas";
+export type CategoriaObra = "murales" | "esculturas" | "ilustraciones" | "gran_dimension_b2b" | "miniaturas" | (string & {});
 
 export type ObraProyecto = {
   id: string;

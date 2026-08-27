@@ -108,7 +108,14 @@ export function ProductosManager({
   });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-12">
+      <Link
+        href="/admin"
+        className="inline-flex items-center gap-1 text-xs font-semibold text-muted hover:text-chocolate font-sans"
+      >
+        <span>← Volver al Dashboard</span>
+      </Link>
+
       {/* Top Bar with actions */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>

@@ -20,7 +20,7 @@ function getSanitizedOrigin(request: Request): string {
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get("code");
-  const next = requestUrl.searchParams.get("next") ?? "/cuenta/perfil";
+  const next = requestUrl.searchParams.get("next") ?? "/?auth=success";
 
   const origin = getSanitizedOrigin(request);
 
@@ -31,7 +31,7 @@ export async function GET(request: Request) {
       // SECURITY (B2): Prevent open redirect via `next` parameter.
       // Must be a relative path starting with / but NOT // (protocol-relative URL).
       const sanitizedNext =
-        next.startsWith("/") && !next.startsWith("//") ? next : "/cuenta/perfil";
+        next.startsWith("/") && !next.startsWith("//") ? next : "/?auth=success";
       const forwardUrl = new URL(sanitizedNext, origin);
       return NextResponse.redirect(forwardUrl);
     }
