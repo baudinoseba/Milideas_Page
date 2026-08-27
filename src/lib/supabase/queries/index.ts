@@ -184,7 +184,7 @@ export async function getAdminPedidos(estado?: string): Promise<PedidoConItems[]
   const supabase = await createClient();
   let query = supabase
     .from("pedidos")
-    .select("*, items_pedido(*, productos(*))")
+    .select("*, items_pedido(*, productos(*, producto_imagenes(*)))")
     .order("created_at", { ascending: false });
   if (estado) query = query.eq("estado", estado);
   const { data, error } = await query;
@@ -197,8 +197,9 @@ export async function getAdminStats() {
   const [
     pendientes,
     confirmados,
-    stockBajo,
-    totalActivos,
+    confirmadosRetiro,
+    confirmadosEnvio,
+    stockTotalResult,
     ultimosPedidosResult,
     encargosPendientes,
     ultimosEncargosResult,
@@ -212,19 +213,24 @@ export async function getAdminStats() {
       .select("id", { count: "exact", head: true })
       .eq("estado", "confirmado"),
     supabase
-      .from("productos")
+      .from("pedidos")
       .select("id", { count: "exact", head: true })
-      .lte("stock_disponible", 1)
-      .eq("activo", true),
+      .eq("estado", "confirmado")
+      .ilike("tipo_envio", "%retiro%"),
+    supabase
+      .from("pedidos")
+      .select("id", { count: "exact", head: true })
+      .eq("estado", "confirmado")
+      .not("tipo_envio", "ilike", "%retiro%"),
     supabase
       .from("productos")
-      .select("id", { count: "exact", head: true })
+      .select("stock_disponible")
       .eq("activo", true),
     supabase
       .from("pedidos")
-      .select("*, items_pedido(*, productos(*))")
+      .select("*, items_pedido(*, productos(*, producto_imagenes(*)))")
       .order("created_at", { ascending: false })
-      .limit(6),
+      .limit(10),
     supabase
       .from("encargos")
       .select("id", { count: "exact", head: true })
@@ -235,11 +241,18 @@ export async function getAdminStats() {
       .order("created_at", { ascending: false })
       .limit(4),
   ]);
+
+  const totalStockPiezas = (stockTotalResult.data || []).reduce(
+    (acc, p) => acc + (p.stock_disponible || 0),
+    0,
+  );
+
   return {
     pedidosPendientes: pendientes.count ?? 0,
     pedidosConfirmados: confirmados.count ?? 0,
-    stockBajo: stockBajo.count ?? 0,
-    totalProductosActivos: totalActivos.count ?? 0,
+    pedidosRetiroTaller: confirmadosRetiro.count ?? 0,
+    pedidosEnvioDomicilio: confirmadosEnvio.count ?? 0,
+    totalStockPiezas,
     encargosPendientes: encargosPendientes.count ?? 0,
     ultimosPedidos: (ultimosPedidosResult.data ?? []) as any[],
     ultimosEncargos: (ultimosEncargosResult.data ?? []) as any[],
