@@ -2674,6 +2674,7 @@ export async function saveStockPiezaDirectaAction(
   const coleccionNombre = String(formData.get("coleccionNombre") || "").trim();
   const precioBase = Number(formData.get("precioBase") || 0);
   const stockDisponible = Number(formData.get("stockDisponible") || 1);
+  const medidas = String(formData.get("medidas") || formData.get("dimensiones") || "").trim() || null;
   const descripcion = String(formData.get("descripcion") || "").trim() || null;
   const fotosRaw = String(formData.get("fotos") || "[]");
 
@@ -2711,6 +2712,7 @@ export async function saveStockPiezaDirectaAction(
     activo: true,
     tipo_catalogo: tipoCatalogo,
     categoria_id: finalCategoriaId,
+    dimensiones: medidas,
     descripcion,
     updated_at: new Date().toISOString(),
   };
@@ -2813,6 +2815,7 @@ export async function lanzarColeccionDropCompletaAction(data: {
     nombre: string;
     precioBase: number;
     stock: number;
+    medidas?: string;
     fotos: string[];
     descripcion?: string;
   }>;
@@ -2853,6 +2856,7 @@ export async function lanzarColeccionDropCompletaAction(data: {
         precio_base: p.precioBase,
         stock_disponible: p.stock,
         es_entrega_inmediata: p.stock > 0,
+        dimensiones: p.medidas || null,
         activo: true,
         categoria_id: categoria.id,
         tipo_catalogo: tipoCatalogo,

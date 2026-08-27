@@ -64,14 +64,14 @@ export function ArteManager({
   const [stockFotos, setStockFotos] = useState<string[]>([]);
   const [stockColeccionNombre, setStockColeccionNombre] = useState<string>("");
 
-  // ─── MODAL LANZAR COLECCIÓN / DROP COMPLETO (AMPLIO & ESPACIOSO) ───
+  // ─── MODAL LANZAR COLECCIÓN / DROP COMPLETO ───
   const [modalLanzarDrop, setModalLanzarDrop] = useState<boolean>(false);
   const [dropNombre, setDropNombre] = useState<string>("");
   const [dropDescripcion, setDropDescripcion] = useState<string>("");
   const [dropPiezas, setDropPiezas] = useState<
-    Array<{ id: string; nombre: string; precioBase: number; stock: number; fotos: string[] }>
+    Array<{ id: string; nombre: string; precioBase: number; stock: number; medidas: string; fotos: string[] }>
   >([
-    { id: "1", nombre: "", precioBase: 25000, stock: 1, fotos: [] },
+    { id: "1", nombre: "", precioBase: 25000, stock: 1, medidas: "", fotos: [] },
   ]);
 
   // ─── MODAL PORTFOLIO ───
@@ -260,7 +260,7 @@ export function ArteManager({
         setModalStockPieza(null);
         window.location.reload();
       } else {
-        alert(res.error || "Error al guardar pieza de stock");
+        alert(res.error || "Error al guardar pieza");
       }
     });
   };
@@ -277,10 +277,10 @@ export function ArteManager({
     });
   };
 
-  // ─── HANDLER LANZAR DROP / COLECCIÓN COMPLETO CON AUTO-SYNC A PORTFOLIO ───
+  // ─── HANDLER LANZAR DROP / COLECCIÓN COMPLETO ───
   const handleGuardarDropCompleto = () => {
     if (!dropNombre.trim()) {
-      alert("Ingresá el nombre de la colección / drop");
+      alert("Ingresá el nombre de la colección");
       return;
     }
     const piezasValidas = dropPiezas.filter((p) => p.nombre.trim());
@@ -298,7 +298,7 @@ export function ArteManager({
       });
 
       if (res.success) {
-        alert("✓ ¡Colección publicada en Stock y sincronizada automáticamente al Portfolio!");
+        alert("✓ Colección publicada en Stock y agregada al Portfolio");
         setModalLanzarDrop(false);
         window.location.reload();
       } else {
@@ -708,6 +708,7 @@ export function ArteManager({
                   const fotoPrincipal = prod.producto_imagenes?.[0]?.url_imagen;
                   const coleccionNombre = prod.categorias?.nombre;
                   const tieneStock = (prod.stock_disponible ?? 0) > 0;
+                  const medidas = prod.dimensiones;
 
                   return (
                     <div
@@ -744,17 +745,27 @@ export function ArteManager({
                                 setNuevaColeccionInput(coleccionNombre || "");
                               }}
                               className="rounded-full bg-secondary/70 border border-border/50 px-2.5 py-0.5 text-[10px] font-semibold text-terracota hover:bg-terracota hover:text-white transition-colors cursor-pointer flex items-center gap-1"
-                              title="Clic para cambiar o asignar colección"
+                              title="Cambiar colección"
                             >
                               <span>✨ {coleccionNombre || "Asignar Colección"}</span>
                               <span className="text-[9px]">✎</span>
                             </button>
                           </div>
 
-                          <div className="flex items-center gap-2 text-xs">
+                          <div className="flex items-center gap-2 text-xs flex-wrap">
                             <span className="font-mono font-bold text-chocolate">
                               {formatPrecio(prod.precio_base)}
                             </span>
+                            
+                            {medidas && (
+                              <>
+                                <span className="text-muted text-[11px]">·</span>
+                                <span className="text-[11px] text-barro font-medium">
+                                  📐 {medidas}
+                                </span>
+                              </>
+                            )}
+
                             <span className="text-muted text-[11px]">·</span>
                             <span
                               className={`text-[11px] font-semibold ${
@@ -843,7 +854,7 @@ export function ArteManager({
               onClick={() => abrirModalPortfolio()}
               className="rounded-full bg-chocolate text-crema-cruda hover:bg-chocolate/90 px-4 py-1.5 text-xs font-semibold shadow-xs cursor-pointer"
             >
-              + Nueva Colección Manual
+              + Nueva Colección
             </button>
           </div>
 
@@ -947,7 +958,7 @@ export function ArteManager({
                 </div>
 
                 <div>
-                  <label className="font-semibold text-chocolate block mb-1">Medidas</label>
+                  <label className="font-semibold text-chocolate block mb-1">Medidas / Capacidad</label>
                   <input
                     type="text"
                     name="medidas"
@@ -974,7 +985,7 @@ export function ArteManager({
                 value={formatoFotoUrl}
                 onChange={setFormatoFotoUrl}
                 folder="catalogo"
-                label="Foto de la pieza (Subir desde el dispositivo)"
+                label="Foto de la pieza"
               />
 
               <div className="pt-2 flex gap-2">
@@ -1033,13 +1044,13 @@ export function ArteManager({
               </div>
 
               <div>
-                <label className="font-semibold text-chocolate block mb-1">Colección / Drop *</label>
+                <label className="font-semibold text-chocolate block mb-1">Colección</label>
                 <div className="space-y-1.5">
                   <input
                     type="text"
                     value={stockColeccionNombre}
                     onChange={(e) => setStockColeccionNombre(e.target.value)}
-                    placeholder="Escribí el nombre de la colección..."
+                    placeholder="Escribí o elegí una colección..."
                     className="w-full rounded-xl border border-border/80 bg-surface px-3 py-2 text-foreground"
                   />
                   {coleccionesStockUnicas.length > 0 && (
@@ -1060,7 +1071,7 @@ export function ArteManager({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-3 gap-2">
                 <div>
                   <label className="font-semibold text-chocolate block mb-1">Precio ($) *</label>
                   <input
@@ -1073,7 +1084,7 @@ export function ArteManager({
                 </div>
 
                 <div>
-                  <label className="font-semibold text-chocolate block mb-1">Unidades en Stock *</label>
+                  <label className="font-semibold text-chocolate block mb-1">Unidades *</label>
                   <input
                     type="number"
                     name="stockDisponible"
@@ -1083,15 +1094,26 @@ export function ArteManager({
                     className="w-full rounded-xl border border-border/80 bg-surface px-3 py-2 font-mono font-bold text-chocolate"
                   />
                 </div>
+
+                <div>
+                  <label className="font-semibold text-chocolate block mb-1">Medidas / Capacidad</label>
+                  <input
+                    type="text"
+                    name="medidas"
+                    defaultValue={modalStockPieza.dimensiones || ""}
+                    placeholder="ej. 350ml, 12x8 cm..."
+                    className="w-full rounded-xl border border-border/80 bg-surface px-3 py-2 text-foreground"
+                  />
+                </div>
               </div>
 
               <div>
-                <label className="font-semibold text-chocolate block mb-1">Descripción breve</label>
+                <label className="font-semibold text-chocolate block mb-1">Descripción</label>
                 <textarea
                   name="descripcion"
                   rows={2}
                   defaultValue={modalStockPieza.descripcion || ""}
-                  placeholder="ej. Modelada a mano en torno con esmalte apto vajilla..."
+                  placeholder="Detalles sobre el diseño y elaboración..."
                   className="w-full rounded-xl border border-border/80 bg-surface p-2.5 text-foreground"
                 />
               </div>
@@ -1102,7 +1124,7 @@ export function ArteManager({
                 onChange={setStockFotos}
                 multiple
                 folder="stock"
-                label="Fotos de la Pieza (Subir desde celular o PC)"
+                label="Fotos"
               />
 
               <div className="pt-2 flex gap-2">
@@ -1134,7 +1156,7 @@ export function ArteManager({
           <div className="w-full max-w-sm rounded-3xl border border-border/80 bg-surface p-5 shadow-2xl space-y-4 animate-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between border-b border-border/60 pb-2">
               <h3 className="text-sm font-serif font-semibold text-chocolate">
-                Asignar Colección a &quot;{asignandoColeccionProd.nombre}&quot;
+                Colección de &quot;{asignandoColeccionProd.nombre}&quot;
               </h3>
               <button
                 type="button"
@@ -1147,7 +1169,7 @@ export function ArteManager({
 
             <div className="space-y-3 text-xs">
               <div>
-                <label className="font-semibold text-chocolate block mb-1">Escribí o elegí una colección:</label>
+                <label className="font-semibold text-chocolate block mb-1">Nombre de la colección:</label>
                 <input
                   type="text"
                   value={nuevaColeccionInput}
@@ -1184,12 +1206,12 @@ export function ArteManager({
 
               <div className="pt-2 flex gap-2">
                 <button
-                  type="button"
+                  type="submit"
                   disabled={isPending}
                   onClick={handleGuardarColeccionAsignada}
                   className="flex-1 rounded-full bg-terracota text-white py-2 font-semibold hover:bg-terracota/90 cursor-pointer shadow-2xs"
                 >
-                  {isPending ? "Guardando..." : "Guardar Colección"}
+                  {isPending ? "Guardando..." : "Guardar"}
                 </button>
                 <button
                   type="button"
@@ -1205,7 +1227,7 @@ export function ArteManager({
       )}
 
       {/* ═══════════════════════════════════════════════════════════════════════
-          MODAL 4: LANZAMIENTO DE COLECCIÓN / DROP COMPLETO (AMPLIO Y CÓMODO)
+          MODAL 4: LANZAMIENTO DE COLECCIÓN / DROP COMPLETO (AMPLIO Y LIMPIO)
       ═══════════════════════════════════════════════════════════════════════ */}
       {modalLanzarDrop && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
@@ -1215,7 +1237,7 @@ export function ArteManager({
               <div>
                 <span className="text-[11px] font-semibold text-terracota uppercase tracking-wider">Lanzamiento</span>
                 <h3 className="text-lg sm:text-xl font-serif font-semibold text-chocolate">
-                  Lanzar Nueva Colección en Stock & Sincronizar Portfolio
+                  Lanzar Nueva Colección
                 </h3>
               </div>
               <button
@@ -1227,14 +1249,10 @@ export function ArteManager({
               </button>
             </div>
 
-            <div className="bg-arena/30 border border-terracota/30 rounded-2xl p-3.5 text-xs text-barro space-y-1">
-              <p>✨ <strong>Sincronización Automática:</strong> Al publicar este Drop, las piezas estarán disponibles para compra en Stock y sus fotos se registrarán automáticamente en el <strong>Portfolio de Colecciones</strong>.</p>
-            </div>
-
             <div className="space-y-4 text-xs">
               <div className="grid sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="font-semibold text-chocolate block mb-1">Nombre de la Colección / Drop *</label>
+                  <label className="font-semibold text-chocolate block mb-1">Nombre de la Colección *</label>
                   <input
                     type="text"
                     value={dropNombre}
@@ -1245,7 +1263,7 @@ export function ArteManager({
                 </div>
 
                 <div>
-                  <label className="font-semibold text-chocolate block mb-1">Descripción conceptual</label>
+                  <label className="font-semibold text-chocolate block mb-1">Descripción</label>
                   <input
                     type="text"
                     value={dropDescripcion}
@@ -1259,18 +1277,18 @@ export function ArteManager({
               {/* Lista dinámica de piezas para la colección */}
               <div className="space-y-4 pt-2">
                 <div className="flex items-center justify-between border-b border-border/40 pb-2">
-                  <p className="font-semibold text-chocolate text-sm">Piezas de este Lanzamiento ({dropPiezas.length}):</p>
+                  <p className="font-semibold text-chocolate text-sm">Piezas de la Colección ({dropPiezas.length}):</p>
                   <button
                     type="button"
                     onClick={() =>
                       setDropPiezas((prev) => [
                         ...prev,
-                        { id: Date.now().toString(), nombre: "", precioBase: 25000, stock: 1, fotos: [] },
+                        { id: Date.now().toString(), nombre: "", precioBase: 25000, stock: 1, medidas: "", fotos: [] },
                       ])
                     }
                     className="text-xs font-semibold text-terracota hover:underline cursor-pointer flex items-center gap-1"
                   >
-                    <span>+ Agregar otra pieza a la colección</span>
+                    <span>+ Agregar otra pieza</span>
                   </button>
                 </div>
 
@@ -1293,9 +1311,9 @@ export function ArteManager({
                         )}
                       </div>
 
-                      <div className="grid sm:grid-cols-3 gap-3">
+                      <div className="grid sm:grid-cols-4 gap-3">
                         <div className="sm:col-span-1">
-                          <label className="font-medium text-muted block text-[11px] mb-0.5">Nombre</label>
+                          <label className="font-medium text-muted block text-[11px] mb-0.5">Nombre *</label>
                           <input
                             type="text"
                             value={pieza.nombre}
@@ -1304,8 +1322,8 @@ export function ArteManager({
                                 prev.map((p, i) => (i === pIdx ? { ...p, nombre: e.target.value } : p)),
                               )
                             }
-                            placeholder="ej. Taza Luna Llena"
-                            className="w-full rounded-xl border border-border bg-surface px-3 py-1.5 text-xs text-foreground"
+                            placeholder="ej. Taza Glaciar"
+                            className="w-full rounded-xl border border-border bg-surface px-2.5 py-1.5 text-xs text-foreground"
                           />
                         </div>
 
@@ -1321,7 +1339,7 @@ export function ArteManager({
                                 ),
                               )
                             }
-                            className="w-full rounded-xl border border-border bg-surface px-3 py-1.5 text-xs font-mono font-bold text-chocolate"
+                            className="w-full rounded-xl border border-border bg-surface px-2.5 py-1.5 text-xs font-mono font-bold text-chocolate"
                           />
                         </div>
 
@@ -1338,7 +1356,22 @@ export function ArteManager({
                                 ),
                               )
                             }
-                            className="w-full rounded-xl border border-border bg-surface px-3 py-1.5 text-xs font-mono font-bold text-chocolate"
+                            className="w-full rounded-xl border border-border bg-surface px-2.5 py-1.5 text-xs font-mono font-bold text-chocolate"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="font-medium text-muted block text-[11px] mb-0.5">Medidas / Capacidad</label>
+                          <input
+                            type="text"
+                            value={pieza.medidas}
+                            onChange={(e) =>
+                              setDropPiezas((prev) =>
+                                prev.map((p, i) => (i === pIdx ? { ...p, medidas: e.target.value } : p)),
+                              )
+                            }
+                            placeholder="ej. 350ml, 12x8 cm..."
+                            className="w-full rounded-xl border border-border bg-surface px-2.5 py-1.5 text-xs text-foreground"
                           />
                         </div>
                       </div>
@@ -1353,7 +1386,7 @@ export function ArteManager({
                         }
                         multiple
                         folder="drops"
-                        label="Fotos de esta pieza (se suben y agregan automáticamente al Portfolio)"
+                        label="Fotos"
                       />
                     </div>
                   ))}
@@ -1367,7 +1400,7 @@ export function ArteManager({
                   onClick={handleGuardarDropCompleto}
                   className="flex-1 rounded-full bg-terracota text-white py-3 font-semibold text-xs hover:bg-terracota/90 cursor-pointer shadow-xs"
                 >
-                  {isPending ? "Lanzando y Sincronizando..." : "🚀 Publicar Lanzamiento y Sincronizar Portfolio"}
+                  {isPending ? "Publicando..." : "Publicar Colección"}
                 </button>
                 <button
                   type="button"
@@ -1390,7 +1423,7 @@ export function ArteManager({
           <div className="w-full max-w-lg rounded-3xl border border-border/80 bg-surface p-6 shadow-2xl space-y-4 animate-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-border/60 pb-3">
               <h3 className="text-base font-serif font-semibold text-chocolate">
-                {modalPortfolio.id ? "Editar Colección del Portfolio" : "Nueva Colección Manual"}
+                {modalPortfolio.id ? "Editar Colección del Portfolio" : "Nueva Colección"}
               </h3>
               <button
                 type="button"
@@ -1417,7 +1450,7 @@ export function ArteManager({
               </div>
 
               <div>
-                <label className="font-semibold text-chocolate block mb-1">Descripción breve</label>
+                <label className="font-semibold text-chocolate block mb-1">Descripción</label>
                 <input
                   type="text"
                   name="descripcion"
@@ -1433,7 +1466,7 @@ export function ArteManager({
                 onChange={setPortfolioFotos}
                 multiple
                 folder="portfolio"
-                label="Fotos del Álbum (Subir fotos desde tus archivos)"
+                label="Fotos"
               />
 
               <div className="pt-2 flex gap-2">

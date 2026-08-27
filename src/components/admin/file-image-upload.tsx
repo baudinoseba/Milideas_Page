@@ -126,15 +126,15 @@ export function FileImageUpload({
         {isPending ? (
           <div className="flex items-center gap-2 py-1">
             <div className="h-4 w-4 animate-spin rounded-full border-2 border-terracota border-t-transparent" />
-            <span className="text-xs font-semibold text-terracota">Subiendo imagen al taller...</span>
+            <span className="text-xs font-semibold text-terracota">Subiendo imagen...</span>
           </div>
         ) : (
           <>
-            <span className="text-2xl">📸</span>
+            <span className="text-xl">📸</span>
             <p className="text-xs font-semibold text-chocolate">
-              {multiple ? "Subir fotos desde tus archivos o celular" : "Seleccionar foto del dispositivo"}
+              {multiple ? "Subir fotos" : "Seleccionar foto"}
             </p>
-            <p className="text-[10px] text-muted">Hacé clic aquí o arrastrá tus fotos (JPG, PNG, WEBP)</p>
+            <p className="text-[10px] text-muted">Hacé clic o arrastrá tus archivos</p>
           </>
         )}
       </div>
