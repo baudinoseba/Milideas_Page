@@ -67,13 +67,20 @@ export function ArteManager({
 
   // ─── MODAL ASIGNAR COLECCIÓN RÁPIDA A PIEZA ───
   const [asignandoColeccionProd, setAsignandoColeccionProd] = useState<ProductoConImagenes | null>(null);
-  const [nuevaColeccionInput, setNuevaColeccionInput] = useState<string>("");
+  const [nuevaColeccionSelect, setNuevaColeccionSelect] = useState<string>("");
+  const [nuevaColeccionInputCustom, setNuevaColeccionInputCustom] = useState<string>("");
 
   // ─── MODAL PIEZA INDIVIDUAL DE STOCK ───
   const [modalStockPieza, setModalStockPieza] = useState<Partial<ProductoConImagenes> | null>(null);
   const [stockFotos, setStockFotos] = useState<string[]>([]);
-  const [stockCategoriaNombre, setStockCategoriaNombre] = useState<string>("");
-  const [stockColeccionNombre, setStockColeccionNombre] = useState<string>("");
+  
+  // Categoría física en modal (select o nuevo input)
+  const [stockCategoriaSelect, setStockCategoriaSelect] = useState<string>("");
+  const [stockCategoriaCustom, setStockCategoriaCustom] = useState<string>("");
+
+  // Colección en modal (select o nuevo input)
+  const [stockColeccionSelect, setStockColeccionSelect] = useState<string>("");
+  const [stockColeccionCustom, setStockColeccionCustom] = useState<string>("");
 
   // ─── MODAL LANZAR COLECCIÓN / DROP COMPLETO ───
   const [modalLanzarDrop, setModalLanzarDrop] = useState<boolean>(false);
@@ -113,7 +120,7 @@ export function ArteManager({
   // ─── LIGHTBOX PREVIEW ───
   const [previewImage, setPreviewImage] = useState<string | null>(null);
 
-  // Lista de Colecciones registradas (desde producciones y productos)
+  // Lista de Colecciones registradas
   const coleccionesStockUnicas = Array.from(
     new Set([
       ...initialProducciones.map((p) => p.nombre),
@@ -250,7 +257,11 @@ export function ArteManager({
 
   const handleGuardarColeccionAsignada = () => {
     if (!asignandoColeccionProd) return;
-    const nombreColeccion = nuevaColeccionInput.trim();
+    
+    const nombreColeccion =
+      nuevaColeccionSelect === "__nueva__"
+        ? nuevaColeccionInputCustom.trim()
+        : nuevaColeccionSelect.trim();
 
     startTransition(async () => {
       const res = await updateProductoColeccionInlineAction(
@@ -285,13 +296,37 @@ export function ArteManager({
       setModalStockPieza(prod);
       const fotosArr = prod.producto_imagenes?.map((img) => img.url_imagen) || [];
       setStockFotos(fotosArr);
-      setStockCategoriaNombre(prod.categorias?.nombre || "");
-      setStockColeccionNombre(prod.producciones?.nombre || "");
+
+      const catNom = prod.categorias?.nombre || "";
+      if (categoriasFisicasUnicas.includes(catNom)) {
+        setStockCategoriaSelect(catNom);
+        setStockCategoriaCustom("");
+      } else if (catNom) {
+        setStockCategoriaSelect("__nueva__");
+        setStockCategoriaCustom(catNom);
+      } else {
+        setStockCategoriaSelect("");
+        setStockCategoriaCustom("");
+      }
+
+      const colNom = prod.producciones?.nombre || "";
+      if (coleccionesStockUnicas.includes(colNom)) {
+        setStockColeccionSelect(colNom);
+        setStockColeccionCustom("");
+      } else if (colNom) {
+        setStockColeccionSelect("__nueva__");
+        setStockColeccionCustom(colNom);
+      } else {
+        setStockColeccionSelect("");
+        setStockColeccionCustom("");
+      }
     } else {
       setModalStockPieza({ stock_disponible: 1, precio_base: 25000 });
       setStockFotos([]);
-      setStockCategoriaNombre(categoriasFisicasUnicas[0] || "");
-      setStockColeccionNombre(coleccionesStockUnicas[0] || "");
+      setStockCategoriaSelect(categoriasFisicasUnicas[0] || "");
+      setStockCategoriaCustom("");
+      setStockColeccionSelect(coleccionesStockUnicas[0] || "");
+      setStockColeccionCustom("");
     }
   };
 
@@ -300,8 +335,18 @@ export function ArteManager({
     const fd = new FormData(e.currentTarget);
     fd.set("rubro", rubro);
     fd.set("fotos", JSON.stringify(stockFotos));
-    fd.set("categoriaNombre", stockCategoriaNombre);
-    fd.set("coleccionNombre", stockColeccionNombre);
+
+    const finalCat =
+      stockCategoriaSelect === "__nueva__"
+        ? stockCategoriaCustom.trim()
+        : stockCategoriaSelect.trim();
+    fd.set("categoriaNombre", finalCat);
+
+    const finalCol =
+      stockColeccionSelect === "__nueva__"
+        ? stockColeccionCustom.trim()
+        : stockColeccionSelect.trim();
+    fd.set("coleccionNombre", finalCol);
 
     startTransition(async () => {
       const res = await saveStockPiezaDirectaAction(fd);
@@ -519,7 +564,7 @@ export function ArteManager({
               <select
                 value={categoriaAumento}
                 onChange={(e) => setCategoriaAumento(e.target.value)}
-                className="rounded-xl border border-border/80 bg-surface px-3 py-1.5 text-xs text-foreground shadow-2xs focus:ring-2 focus:ring-terracota/40"
+                className="rounded-xl border border-border/80 bg-surface px-3 py-1.5 text-xs text-foreground shadow-2xs focus:ring-2 focus:ring-terracota/40 cursor-pointer"
               >
                 <option value="todas">Aplicar a TODAS las categorías</option>
                 {categoriasUnicasCatalogo.map((cat) => (
@@ -816,7 +861,17 @@ export function ArteManager({
                               type="button"
                               onClick={() => {
                                 setAsignandoColeccionProd(prod);
-                                setNuevaColeccionInput(coleccionNombre || "");
+                                const curCol = prod.producciones?.nombre || "";
+                                if (coleccionesStockUnicas.includes(curCol)) {
+                                  setNuevaColeccionSelect(curCol);
+                                  setNuevaColeccionInputCustom("");
+                                } else if (curCol) {
+                                  setNuevaColeccionSelect("__nueva__");
+                                  setNuevaColeccionInputCustom(curCol);
+                                } else {
+                                  setNuevaColeccionSelect("");
+                                  setNuevaColeccionInputCustom("");
+                                }
                               }}
                               className="rounded-full bg-arena/60 border border-terracota/40 px-2.5 py-0.5 text-[10px] font-semibold text-terracota hover:bg-terracota hover:text-white transition-colors cursor-pointer flex items-center gap-1"
                               title="Cambiar colección"
@@ -986,12 +1041,13 @@ export function ArteManager({
       )}
 
       {/* ═══════════════════════════════════════════════════════════════════════
-          MODAL 1: CREAR/EDITAR FORMATO DE CATÁLOGO
+          MODAL 1: CREAR/EDITAR FORMATO DE CATÁLOGO (ESTRUCTURA Y SCROLL LIMPIO)
       ═══════════════════════════════════════════════════════════════════════ */}
       {modalFormato && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
-          <div className="w-full max-w-lg rounded-3xl border border-border/80 bg-surface p-6 shadow-2xl space-y-4 animate-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-border/60 pb-3">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+          <div className="w-full max-w-lg rounded-3xl border border-border/80 bg-surface shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150">
+            {/* Header Fijo */}
+            <div className="flex items-center justify-between border-b border-border/60 px-6 py-4 bg-surface">
               <h3 className="text-base font-serif font-semibold text-chocolate">
                 {modalFormato.id ? "Editar Pieza del Catálogo" : "Nueva Pieza en Catálogo"}
               </h3>
@@ -1004,7 +1060,8 @@ export function ArteManager({
               </button>
             </div>
 
-            <form onSubmit={handleGuardarFormatoModal} className="space-y-3 text-xs">
+            {/* Formulario con Scroll Interno protegido */}
+            <form onSubmit={handleGuardarFormatoModal} className="p-6 max-h-[75vh] overflow-y-auto space-y-4 text-xs">
               {modalFormato.id && <input type="hidden" name="id" value={modalFormato.id} />}
 
               <div>
@@ -1019,7 +1076,7 @@ export function ArteManager({
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="font-semibold text-chocolate block mb-1">Categoría</label>
                   <input
@@ -1084,12 +1141,13 @@ export function ArteManager({
       )}
 
       {/* ═══════════════════════════════════════════════════════════════════════
-          MODAL 2: CREAR / EDITAR PIEZA INDIVIDUAL DE STOCK
+          MODAL 2: CREAR / EDITAR PIEZA EN STOCK (SELECTORES Y GRID 5 COLUMNAS)
       ═══════════════════════════════════════════════════════════════════════ */}
       {modalStockPieza && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
-          <div className="w-full max-w-lg rounded-3xl border border-border/80 bg-surface p-6 shadow-2xl space-y-4 animate-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-border/60 pb-3">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+          <div className="w-full max-w-xl rounded-3xl border border-border/80 bg-surface shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150">
+            {/* Header Fijo */}
+            <div className="flex items-center justify-between border-b border-border/60 px-6 py-4 bg-surface">
               <h3 className="text-base font-serif font-semibold text-chocolate">
                 {modalStockPieza.id ? "Editar Pieza en Stock" : "Nueva Pieza en Stock"}
               </h3>
@@ -1102,7 +1160,8 @@ export function ArteManager({
               </button>
             </div>
 
-            <form onSubmit={handleGuardarStockPiezaModal} className="space-y-3 text-xs">
+            {/* Formulario con Scroll Interno protegido */}
+            <form onSubmit={handleGuardarStockPiezaModal} className="p-6 max-h-[78vh] overflow-y-auto space-y-4 text-xs">
               {modalStockPieza.id && <input type="hidden" name="id" value={modalStockPieza.id} />}
 
               <div>
@@ -1117,119 +1176,135 @@ export function ArteManager({
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                {/* Categoría física */}
-                <div>
-                  <label className="font-semibold text-chocolate block mb-1">Categoría (Formato)</label>
-                  <input
-                    type="text"
-                    value={stockCategoriaNombre}
-                    onChange={(e) => setStockCategoriaNombre(e.target.value)}
-                    placeholder="ej. Bandeja, Taza, Mate..."
-                    className="w-full rounded-xl border border-border/80 bg-surface px-3 py-2 text-foreground"
-                  />
-                  {categoriasFisicasUnicas.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {categoriasFisicasUnicas.slice(0, 4).map((c) => (
-                        <button
-                          key={c}
-                          type="button"
-                          onClick={() => setStockCategoriaNombre(c)}
-                          className="rounded-full bg-arena/60 px-2 py-0.5 text-[10px] text-chocolate hover:bg-barro hover:text-white"
-                        >
-                          {c}
-                        </button>
-                      ))}
-                    </div>
+              {/* ─── Selectores Desplegables Limpios para Categoría y Colección ─── */}
+              <div className="grid sm:grid-cols-2 gap-3.5">
+                
+                {/* Selector Desplegable de Categoría */}
+                <div className="space-y-1">
+                  <label className="font-semibold text-chocolate block">Categoría (Formato)</label>
+                  <select
+                    value={stockCategoriaSelect}
+                    onChange={(e) => setStockCategoriaSelect(e.target.value)}
+                    className="w-full rounded-xl border border-border/80 bg-surface px-3 py-2 text-foreground shadow-2xs focus:ring-2 focus:ring-terracota/40 cursor-pointer"
+                  >
+                    <option value="">Seleccionar categoría...</option>
+                    {categoriasFisicasUnicas.map((cat) => (
+                      <option key={cat} value={cat}>
+                        {cat}
+                      </option>
+                    ))}
+                    <option value="__nueva__" className="font-semibold text-terracota">
+                      + Crear nueva categoría...
+                    </option>
+                  </select>
+
+                  {stockCategoriaSelect === "__nueva__" && (
+                    <input
+                      type="text"
+                      value={stockCategoriaCustom}
+                      onChange={(e) => setStockCategoriaCustom(e.target.value)}
+                      placeholder="Escribí el nombre de la categoría (ej. Jarra, Florero)..."
+                      className="w-full rounded-xl border border-terracota/60 bg-surface px-3 py-1.5 text-foreground mt-1 animate-in fade-in"
+                      autoFocus
+                    />
                   )}
                 </div>
 
-                {/* Colección / Drop */}
-                <div>
-                  <label className="font-semibold text-chocolate block mb-1">Colección / Drop</label>
-                  <input
-                    type="text"
-                    value={stockColeccionNombre}
-                    onChange={(e) => setStockColeccionNombre(e.target.value)}
-                    placeholder="ej. Colección Argentina..."
-                    className="w-full rounded-xl border border-border/80 bg-surface px-3 py-2 text-foreground"
-                  />
-                  {coleccionesStockUnicas.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {coleccionesStockUnicas.slice(0, 3).map((c) => (
-                        <button
-                          key={c}
-                          type="button"
-                          onClick={() => setStockColeccionNombre(c)}
-                          className="rounded-full bg-arena/60 px-2 py-0.5 text-[10px] text-chocolate hover:bg-terracota hover:text-white"
-                        >
-                          {c}
-                        </button>
-                      ))}
-                    </div>
+                {/* Selector Desplegable de Colección */}
+                <div className="space-y-1">
+                  <label className="font-semibold text-chocolate block">Colección / Drop</label>
+                  <select
+                    value={stockColeccionSelect}
+                    onChange={(e) => setStockColeccionSelect(e.target.value)}
+                    className="w-full rounded-xl border border-border/80 bg-surface px-3 py-2 text-foreground shadow-2xs focus:ring-2 focus:ring-terracota/40 cursor-pointer"
+                  >
+                    <option value="">Sin colección (Pieza suelta)</option>
+                    {coleccionesStockUnicas.map((col) => (
+                      <option key={col} value={col}>
+                        ✨ {col}
+                      </option>
+                    ))}
+                    <option value="__nueva__" className="font-semibold text-terracota">
+                      + Crear nueva colección...
+                    </option>
+                  </select>
+
+                  {stockColeccionSelect === "__nueva__" && (
+                    <input
+                      type="text"
+                      value={stockColeccionCustom}
+                      onChange={(e) => setStockColeccionCustom(e.target.value)}
+                      placeholder="Escribí el nombre de la colección (ej. Colección Botánica)..."
+                      className="w-full rounded-xl border border-terracota/60 bg-surface px-3 py-1.5 text-foreground mt-1 animate-in fade-in"
+                      autoFocus
+                    />
                   )}
                 </div>
+
               </div>
 
-              {/* Fila compacta de Precio, Stock y Medidas separadas */}
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 pt-1">
-                <div className="col-span-1">
-                  <label className="font-semibold text-chocolate block mb-1">Precio ($) *</label>
-                  <input
-                    type="number"
-                    name="precioBase"
-                    required
-                    defaultValue={modalStockPieza.precio_base || 25000}
-                    className="w-full rounded-xl border border-border/80 bg-surface px-2.5 py-2 font-mono font-bold text-chocolate"
-                  />
-                </div>
+              {/* ─── Fila Numérica Perfectamente Alineada en 5 Columnas Iguales ─── */}
+              <div>
+                <label className="font-semibold text-chocolate block mb-1">Precios, Stock y Medidas</label>
+                <div className="grid grid-cols-5 gap-2 pt-0.5">
+                  <div>
+                    <span className="text-[11px] text-muted block mb-1">Precio ($) *</span>
+                    <input
+                      type="number"
+                      name="precioBase"
+                      required
+                      defaultValue={modalStockPieza.precio_base || 25000}
+                      className="w-full rounded-xl border border-border/80 bg-surface px-2.5 py-1.5 font-mono font-bold text-chocolate text-xs"
+                    />
+                  </div>
 
-                <div className="col-span-1">
-                  <label className="font-semibold text-chocolate block mb-1">Stock *</label>
-                  <input
-                    type="number"
-                    name="stockDisponible"
-                    required
-                    min="0"
-                    defaultValue={modalStockPieza.stock_disponible ?? 1}
-                    className="w-full rounded-xl border border-border/80 bg-surface px-2.5 py-2 font-mono font-bold text-chocolate"
-                  />
-                </div>
+                  <div>
+                    <span className="text-[11px] text-muted block mb-1">Stock *</span>
+                    <input
+                      type="number"
+                      name="stockDisponible"
+                      required
+                      min="0"
+                      defaultValue={modalStockPieza.stock_disponible ?? 1}
+                      className="w-full rounded-xl border border-border/80 bg-surface px-2.5 py-1.5 font-mono font-bold text-chocolate text-xs"
+                    />
+                  </div>
 
-                <div className="col-span-1">
-                  <label className="font-semibold text-chocolate block mb-1">Alto (cm)</label>
-                  <input
-                    type="number"
-                    step="0.5"
-                    name="altoCm"
-                    defaultValue={modalStockPieza.alto_cm || ""}
-                    placeholder="ej. 12"
-                    className="w-full rounded-xl border border-border/80 bg-surface px-2.5 py-2 text-foreground font-mono"
-                  />
-                </div>
+                  <div>
+                    <span className="text-[11px] text-muted block mb-1">Alto (cm)</span>
+                    <input
+                      type="number"
+                      step="0.5"
+                      name="altoCm"
+                      defaultValue={modalStockPieza.alto_cm || ""}
+                      placeholder="12"
+                      className="w-full rounded-xl border border-border/80 bg-surface px-2.5 py-1.5 text-foreground font-mono text-xs"
+                    />
+                  </div>
 
-                <div className="col-span-1">
-                  <label className="font-semibold text-chocolate block mb-1">Ancho (cm)</label>
-                  <input
-                    type="number"
-                    step="0.5"
-                    name="anchoCm"
-                    defaultValue={modalStockPieza.ancho_cm || ""}
-                    placeholder="ej. 8.5"
-                    className="w-full rounded-xl border border-border/80 bg-surface px-2.5 py-2 text-foreground font-mono"
-                  />
-                </div>
+                  <div>
+                    <span className="text-[11px] text-muted block mb-1">Ancho (cm)</span>
+                    <input
+                      type="number"
+                      step="0.5"
+                      name="anchoCm"
+                      defaultValue={modalStockPieza.ancho_cm || ""}
+                      placeholder="8.5"
+                      className="w-full rounded-xl border border-border/80 bg-surface px-2.5 py-1.5 text-foreground font-mono text-xs"
+                    />
+                  </div>
 
-                <div className="col-span-2 sm:col-span-1">
-                  <label className="font-semibold text-chocolate block mb-1">Capacidad (ml)</label>
-                  <input
-                    type="number"
-                    step="10"
-                    name="capacidadMl"
-                    defaultValue={modalStockPieza.capacidad_ml || ""}
-                    placeholder="ej. 350"
-                    className="w-full rounded-xl border border-border/80 bg-surface px-2.5 py-2 text-foreground font-mono"
-                  />
+                  <div>
+                    <span className="text-[11px] text-muted block mb-1">Capacidad (ml)</span>
+                    <input
+                      type="number"
+                      step="10"
+                      name="capacidadMl"
+                      defaultValue={modalStockPieza.capacidad_ml || ""}
+                      placeholder="350"
+                      className="w-full rounded-xl border border-border/80 bg-surface px-2.5 py-1.5 text-foreground font-mono text-xs"
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -1257,14 +1332,14 @@ export function ArteManager({
                 <button
                   type="submit"
                   disabled={isPending}
-                  className="flex-1 rounded-full bg-chocolate text-crema-cruda py-2.5 font-semibold hover:bg-chocolate/90 cursor-pointer"
+                  className="flex-1 rounded-full bg-chocolate text-crema-cruda py-2.5 font-semibold hover:bg-chocolate/90 cursor-pointer shadow-xs"
                 >
                   {isPending ? "Guardando..." : "Guardar en Stock"}
                 </button>
                 <button
                   type="button"
                   onClick={() => setModalStockPieza(null)}
-                  className="rounded-full border border-border bg-surface px-4 py-2.5 font-medium text-muted cursor-pointer"
+                  className="rounded-full border border-border bg-surface px-5 py-2.5 font-medium text-muted cursor-pointer"
                 >
                   Cancelar
                 </button>
@@ -1275,13 +1350,13 @@ export function ArteManager({
       )}
 
       {/* ═══════════════════════════════════════════════════════════════════════
-          MODAL 3: ASIGNAR / CAMBIAR COLECCIÓN EN 1 CLIC A UNA PIEZA EXISTENTE
+          MODAL 3: ASIGNAR / CAMBIAR COLECCIÓN CON SELECTOR DESPLEGABLE
       ═══════════════════════════════════════════════════════════════════════ */}
       {asignandoColeccionProd && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
-          <div className="w-full max-w-sm rounded-3xl border border-border/80 bg-surface p-5 shadow-2xl space-y-4 animate-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between border-b border-border/60 pb-2">
-              <h3 className="text-sm font-serif font-semibold text-chocolate">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+          <div className="w-full max-w-sm rounded-3xl border border-border/80 bg-surface shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-border/60 px-5 py-3.5 bg-surface">
+              <h3 className="text-sm font-serif font-semibold text-chocolate truncate">
                 Colección de &quot;{asignandoColeccionProd.nombre}&quot;
               </h3>
               <button
@@ -1293,42 +1368,36 @@ export function ArteManager({
               </button>
             </div>
 
-            <div className="space-y-3 text-xs">
-              <div>
-                <label className="font-semibold text-chocolate block mb-1">Nombre de la colección:</label>
-                <input
-                  type="text"
-                  value={nuevaColeccionInput}
-                  onChange={(e) => setNuevaColeccionInput(e.target.value)}
-                  placeholder="ej. Colección Argentina, Botánica..."
-                  className="w-full rounded-xl border border-border/80 bg-surface px-3 py-2 text-foreground"
-                />
-              </div>
+            <div className="p-5 space-y-4 text-xs">
+              <div className="space-y-1.5">
+                <label className="font-semibold text-chocolate block">Seleccionar Colección:</label>
+                <select
+                  value={nuevaColeccionSelect}
+                  onChange={(e) => setNuevaColeccionSelect(e.target.value)}
+                  className="w-full rounded-xl border border-border/80 bg-surface px-3 py-2 text-foreground shadow-2xs focus:ring-2 focus:ring-terracota/40 cursor-pointer"
+                >
+                  <option value="">Sin colección</option>
+                  {coleccionesStockUnicas.map((c) => (
+                    <option key={c} value={c}>
+                      ✨ {c}
+                    </option>
+                  ))}
+                  <option value="__nueva__" className="font-semibold text-terracota">
+                    + Crear nueva colección...
+                  </option>
+                </select>
 
-              {coleccionesStockUnicas.length > 0 && (
-                <div className="space-y-1">
-                  <span className="text-[11px] text-muted block">Colecciones existentes:</span>
-                  <div className="flex flex-wrap gap-1">
-                    {coleccionesStockUnicas.map((c) => (
-                      <button
-                        key={c}
-                        type="button"
-                        onClick={() => setNuevaColeccionInput(c)}
-                        className="rounded-full bg-arena/60 px-2.5 py-1 text-xs text-chocolate hover:bg-terracota hover:text-white transition-colors cursor-pointer"
-                      >
-                        {c}
-                      </button>
-                    ))}
-                    <button
-                      type="button"
-                      onClick={() => setNuevaColeccionInput("")}
-                      className="rounded-full bg-muted/20 px-2.5 py-1 text-xs text-muted hover:bg-red-100 hover:text-red-700 transition-colors cursor-pointer"
-                    >
-                      Sin colección
-                    </button>
-                  </div>
-                </div>
-              )}
+                {nuevaColeccionSelect === "__nueva__" && (
+                  <input
+                    type="text"
+                    value={nuevaColeccionInputCustom}
+                    onChange={(e) => setNuevaColeccionInputCustom(e.target.value)}
+                    placeholder="Escribí el nombre de la colección..."
+                    className="w-full rounded-xl border border-terracota/60 bg-surface px-3 py-2 text-foreground mt-1.5 animate-in fade-in"
+                    autoFocus
+                  />
+                )}
+              </div>
 
               <div className="pt-2 flex gap-2">
                 <button
@@ -1342,7 +1411,7 @@ export function ArteManager({
                 <button
                   type="button"
                   onClick={() => setAsignandoColeccionProd(null)}
-                  className="rounded-full border border-border bg-surface px-3 py-2 font-medium text-muted cursor-pointer"
+                  className="rounded-full border border-border bg-surface px-3.5 py-2 font-medium text-muted cursor-pointer"
                 >
                   Cancelar
                 </button>
@@ -1353,13 +1422,14 @@ export function ArteManager({
       )}
 
       {/* ═══════════════════════════════════════════════════════════════════════
-          MODAL 4: LANZAMIENTO DE COLECCIÓN / DROP COMPLETO (AMPLIO Y LIMPIO)
+          MODAL 4: LANZAMIENTO DE COLECCIÓN / DROP COMPLETO
       ═══════════════════════════════════════════════════════════════════════ */}
       {modalLanzarDrop && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
-          <div className="w-full max-w-3xl rounded-3xl border border-border/80 bg-surface p-6 sm:p-8 shadow-2xl space-y-5 animate-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+          <div className="w-full max-w-3xl rounded-3xl border border-border/80 bg-surface shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150">
             
-            <div className="flex items-center justify-between border-b border-border/60 pb-3">
+            {/* Header Fijo */}
+            <div className="flex items-center justify-between border-b border-border/60 px-6 py-4 bg-surface">
               <div>
                 <span className="text-[11px] font-semibold text-terracota uppercase tracking-wider">Lanzamiento</span>
                 <h3 className="text-lg sm:text-xl font-serif font-semibold text-chocolate">
@@ -1375,7 +1445,8 @@ export function ArteManager({
               </button>
             </div>
 
-            <div className="space-y-4 text-xs">
+            {/* Body con Scroll Interno protegido */}
+            <div className="p-6 max-h-[78vh] overflow-y-auto space-y-4 text-xs">
               <div className="grid sm:grid-cols-2 gap-4">
                 <div>
                   <label className="font-semibold text-chocolate block mb-1">Nombre de la Colección *</label>
@@ -1400,7 +1471,7 @@ export function ArteManager({
                 </div>
               </div>
 
-              {/* Lista dinámica de piezas para la colección */}
+              {/* Lista de Piezas */}
               <div className="space-y-4 pt-2">
                 <div className="flex items-center justify-between border-b border-border/40 pb-2">
                   <p className="font-semibold text-chocolate text-sm">Piezas de la Colección ({dropPiezas.length}):</p>
@@ -1447,8 +1518,8 @@ export function ArteManager({
                         )}
                       </div>
 
-                      <div className="grid grid-cols-2 sm:grid-cols-6 gap-2">
-                        <div className="col-span-2 sm:col-span-2">
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
                           <label className="font-medium text-muted block text-[11px] mb-0.5">Nombre *</label>
                           <input
                             type="text"
@@ -1464,7 +1535,7 @@ export function ArteManager({
                         </div>
 
                         <div>
-                          <label className="font-medium text-muted block text-[11px] mb-0.5">Categoría</label>
+                          <label className="font-medium text-muted block text-[11px] mb-0.5">Categoría (Formato)</label>
                           <input
                             type="text"
                             value={pieza.categoriaNombre}
@@ -1473,11 +1544,14 @@ export function ArteManager({
                                 prev.map((p, i) => (i === pIdx ? { ...p, categoriaNombre: e.target.value } : p)),
                               )
                             }
-                            placeholder="Taza, Mate..."
+                            placeholder="Taza, Mate, Cuenco..."
                             className="w-full rounded-xl border border-border bg-surface px-2.5 py-1.5 text-xs text-foreground"
                           />
                         </div>
+                      </div>
 
+                      {/* 5 Columnas numéricas */}
+                      <div className="grid grid-cols-5 gap-2">
                         <div>
                           <label className="font-medium text-muted block text-[11px] mb-0.5">Precio ($)</label>
                           <input
@@ -1547,8 +1621,8 @@ export function ArteManager({
                           />
                         </div>
 
-                        <div className="col-span-2 sm:col-span-5">
-                          <label className="font-medium text-muted block text-[11px] mb-0.5">Capacidad (ml) - Opcional</label>
+                        <div>
+                          <label className="font-medium text-muted block text-[11px] mb-0.5">Cap. (ml)</label>
                           <input
                             type="number"
                             step="10"
@@ -1560,8 +1634,8 @@ export function ArteManager({
                                 ),
                               )
                             }
-                            placeholder="ej. 350 ml"
-                            className="w-full max-w-[200px] rounded-xl border border-border bg-surface px-2.5 py-1.5 text-xs text-foreground font-mono"
+                            placeholder="350"
+                            className="w-full rounded-xl border border-border bg-surface px-2.5 py-1.5 text-xs text-foreground font-mono"
                           />
                         </div>
                       </div>
@@ -1609,9 +1683,10 @@ export function ArteManager({
           MODAL 5: CREAR/EDITAR PORTFOLIO MANUAL
       ═══════════════════════════════════════════════════════════════════════ */}
       {modalPortfolio && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
-          <div className="w-full max-w-lg rounded-3xl border border-border/80 bg-surface p-6 shadow-2xl space-y-4 animate-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-border/60 pb-3">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+          <div className="w-full max-w-lg rounded-3xl border border-border/80 bg-surface shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150">
+            {/* Header Fijo */}
+            <div className="flex items-center justify-between border-b border-border/60 px-6 py-4 bg-surface">
               <h3 className="text-base font-serif font-semibold text-chocolate">
                 {modalPortfolio.id ? "Editar Colección del Portfolio" : "Nueva Colección"}
               </h3>
@@ -1624,7 +1699,7 @@ export function ArteManager({
               </button>
             </div>
 
-            <form onSubmit={handleGuardarPortfolioModal} className="space-y-3 text-xs">
+            <form onSubmit={handleGuardarPortfolioModal} className="p-6 max-h-[75vh] overflow-y-auto space-y-4 text-xs">
               {modalPortfolio.id && <input type="hidden" name="id" value={modalPortfolio.id} />}
 
               <div>

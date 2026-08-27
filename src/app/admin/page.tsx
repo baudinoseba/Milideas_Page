@@ -1,23 +1,19 @@
 import Link from "next/link";
-import { getAdminStats, getFormatosCatalogo, getObrasProyectos } from "@/lib/supabase/queries";
+import { getAdminStats } from "@/lib/supabase/queries";
 import { formatPrecio } from "@/lib/pricing";
-import { Badge } from "@/components/ui/badge";
 
 export const metadata = { title: "Admin — Dashboard de Control" };
 
 export default async function AdminDashboardPage() {
-  const [stats, formatosCeramica, formatosIlustracion, obras] = await Promise.all([
-    getAdminStats().catch(() => ({
-      pedidosPendientes: 0,
-      pedidosConfirmados: 0,
-      stockBajo: 0,
-      totalProductosActivos: 0,
-      ultimosPedidos: [],
-    })),
-    getFormatosCatalogo("ceramica").catch(() => []),
-    getFormatosCatalogo("ilustracion").catch(() => []),
-    getObrasProyectos({}).catch(() => []),
-  ]);
+  const stats = await getAdminStats().catch(() => ({
+    pedidosPendientes: 0,
+    pedidosConfirmados: 0,
+    stockBajo: 0,
+    totalProductosActivos: 0,
+    encargosPendientes: 0,
+    ultimosPedidos: [],
+    ultimosEncargos: [],
+  }));
 
   const ahora = Date.now();
   const DOS_DIAS_MS = 48 * 60 * 60 * 1000;
@@ -32,193 +28,144 @@ export default async function AdminDashboardPage() {
   return (
     <div className="space-y-8 pb-12">
       
-      {/* ─── Encabezado de Bienvenida ─── */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-border/60 pb-4">
+      {/* ─── Encabezado Limpio del Panel ─── */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-border/60 pb-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-serif font-semibold text-chocolate">
             Panel de Control · Milideas
           </h1>
           <p className="mt-0.5 text-xs sm:text-sm text-muted font-sans">
-            Centro operativo para gestión de ventas, catálogo, stock y proyectos especiales.
+            Métricas operativas en tiempo real, transferencias por conciliar y estado del taller.
           </p>
         </div>
-
-        <Link
-          href="/"
-          target="_blank"
-          className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-4 py-1.5 text-xs font-semibold text-chocolate hover:bg-secondary/40 shadow-xs self-start sm:self-auto"
-        >
-          <span>👁️ Ver Tienda Online</span>
-          <span className="text-[10px] text-terracota">↗</span>
-        </Link>
       </div>
 
-      {/* ─── 1. ALERTAS OPERATIVAS & PAGOS PENDIENTES (PRIORIDAD ALTA) ─── */}
+      {/* ─── 1. MÉTRICAS CLAVE CON NÚMEROS Y PRIORIDADES DE COLOR ─── */}
       <section className="space-y-3">
         <h2 className="text-xs font-semibold uppercase tracking-wider text-barro font-sans flex items-center gap-1.5">
-          <span>⚡</span> Prioridades Operativas
+          <span>⚡</span> Prioridades Operativas del Día
         </h2>
 
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
           
-          {/* Alerta de Pagos Pendientes (Con alerta roja si hay pedidos de >48hs) */}
+          {/* Card 1: Pagos por revisar */}
           <Link
             href="/admin/pedidos?estado=pendiente_pago"
             className={`rounded-2xl sm:rounded-3xl border p-4 sm:p-5 shadow-xs transition-all flex flex-col justify-between ${
               pedidosDemorados.length > 0
-                ? "bg-red-50/90 border-red-300 text-red-900 dark:bg-red-950/60 dark:border-red-800 dark:text-red-100 hover:border-red-500 ring-2 ring-red-400/30"
+                ? "bg-red-50/95 border-red-300 text-red-950 dark:bg-red-950/60 dark:border-red-800 dark:text-red-100 hover:border-red-500 ring-2 ring-red-400/40"
                 : stats.pedidosPendientes > 0
-                  ? "bg-amber-50/90 border-amber-300 text-amber-900 dark:bg-amber-950/60 dark:border-amber-800 dark:text-amber-100 hover:border-amber-500"
+                  ? "bg-amber-50/90 border-amber-300 text-amber-950 dark:bg-amber-950/60 dark:border-amber-800 dark:text-amber-100 hover:border-amber-500"
                   : "bg-surface border-border/70 hover:border-terracota/40 text-chocolate"
             }`}
           >
             <div>
               <div className="flex items-center justify-between text-xs font-semibold">
                 <span>Pagos por revisar</span>
-                <span>{pedidosDemorados.length > 0 ? "🚨" : "💳"}</span>
+                <span className="text-base">{pedidosDemorados.length > 0 ? "🚨" : "💳"}</span>
               </div>
-              <p className="mt-2 text-2xl sm:text-3xl font-bold font-mono">
+              <p className="mt-2 text-3xl sm:text-4xl font-bold font-mono">
                 {stats.pedidosPendientes}
               </p>
             </div>
-            <p className="text-[11px] mt-1 font-medium opacity-90">
+            <p className="text-[11px] mt-2 font-medium">
               {pedidosDemorados.length > 0
-                ? `⚠️ ${pedidosDemorados.length} con más de 48hs`
-                : "Transferencias a verificar"}
+                ? `⚠️ ${pedidosDemorados.length} demorado(s) >48hs`
+                : stats.pedidosPendientes > 0
+                  ? "Transferencias a verificar"
+                  : "✓ Todo al día"}
             </p>
           </Link>
 
-          {/* Pedidos Confirmados */}
+          {/* Card 2: Listos para despacho */}
           <Link
-            href="/admin/pedidos"
-            className="rounded-2xl sm:rounded-3xl border border-emerald-300/80 bg-emerald-50/70 p-4 sm:p-5 shadow-xs transition-all hover:border-emerald-500 dark:bg-emerald-950/50 dark:border-emerald-800 flex flex-col justify-between"
+            href="/admin/pedidos?estado=confirmado"
+            className={`rounded-2xl sm:rounded-3xl border p-4 sm:p-5 shadow-xs transition-all flex flex-col justify-between ${
+              stats.pedidosConfirmados > 0
+                ? "bg-emerald-50/90 border-emerald-300 text-emerald-950 hover:border-emerald-500 dark:bg-emerald-950/50 dark:border-emerald-800 dark:text-emerald-100"
+                : "bg-surface border-border/70 hover:border-terracota/40 text-chocolate"
+            }`}
           >
             <div>
-              <div className="flex items-center justify-between text-xs font-semibold text-emerald-900 dark:text-emerald-200">
+              <div className="flex items-center justify-between text-xs font-semibold">
                 <span>Listos para despacho</span>
-                <span>📦</span>
+                <span className="text-base">📦</span>
               </div>
-              <p className="mt-2 text-2xl sm:text-3xl font-bold font-mono text-emerald-950 dark:text-emerald-100">
+              <p className="mt-2 text-3xl sm:text-4xl font-bold font-mono text-emerald-900 dark:text-emerald-200">
                 {stats.pedidosConfirmados}
               </p>
             </div>
-            <p className="text-[11px] text-emerald-800 dark:text-emerald-300 mt-1 font-medium">
-              Empaque y envío seguro
+            <p className="text-[11px] mt-2 font-medium text-emerald-800 dark:text-emerald-300">
+              {stats.pedidosConfirmados > 0
+                ? "Empacar y coordinar envío"
+                : "Sin pedidos pendientes de envío"}
             </p>
           </Link>
 
-          {/* Encargos a Medida */}
+          {/* Card 3: Encargos a Medida en Taller */}
           <Link
             href="/admin/encargos"
-            className="rounded-2xl sm:rounded-3xl border border-border/70 bg-surface p-4 sm:p-5 shadow-xs hover:border-terracota/40 transition-colors flex flex-col justify-between"
+            className={`rounded-2xl sm:rounded-3xl border p-4 sm:p-5 shadow-xs transition-all flex flex-col justify-between ${
+              stats.encargosPendientes > 0
+                ? "bg-amber-50/80 border-amber-300/80 text-amber-950 hover:border-amber-500 dark:bg-amber-950/50 dark:border-amber-800"
+                : "bg-surface border-border/70 hover:border-terracota/40 text-chocolate"
+            }`}
           >
             <div>
               <div className="flex items-center justify-between text-xs font-semibold text-chocolate">
-                <span>Encargos a medida</span>
-                <span>📝</span>
+                <span>Encargos a Medida</span>
+                <span className="text-base">📝</span>
               </div>
-              <p className="mt-2 text-2xl sm:text-3xl font-bold font-mono text-chocolate">
-                Taller
+              <p className="mt-2 text-3xl sm:text-4xl font-bold font-mono text-chocolate">
+                {stats.encargosPendientes}
               </p>
             </div>
-            <p className="text-[11px] text-muted mt-1">Piezas personalizadas</p>
+            <p className="text-[11px] text-muted mt-2 font-medium">
+              {stats.encargosPendientes > 0
+                ? "Solicitudes de clientes a presupuestar"
+                : "Taller al día"}
+            </p>
           </Link>
 
-          {/* Zonas de Envío */}
-          <Link
-            href="/admin/logistica"
-            className="rounded-2xl sm:rounded-3xl border border-border/70 bg-surface p-4 sm:p-5 shadow-xs hover:border-terracota/40 transition-colors flex flex-col justify-between"
-          >
-            <div>
-              <div className="flex items-center justify-between text-xs font-semibold text-chocolate">
-                <span>Logística & Envíos</span>
-                <span>🚚</span>
-              </div>
-              <p className="mt-2 text-2xl sm:text-3xl font-bold font-mono text-chocolate">
-                Tarifas
-              </p>
-            </div>
-            <p className="text-[11px] text-muted mt-1">Configurar envíos nacionales</p>
-          </Link>
-
-        </div>
-      </section>
-
-      {/* ─── 2. LOS 3 PILARES CREATIVOS ─── */}
-      <section className="space-y-3">
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-barro font-sans flex items-center gap-1.5">
-          <span>🎨</span> Disciplinas & Producción Artística
-        </h2>
-
-        <div className="grid gap-4 sm:grid-cols-3">
-          {/* Cerámica */}
+          {/* Card 4: Stock Crítico / Agotado */}
           <Link
             href="/admin/ceramica"
-            className="group rounded-2xl sm:rounded-3xl border border-border/70 bg-gradient-to-br from-surface via-surface to-arena/30 p-5 shadow-xs transition-all hover:shadow-md hover:border-terracota/50 flex flex-col justify-between space-y-4"
+            className={`rounded-2xl sm:rounded-3xl border p-4 sm:p-5 shadow-xs transition-all flex flex-col justify-between ${
+              stats.stockBajo > 0
+                ? "bg-rose-50/80 border-rose-300/80 text-rose-950 hover:border-rose-500 dark:bg-rose-950/50 dark:border-rose-800"
+                : "bg-surface border-border/70 hover:border-terracota/40 text-chocolate"
+            }`}
           >
-            <div className="space-y-2">
-              <span className="text-3xl">🏺</span>
-              <h3 className="text-base font-serif font-semibold text-chocolate group-hover:text-terracota transition-colors">
-                Cerámica de Autor
-              </h3>
-              <p className="text-xs text-barro font-sans leading-relaxed">
-                Catálogo de 45 formatos con aumento de precios % masivo, stock en drops y álbumes de portfolio.
+            <div>
+              <div className="flex items-center justify-between text-xs font-semibold text-chocolate">
+                <span>Stock Crítico / Agotado</span>
+                <span className="text-base">⚠️</span>
+              </div>
+              <p className="mt-2 text-3xl sm:text-4xl font-bold font-mono text-rose-900 dark:text-rose-200">
+                {stats.stockBajo}
               </p>
             </div>
-            <div className="flex items-center justify-between pt-2 border-t border-border/40 text-xs font-semibold text-terracota">
-              <span>{formatosCeramica.length} formatos activos</span>
-              <span>Administrar →</span>
-            </div>
+            <p className="text-[11px] text-rose-800 dark:text-rose-300 mt-2 font-medium">
+              {stats.stockBajo > 0
+                ? "Piezas con 0 o 1 unidad disponible"
+                : "Inventario saludable"}
+            </p>
           </Link>
 
-          {/* Ilustración */}
-          <Link
-            href="/admin/ilustracion"
-            className="group rounded-2xl sm:rounded-3xl border border-border/70 bg-gradient-to-br from-surface via-surface to-rosa-buho/15 p-5 shadow-xs transition-all hover:shadow-md hover:border-rosa-buho/50 flex flex-col justify-between space-y-4"
-          >
-            <div className="space-y-2">
-              <span className="text-3xl">🎨</span>
-              <h3 className="text-base font-serif font-semibold text-chocolate group-hover:text-terracota transition-colors">
-                Ilustraciones
-              </h3>
-              <p className="text-xs text-barro font-sans leading-relaxed">
-                Láminas A4/A3, cuadros enmarcados, stock disponible y portfolio botánico/animal.
-              </p>
-            </div>
-            <div className="flex items-center justify-between pt-2 border-t border-border/40 text-xs font-semibold text-terracota">
-              <span>{formatosIlustracion.length} formatos activos</span>
-              <span>Administrar →</span>
-            </div>
-          </Link>
-
-          {/* Obras y Proyectos */}
-          <Link
-            href="/admin/obras"
-            className="group rounded-2xl sm:rounded-3xl border border-border/70 bg-gradient-to-br from-surface via-surface to-secondary/30 p-5 shadow-xs transition-all hover:shadow-md hover:border-terracota/50 flex flex-col justify-between space-y-4"
-          >
-            <div className="space-y-2">
-              <span className="text-3xl">🌟</span>
-              <h3 className="text-base font-serif font-semibold text-chocolate group-hover:text-terracota transition-colors">
-                Obras & Proyectos
-              </h3>
-              <p className="text-xs text-barro font-sans leading-relaxed">
-                Murales, vidrieras, esculturas 3D de mascotas, producciones para marcas y gastronomía.
-              </p>
-            </div>
-            <div className="flex items-center justify-between pt-2 border-t border-border/40 text-xs font-semibold text-terracota">
-              <span>{obras.length} proyectos registrados</span>
-              <span>Administrar →</span>
-            </div>
-          </Link>
         </div>
       </section>
 
-      {/* ─── 3. ÚLTIMOS PEDIDOS & ESTADOS DE PAGO VISUALES ─── */}
+      {/* ─── 2. PEDIDOS RECIENTES CON DETALLE REAL ─── */}
       <section className="space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-barro font-sans flex items-center gap-1.5">
-            <span>📋</span> Últimos Pedidos Recibidos
-          </h2>
+          <div>
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-barro font-sans flex items-center gap-1.5">
+              <span>🛒</span> Pedidos Recientes de la Tienda
+            </h2>
+            <p className="text-[11px] text-muted font-sans mt-0.5">
+              Control de comprobantes de pago y estado de entrega.
+            </p>
+          </div>
           <Link
             href="/admin/pedidos"
             className="text-xs font-semibold text-terracota hover:underline font-sans"
@@ -228,8 +175,9 @@ export default async function AdminDashboardPage() {
         </div>
 
         {stats.ultimosPedidos.length === 0 ? (
-          <div className="rounded-2xl border border-border/60 bg-arena/20 p-6 text-center text-xs text-muted">
-            No hay pedidos registrados recientemente.
+          <div className="rounded-2xl border border-border/60 bg-arena/20 p-8 text-center text-xs text-muted">
+            <p className="text-2xl mb-1">📦</p>
+            <p className="font-semibold text-chocolate">No hay pedidos registrados recientemente.</p>
           </div>
         ) : (
           <div className="rounded-2xl sm:rounded-3xl border border-border/60 bg-surface divide-y divide-border/40 shadow-xs overflow-hidden">
@@ -237,6 +185,9 @@ export default async function AdminDashboardPage() {
               const diffMs = ahora - new Date(pedido.created_at).getTime();
               const esDemorado = pedido.estado === "pendiente_pago" && diffMs > DOS_DIAS_MS;
               const dias = Math.floor(diffMs / (24 * 60 * 60 * 1000));
+              const itemsNombres =
+                pedido.items_pedido?.map((it: any) => it.productos?.nombre || "Pieza").join(", ") ||
+                "Pieza de catálogo";
 
               return (
                 <div
@@ -247,13 +198,13 @@ export default async function AdminDashboardPage() {
                       : "hover:bg-arena/10"
                   }`}
                 >
-                  <div className="space-y-1">
+                  <div className="space-y-1 min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="text-xs sm:text-sm font-semibold text-chocolate">
                         {pedido.nombre_contacto || "Cliente"}
                       </p>
                       
-                      {/* Badges de Estado con Colores Contrastados */}
+                      {/* Badge de Estado Claro */}
                       {pedido.estado === "pendiente_pago" ? (
                         <span
                           className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold ${
@@ -266,12 +217,12 @@ export default async function AdminDashboardPage() {
                         </span>
                       ) : pedido.estado === "confirmado" || pedido.estado === "enviado" ? (
                         <span className="rounded-full bg-emerald-100 text-emerald-900 border border-emerald-300 dark:bg-emerald-900/60 dark:text-emerald-100 px-2.5 py-0.5 text-[11px] font-bold">
-                          ✓ {pedido.estado === "confirmado" ? "Confirmado" : "Enviado"}
+                          ✓ {pedido.estado === "confirmado" ? "Listo para Despacho" : "Enviado"}
                         </span>
                       ) : (
-                        <Badge variant="default" className="text-[10px]">
+                        <span className="rounded-full bg-secondary/80 text-chocolate px-2.5 py-0.5 text-[10px] font-medium">
                           {pedido.estado}
-                        </Badge>
+                        </span>
                       )}
 
                       {pedido.metodo_pago && (
@@ -281,30 +232,118 @@ export default async function AdminDashboardPage() {
                       )}
                     </div>
 
-                    <p className="text-[11px] text-muted">
+                    <p className="text-xs text-barro truncate font-medium">
+                      🛍️ {itemsNombres}
+                    </p>
+
+                    <p className="text-[11px] text-muted font-sans">
                       {new Date(pedido.created_at).toLocaleDateString("es-AR", {
                         day: "2-digit",
                         month: "short",
                         hour: "2-digit",
                         minute: "2-digit",
-                      })} · {pedido.pedido_items?.length || 1} pieza(s)
+                      })}
                     </p>
                   </div>
 
-                  <div className="flex items-center gap-3 self-end sm:self-auto">
+                  <div className="flex items-center gap-3 shrink-0 self-end sm:self-auto">
                     <span className="text-xs sm:text-sm font-mono font-bold text-chocolate">
                       {formatPrecio(pedido.total)}
                     </span>
                     <Link
                       href={`/admin/pedidos/${pedido.id}`}
-                      className="rounded-xl border border-border bg-surface px-3 py-1.5 text-xs text-chocolate hover:bg-secondary/40 font-medium shadow-2xs"
+                      className="rounded-xl border border-border bg-surface px-3 py-1.5 text-xs text-chocolate hover:bg-secondary/40 font-semibold shadow-2xs cursor-pointer"
                     >
-                      Ver detalle →
+                      Gestionar →
                     </Link>
                   </div>
                 </div>
               );
             })}
+          </div>
+        )}
+      </section>
+
+      {/* ─── 3. ENCARGOS A MEDIDA RECIENTES DEL TALLER ─── */}
+      <section className="space-y-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-barro font-sans flex items-center gap-1.5">
+              <span>🎨</span> Encargos Especiales & Personalizados
+            </h2>
+            <p className="text-[11px] text-muted font-sans mt-0.5">
+              Solicitudes de clientes para piezas únicas o proyectos a medida.
+            </p>
+          </div>
+          <Link
+            href="/admin/encargos"
+            className="text-xs font-semibold text-terracota hover:underline font-sans"
+          >
+            Ver todos los encargos →
+          </Link>
+        </div>
+
+        {stats.ultimosEncargos.length === 0 ? (
+          <div className="rounded-2xl border border-border/60 bg-arena/20 p-8 text-center text-xs text-muted">
+            <p className="text-2xl mb-1">✨</p>
+            <p className="font-semibold text-chocolate">No hay encargos a medida pendientes en este momento.</p>
+          </div>
+        ) : (
+          <div className="rounded-2xl sm:rounded-3xl border border-border/60 bg-surface divide-y divide-border/40 shadow-xs overflow-hidden">
+            {stats.ultimosEncargos.map((enc: any) => (
+              <div
+                key={enc.id}
+                className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 hover:bg-arena/10 transition-colors"
+              >
+                <div className="space-y-1 min-w-0 flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-xs sm:text-sm font-semibold text-chocolate">
+                      {enc.nombre_contacto || "Cliente"}
+                    </p>
+                    <span className="rounded-full bg-arena/60 border border-border/60 px-2 py-0.5 text-[10px] font-semibold text-barro">
+                      {enc.tipo_encargo || "Personalizado"}
+                    </span>
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                        enc.estado === "pendiente"
+                          ? "bg-amber-100 text-amber-900 border border-amber-300"
+                          : enc.estado === "en_produccion"
+                            ? "bg-sky-100 text-sky-900 border border-sky-300"
+                            : "bg-emerald-100 text-emerald-900 border border-emerald-300"
+                      }`}
+                    >
+                      {enc.estado === "pendiente"
+                        ? "⏳ Pendiente"
+                        : enc.estado === "en_produccion"
+                          ? "🛠️ En Producción"
+                          : "✓ Listo"}
+                    </span>
+                  </div>
+
+                  {enc.descripcion_idea && (
+                    <p className="text-xs text-barro truncate">
+                      {enc.descripcion_idea}
+                    </p>
+                  )}
+
+                  <p className="text-[11px] text-muted font-sans">
+                    {new Date(enc.created_at).toLocaleDateString("es-AR", {
+                      day: "2-digit",
+                      month: "short",
+                    })}
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-3 shrink-0 self-end sm:self-auto">
+                  <Link
+                    href={`/admin/encargos/${enc.id}`}
+                    className="rounded-xl border border-border bg-surface px-3 py-1.5 text-xs text-chocolate hover:bg-secondary/40 font-semibold shadow-2xs"
+                  >
+                    Ver detalle →
+                  </Link>
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </section>

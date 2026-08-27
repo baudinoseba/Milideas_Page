@@ -194,7 +194,15 @@ export async function getAdminPedidos(estado?: string): Promise<PedidoConItems[]
 
 export async function getAdminStats() {
   const supabase = await createClient();
-  const [pendientes, confirmados, stockBajo, totalActivos, ultimosPedidosResult] = await Promise.all([
+  const [
+    pendientes,
+    confirmados,
+    stockBajo,
+    totalActivos,
+    ultimosPedidosResult,
+    encargosPendientes,
+    ultimosEncargosResult,
+  ] = await Promise.all([
     supabase
       .from("pedidos")
       .select("id", { count: "exact", head: true })
@@ -214,22 +222,27 @@ export async function getAdminStats() {
       .eq("activo", true),
     supabase
       .from("pedidos")
-      .select("id, estado, total, nombre_contacto, created_at")
+      .select("*, items_pedido(*, productos(*))")
       .order("created_at", { ascending: false })
-      .limit(5),
+      .limit(6),
+    supabase
+      .from("encargos")
+      .select("id", { count: "exact", head: true })
+      .eq("estado", "pendiente"),
+    supabase
+      .from("encargos")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(4),
   ]);
   return {
     pedidosPendientes: pendientes.count ?? 0,
     pedidosConfirmados: confirmados.count ?? 0,
     stockBajo: stockBajo.count ?? 0,
     totalProductosActivos: totalActivos.count ?? 0,
-    ultimosPedidos: (ultimosPedidosResult.data ?? []) as Array<{
-      id: string;
-      estado: string;
-      total: number;
-      nombre_contacto: string;
-      created_at: string;
-    }>,
+    encargosPendientes: encargosPendientes.count ?? 0,
+    ultimosPedidos: (ultimosPedidosResult.data ?? []) as any[],
+    ultimosEncargos: (ultimosEncargosResult.data ?? []) as any[],
   };
 }
 
