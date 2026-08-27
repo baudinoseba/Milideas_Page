@@ -13,6 +13,7 @@ import {
   savePortfolioColeccionAction,
   deletePortfolioColeccionAction,
   updateProductoStockInlineAction,
+  updateProductoColeccionInlineAction,
   saveStockPiezaDirectaAction,
   deleteStockPiezaDirectaAction,
   lanzarColeccionDropCompletaAction,
@@ -51,12 +52,19 @@ export function ArteManager({
   const [modalFormato, setModalFormato] = useState<Partial<FormatoCatalogo> | null>(null);
   const [formatoFotoUrl, setFormatoFotoUrl] = useState<string>("");
 
+  // ─── FILTRO POR COLECCIÓN EN STOCK ───
+  const [filtroColeccionStock, setFiltroColeccionStock] = useState<string>("todas");
+
+  // ─── MODAL ASIGNAR COLECCIÓN RÁPIDA A PIEZA ───
+  const [asignandoColeccionProd, setAsignandoColeccionProd] = useState<ProductoConImagenes | null>(null);
+  const [nuevaColeccionInput, setNuevaColeccionInput] = useState<string>("");
+
   // ─── MODAL PIEZA INDIVIDUAL DE STOCK ───
   const [modalStockPieza, setModalStockPieza] = useState<Partial<ProductoConImagenes> | null>(null);
   const [stockFotos, setStockFotos] = useState<string[]>([]);
   const [stockColeccionNombre, setStockColeccionNombre] = useState<string>("");
 
-  // ─── MODAL LANZAR COLECCIÓN / DROP COMPLETO ───
+  // ─── MODAL LANZAR COLECCIÓN / DROP COMPLETO (AMPLIO & ESPACIOSO) ───
   const [modalLanzarDrop, setModalLanzarDrop] = useState<boolean>(false);
   const [dropNombre, setDropNombre] = useState<string>("");
   const [dropDescripcion, setDropDescripcion] = useState<string>("");
@@ -74,9 +82,21 @@ export function ArteManager({
   // ─── LIGHTBOX PREVIEW ───
   const [previewImage, setPreviewImage] = useState<string | null>(null);
 
+  // Colecciones únicas de stock
+  const coleccionesStockUnicas = Array.from(
+    new Set(stockList.map((p) => p.categorias?.nombre).filter(Boolean)),
+  ) as string[];
+
   const categoriasUnicasCatalogo = Array.from(
     new Set(formatos.map((f) => f.categoria).filter(Boolean)),
   ) as string[];
+
+  // Filtrado de stock por colección
+  const stockListFiltrado = stockList.filter((p) => {
+    if (filtroColeccionStock === "todas") return true;
+    if (filtroColeccionStock === "sin_coleccion") return !p.categorias?.nombre;
+    return p.categorias?.nombre === filtroColeccionStock;
+  });
 
   // ─── HANDLERS DE CATÁLOGO ───
   const abrirModalFormato = (formato?: FormatoCatalogo) => {
@@ -172,7 +192,6 @@ export function ArteManager({
     if (!target) return;
     const nuevo = Math.max(0, (target.stock_disponible ?? 0) + delta);
 
-    // Optimistic update
     setStockList((prev) =>
       prev.map((p) => (p.id === id ? { ...p, stock_disponible: nuevo, es_entrega_inmediata: nuevo > 0 } : p)),
     );
@@ -186,6 +205,35 @@ export function ArteManager({
     });
   };
 
+  const handleGuardarColeccionAsignada = () => {
+    if (!asignandoColeccionProd) return;
+    const nombreColeccion = nuevaColeccionInput.trim();
+
+    startTransition(async () => {
+      const res = await updateProductoColeccionInlineAction(
+        asignandoColeccionProd.id,
+        nombreColeccion,
+        rubro as "ceramica" | "ilustracion",
+      );
+
+      if (res.success) {
+        setStockList((prev) =>
+          prev.map((p) =>
+            p.id === asignandoColeccionProd.id
+              ? {
+                  ...p,
+                  categorias: nombreColeccion && nombreColeccion !== "Sin colección" ? { id: res.categoriaId || "", nombre: nombreColeccion } as any : null,
+                }
+              : p,
+          ),
+        );
+        setAsignandoColeccionProd(null);
+      } else {
+        alert(res.error || "Error al asignar colección");
+      }
+    });
+  };
+
   const abrirModalStockPieza = (prod?: ProductoConImagenes) => {
     if (prod) {
       setModalStockPieza(prod);
@@ -195,7 +243,7 @@ export function ArteManager({
     } else {
       setModalStockPieza({ stock_disponible: 1, precio_base: 25000 });
       setStockFotos([]);
-      setStockColeccionNombre("");
+      setStockColeccionNombre(coleccionesStockUnicas[0] || "");
     }
   };
 
@@ -232,7 +280,7 @@ export function ArteManager({
   // ─── HANDLER LANZAR DROP / COLECCIÓN COMPLETO CON AUTO-SYNC A PORTFOLIO ───
   const handleGuardarDropCompleto = () => {
     if (!dropNombre.trim()) {
-      alert("Ingresá el nombre de la colección/drop");
+      alert("Ingresá el nombre de la colección / drop");
       return;
     }
     const piezasValidas = dropPiezas.filter((p) => p.nombre.trim());
@@ -250,7 +298,7 @@ export function ArteManager({
       });
 
       if (res.success) {
-        alert("✓ ¡Colección lanzada con éxito y sincronizada automáticamente al Portfolio!");
+        alert("✓ ¡Colección publicada en Stock y sincronizada automáticamente al Portfolio!");
         setModalLanzarDrop(false);
         window.location.reload();
       } else {
@@ -562,14 +610,14 @@ export function ArteManager({
       {activeTab === "stock" && (
         <div className="space-y-5">
           
-          {/* Barra de Acciones de Stock */}
+          {/* Barra Superior de Acciones de Stock */}
           <div className="rounded-2xl border border-border/60 bg-arena/25 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
               <h3 className="text-sm font-semibold text-chocolate flex items-center gap-1.5">
                 <span>📦</span> Inventario de Stock Disponible ({stockList.length} piezas)
               </h3>
               <p className="text-xs text-muted font-sans mt-0.5">
-                Podés ajustar el stock directamente con los botones + / - o lanzar una colección completa.
+                Control de piezas para entrega inmediata. Asigná colecciones o lanzá drops completos.
               </p>
             </div>
 
@@ -592,24 +640,73 @@ export function ArteManager({
             </div>
           </div>
 
-          {/* LISTA UNIFICADA DE PIEZAS DE STOCK (Una debajo de la otra) */}
+          {/* Filtro por Colección / Drop */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+            <span className="text-xs font-semibold text-muted shrink-0">Filtrar por colección:</span>
+            
+            <button
+              type="button"
+              onClick={() => setFiltroColeccionStock("todas")}
+              className={cn(
+                "rounded-full px-3 py-1 text-xs font-medium font-sans transition-colors shrink-0 cursor-pointer shadow-2xs",
+                filtroColeccionStock === "todas"
+                  ? "bg-chocolate text-crema-cruda font-semibold"
+                  : "bg-surface text-muted border border-border/60 hover:bg-secondary/40",
+              )}
+            >
+              Todas ({stockList.length})
+            </button>
+
+            {coleccionesStockUnicas.map((col) => {
+              const count = stockList.filter((p) => p.categorias?.nombre === col).length;
+              return (
+                <button
+                  key={col}
+                  type="button"
+                  onClick={() => setFiltroColeccionStock(col)}
+                  className={cn(
+                    "rounded-full px-3 py-1 text-xs font-medium font-sans transition-colors shrink-0 cursor-pointer shadow-2xs",
+                    filtroColeccionStock === col
+                      ? "bg-chocolate text-crema-cruda font-semibold"
+                      : "bg-surface text-muted border border-border/60 hover:bg-secondary/40",
+                  )}
+                >
+                  ✨ {col} ({count})
+                </button>
+              );
+            })}
+
+            <button
+              type="button"
+              onClick={() => setFiltroColeccionStock("sin_coleccion")}
+              className={cn(
+                "rounded-full px-3 py-1 text-xs font-medium font-sans transition-colors shrink-0 cursor-pointer shadow-2xs",
+                filtroColeccionStock === "sin_coleccion"
+                  ? "bg-chocolate text-crema-cruda font-semibold"
+                  : "bg-surface text-muted border border-border/60 hover:bg-secondary/40",
+              )}
+            >
+              Piezas Sueltas ({stockList.filter((p) => !p.categorias?.nombre).length})
+            </button>
+          </div>
+
+          {/* LISTA UNIFICADA DE PIEZAS DE STOCK */}
           <div className="rounded-2xl border border-border/60 bg-surface shadow-xs overflow-hidden">
             <div className="p-3 bg-arena/20 border-b border-border/40 flex items-center justify-between text-xs text-muted font-sans">
-              <span>{stockList.length} piezas en inventario</span>
-              <span>Modificación de stock y precios en tiempo real</span>
+              <span>{stockListFiltrado.length} piezas en esta vista</span>
+              <span>Podés asignar o cambiar la colección en cada fila</span>
             </div>
 
-            {stockList.length === 0 ? (
+            {stockListFiltrado.length === 0 ? (
               <div className="p-8 text-center text-xs text-muted space-y-2">
                 <p className="text-2xl">📦</p>
-                <p className="font-semibold text-chocolate">No hay piezas cargadas en stock actualmente.</p>
-                <p>Podés lanzar un nuevo Drop o cargar piezas individuales listas para la venta.</p>
+                <p className="font-semibold text-chocolate">No hay piezas para el filtro seleccionado.</p>
               </div>
             ) : (
               <div className="divide-y divide-border/40 overflow-x-auto">
-                {stockList.map((prod) => {
+                {stockListFiltrado.map((prod) => {
                   const fotoPrincipal = prod.producto_imagenes?.[0]?.url_imagen;
-                  const coleccionNombre = prod.categorias?.nombre || "Sin colección asignada";
+                  const coleccionNombre = prod.categorias?.nombre;
                   const tieneStock = (prod.stock_disponible ?? 0) > 0;
 
                   return (
@@ -633,14 +730,25 @@ export function ArteManager({
                           )}
                         </button>
 
-                        <div className="min-w-0 space-y-0.5">
+                        <div className="min-w-0 space-y-1">
                           <div className="flex items-center gap-2 flex-wrap">
                             <p className="text-xs sm:text-sm font-semibold text-chocolate truncate">
                               {prod.nombre}
                             </p>
-                            <span className="rounded-full bg-secondary/70 border border-border/50 px-2 py-0.5 text-[10px] font-semibold text-terracota">
-                              ✨ {coleccionNombre}
-                            </span>
+
+                            {/* Botón Badge para asignar o cambiar Colección en 1 Clic */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setAsignandoColeccionProd(prod);
+                                setNuevaColeccionInput(coleccionNombre || "");
+                              }}
+                              className="rounded-full bg-secondary/70 border border-border/50 px-2.5 py-0.5 text-[10px] font-semibold text-terracota hover:bg-terracota hover:text-white transition-colors cursor-pointer flex items-center gap-1"
+                              title="Clic para cambiar o asignar colección"
+                            >
+                              <span>✨ {coleccionNombre || "Asignar Colección"}</span>
+                              <span className="text-[9px]">✎</span>
+                            </button>
                           </div>
 
                           <div className="flex items-center gap-2 text-xs">
@@ -797,7 +905,7 @@ export function ArteManager({
       ═══════════════════════════════════════════════════════════════════════ */}
       {modalFormato && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
-          <div className="w-full max-w-md rounded-3xl border border-border/80 bg-surface p-6 shadow-2xl space-y-4 animate-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto">
+          <div className="w-full max-w-lg rounded-3xl border border-border/80 bg-surface p-6 shadow-2xl space-y-4 animate-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-border/60 pb-3">
               <h3 className="text-base font-serif font-semibold text-chocolate">
                 {modalFormato.id ? "Editar Pieza del Catálogo" : "Nueva Pieza en Catálogo"}
@@ -895,7 +1003,7 @@ export function ArteManager({
       ═══════════════════════════════════════════════════════════════════════ */}
       {modalStockPieza && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
-          <div className="w-full max-w-md rounded-3xl border border-border/80 bg-surface p-6 shadow-2xl space-y-4 animate-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto">
+          <div className="w-full max-w-lg rounded-3xl border border-border/80 bg-surface p-6 shadow-2xl space-y-4 animate-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-border/60 pb-3">
               <h3 className="text-base font-serif font-semibold text-chocolate">
                 {modalStockPieza.id ? "Editar Pieza en Stock" : "Nueva Pieza en Stock"}
@@ -926,16 +1034,30 @@ export function ArteManager({
 
               <div>
                 <label className="font-semibold text-chocolate block mb-1">Colección / Drop *</label>
-                <input
-                  type="text"
-                  value={stockColeccionNombre}
-                  onChange={(e) => setStockColeccionNombre(e.target.value)}
-                  placeholder="ej. Colección Argentina, Colección Botánica..."
-                  className="w-full rounded-xl border border-border/80 bg-surface px-3 py-2 text-foreground"
-                />
-                <p className="text-[10px] text-muted mt-0.5">
-                  Las fotos se sincronizan automáticamente con el Portfolio bajo este nombre.
-                </p>
+                <div className="space-y-1.5">
+                  <input
+                    type="text"
+                    value={stockColeccionNombre}
+                    onChange={(e) => setStockColeccionNombre(e.target.value)}
+                    placeholder="Escribí el nombre de la colección..."
+                    className="w-full rounded-xl border border-border/80 bg-surface px-3 py-2 text-foreground"
+                  />
+                  {coleccionesStockUnicas.length > 0 && (
+                    <div className="flex flex-wrap gap-1 items-center">
+                      <span className="text-[10px] text-muted">Existentes:</span>
+                      {coleccionesStockUnicas.map((c) => (
+                        <button
+                          key={c}
+                          type="button"
+                          onClick={() => setStockColeccionNombre(c)}
+                          className="rounded-full bg-arena/60 px-2 py-0.5 text-[10px] text-chocolate hover:bg-terracota hover:text-white"
+                        >
+                          {c}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-2">
@@ -1005,16 +1127,95 @@ export function ArteManager({
       )}
 
       {/* ═══════════════════════════════════════════════════════════════════════
-          MODAL 3: LANZAMIENTO DE COLECCIÓN / DROP COMPLETO (Auto-sync a Portfolio)
+          MODAL 3: ASIGNAR / CAMBIAR COLECCIÓN EN 1 CLIC A UNA PIEZA EXISTENTE
+      ═══════════════════════════════════════════════════════════════════════ */}
+      {asignandoColeccionProd && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
+          <div className="w-full max-w-sm rounded-3xl border border-border/80 bg-surface p-5 shadow-2xl space-y-4 animate-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-border/60 pb-2">
+              <h3 className="text-sm font-serif font-semibold text-chocolate">
+                Asignar Colección a &quot;{asignandoColeccionProd.nombre}&quot;
+              </h3>
+              <button
+                type="button"
+                onClick={() => setAsignandoColeccionProd(null)}
+                className="h-7 w-7 rounded-full bg-arena/50 text-muted hover:text-foreground cursor-pointer flex items-center justify-center text-xs"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="font-semibold text-chocolate block mb-1">Escribí o elegí una colección:</label>
+                <input
+                  type="text"
+                  value={nuevaColeccionInput}
+                  onChange={(e) => setNuevaColeccionInput(e.target.value)}
+                  placeholder="ej. Colección Argentina, Botánica..."
+                  className="w-full rounded-xl border border-border/80 bg-surface px-3 py-2 text-foreground"
+                />
+              </div>
+
+              {coleccionesStockUnicas.length > 0 && (
+                <div className="space-y-1">
+                  <span className="text-[11px] text-muted block">Colecciones existentes:</span>
+                  <div className="flex flex-wrap gap-1">
+                    {coleccionesStockUnicas.map((c) => (
+                      <button
+                        key={c}
+                        type="button"
+                        onClick={() => setNuevaColeccionInput(c)}
+                        className="rounded-full bg-arena/60 px-2.5 py-1 text-xs text-chocolate hover:bg-terracota hover:text-white transition-colors cursor-pointer"
+                      >
+                        {c}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => setNuevaColeccionInput("")}
+                      className="rounded-full bg-muted/20 px-2.5 py-1 text-xs text-muted hover:bg-red-100 hover:text-red-700 transition-colors cursor-pointer"
+                    >
+                      Sin colección
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <div className="pt-2 flex gap-2">
+                <button
+                  type="button"
+                  disabled={isPending}
+                  onClick={handleGuardarColeccionAsignada}
+                  className="flex-1 rounded-full bg-terracota text-white py-2 font-semibold hover:bg-terracota/90 cursor-pointer shadow-2xs"
+                >
+                  {isPending ? "Guardando..." : "Guardar Colección"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAsignandoColeccionProd(null)}
+                  className="rounded-full border border-border bg-surface px-3 py-2 font-medium text-muted cursor-pointer"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════════════════
+          MODAL 4: LANZAMIENTO DE COLECCIÓN / DROP COMPLETO (AMPLIO Y CÓMODO)
       ═══════════════════════════════════════════════════════════════════════ */}
       {modalLanzarDrop && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
-          <div className="w-full max-w-2xl rounded-3xl border border-border/80 bg-surface p-6 shadow-2xl space-y-4 animate-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto">
+          <div className="w-full max-w-3xl rounded-3xl border border-border/80 bg-surface p-6 sm:p-8 shadow-2xl space-y-5 animate-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto">
+            
             <div className="flex items-center justify-between border-b border-border/60 pb-3">
               <div>
                 <span className="text-[11px] font-semibold text-terracota uppercase tracking-wider">Lanzamiento</span>
-                <h3 className="text-base sm:text-lg font-serif font-semibold text-chocolate">
-                  Lanzar Nueva Colección en Stock
+                <h3 className="text-lg sm:text-xl font-serif font-semibold text-chocolate">
+                  Lanzar Nueva Colección en Stock & Sincronizar Portfolio
                 </h3>
               </div>
               <button
@@ -1026,20 +1227,20 @@ export function ArteManager({
               </button>
             </div>
 
-            <div className="bg-arena/30 border border-terracota/30 rounded-2xl p-3 text-xs text-barro space-y-1">
+            <div className="bg-arena/30 border border-terracota/30 rounded-2xl p-3.5 text-xs text-barro space-y-1">
               <p>✨ <strong>Sincronización Automática:</strong> Al publicar este Drop, las piezas estarán disponibles para compra en Stock y sus fotos se registrarán automáticamente en el <strong>Portfolio de Colecciones</strong>.</p>
             </div>
 
             <div className="space-y-4 text-xs">
-              <div className="grid sm:grid-cols-2 gap-3">
+              <div className="grid sm:grid-cols-2 gap-4">
                 <div>
                   <label className="font-semibold text-chocolate block mb-1">Nombre de la Colección / Drop *</label>
                   <input
                     type="text"
                     value={dropNombre}
                     onChange={(e) => setDropNombre(e.target.value)}
-                    placeholder="ej. Colección Patagonia, Drops de Otoño..."
-                    className="w-full rounded-xl border border-border/80 bg-surface px-3 py-2 text-foreground"
+                    placeholder="ej. Colección Patagonia, Drops de Primavera..."
+                    className="w-full rounded-xl border border-border/80 bg-surface px-3.5 py-2 text-foreground font-medium"
                   />
                 </div>
 
@@ -1049,16 +1250,16 @@ export function ArteManager({
                     type="text"
                     value={dropDescripcion}
                     onChange={(e) => setDropDescripcion(e.target.value)}
-                    placeholder="ej. Inspirada en los paisajes sureños..."
-                    className="w-full rounded-xl border border-border/80 bg-surface px-3 py-2 text-foreground"
+                    placeholder="ej. Inspirada en los colores y flores de la estación..."
+                    className="w-full rounded-xl border border-border/80 bg-surface px-3.5 py-2 text-foreground"
                   />
                 </div>
               </div>
 
               {/* Lista dinámica de piezas para la colección */}
-              <div className="space-y-3 pt-2">
+              <div className="space-y-4 pt-2">
                 <div className="flex items-center justify-between border-b border-border/40 pb-2">
-                  <p className="font-semibold text-chocolate">Piezas de este Lanzamiento ({dropPiezas.length}):</p>
+                  <p className="font-semibold text-chocolate text-sm">Piezas de este Lanzamiento ({dropPiezas.length}):</p>
                   <button
                     type="button"
                     onClick={() =>
@@ -1067,34 +1268,34 @@ export function ArteManager({
                         { id: Date.now().toString(), nombre: "", precioBase: 25000, stock: 1, fotos: [] },
                       ])
                     }
-                    className="text-xs font-semibold text-terracota hover:underline cursor-pointer"
+                    className="text-xs font-semibold text-terracota hover:underline cursor-pointer flex items-center gap-1"
                   >
-                    + Agregar otra pieza a la colección
+                    <span>+ Agregar otra pieza a la colección</span>
                   </button>
                 </div>
 
-                <div className="space-y-3">
+                <div className="space-y-4">
                   {dropPiezas.map((pieza, pIdx) => (
                     <div
                       key={pieza.id}
-                      className="rounded-2xl border border-border/70 bg-arena/20 p-3.5 space-y-2.5"
+                      className="rounded-2xl border border-border/80 bg-arena/20 p-4 space-y-3 shadow-2xs"
                     >
                       <div className="flex items-center justify-between">
-                        <span className="font-semibold text-chocolate">Pieza #{pIdx + 1}</span>
+                        <span className="font-semibold text-chocolate text-xs">Pieza #{pIdx + 1}</span>
                         {dropPiezas.length > 1 && (
                           <button
                             type="button"
                             onClick={() => setDropPiezas((prev) => prev.filter((_, i) => i !== pIdx))}
-                            className="text-red-500 hover:text-red-700 text-xs cursor-pointer"
+                            className="text-red-500 hover:text-red-700 text-xs cursor-pointer font-medium"
                           >
                             Quitar pieza ✕
                           </button>
                         )}
                       </div>
 
-                      <div className="grid sm:grid-cols-3 gap-2">
+                      <div className="grid sm:grid-cols-3 gap-3">
                         <div className="sm:col-span-1">
-                          <label className="font-medium text-muted block text-[11px]">Nombre</label>
+                          <label className="font-medium text-muted block text-[11px] mb-0.5">Nombre</label>
                           <input
                             type="text"
                             value={pieza.nombre}
@@ -1103,13 +1304,13 @@ export function ArteManager({
                                 prev.map((p, i) => (i === pIdx ? { ...p, nombre: e.target.value } : p)),
                               )
                             }
-                            placeholder="ej. Taza Glaciar"
-                            className="w-full rounded-xl border border-border bg-surface px-2.5 py-1.5 text-xs text-foreground"
+                            placeholder="ej. Taza Luna Llena"
+                            className="w-full rounded-xl border border-border bg-surface px-3 py-1.5 text-xs text-foreground"
                           />
                         </div>
 
                         <div>
-                          <label className="font-medium text-muted block text-[11px]">Precio ($)</label>
+                          <label className="font-medium text-muted block text-[11px] mb-0.5">Precio ($)</label>
                           <input
                             type="number"
                             value={pieza.precioBase}
@@ -1120,12 +1321,12 @@ export function ArteManager({
                                 ),
                               )
                             }
-                            className="w-full rounded-xl border border-border bg-surface px-2.5 py-1.5 text-xs font-mono font-bold text-chocolate"
+                            className="w-full rounded-xl border border-border bg-surface px-3 py-1.5 text-xs font-mono font-bold text-chocolate"
                           />
                         </div>
 
                         <div>
-                          <label className="font-medium text-muted block text-[11px]">Stock</label>
+                          <label className="font-medium text-muted block text-[11px] mb-0.5">Stock</label>
                           <input
                             type="number"
                             min="1"
@@ -1137,7 +1338,7 @@ export function ArteManager({
                                 ),
                               )
                             }
-                            className="w-full rounded-xl border border-border bg-surface px-2.5 py-1.5 text-xs font-mono font-bold text-chocolate"
+                            className="w-full rounded-xl border border-border bg-surface px-3 py-1.5 text-xs font-mono font-bold text-chocolate"
                           />
                         </div>
                       </div>
@@ -1152,26 +1353,26 @@ export function ArteManager({
                         }
                         multiple
                         folder="drops"
-                        label="Fotos de esta pieza (se suben y agregan al Portfolio)"
+                        label="Fotos de esta pieza (se suben y agregan automáticamente al Portfolio)"
                       />
                     </div>
                   ))}
                 </div>
               </div>
 
-              <div className="pt-3 border-t border-border/60 flex gap-2">
+              <div className="pt-4 border-t border-border/60 flex gap-2">
                 <button
                   type="button"
                   disabled={isPending}
                   onClick={handleGuardarDropCompleto}
-                  className="flex-1 rounded-full bg-terracota text-white py-2.5 font-semibold text-xs hover:bg-terracota/90 cursor-pointer shadow-xs"
+                  className="flex-1 rounded-full bg-terracota text-white py-3 font-semibold text-xs hover:bg-terracota/90 cursor-pointer shadow-xs"
                 >
                   {isPending ? "Lanzando y Sincronizando..." : "🚀 Publicar Lanzamiento y Sincronizar Portfolio"}
                 </button>
                 <button
                   type="button"
                   onClick={() => setModalLanzarDrop(false)}
-                  className="rounded-full border border-border bg-surface px-4 py-2.5 font-medium text-muted cursor-pointer"
+                  className="rounded-full border border-border bg-surface px-5 py-3 font-medium text-muted cursor-pointer"
                 >
                   Cancelar
                 </button>
@@ -1182,11 +1383,11 @@ export function ArteManager({
       )}
 
       {/* ═══════════════════════════════════════════════════════════════════════
-          MODAL 4: CREAR/EDITAR PORTFOLIO MANUAL
+          MODAL 5: CREAR/EDITAR PORTFOLIO MANUAL
       ═══════════════════════════════════════════════════════════════════════ */}
       {modalPortfolio && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
-          <div className="w-full max-w-md rounded-3xl border border-border/80 bg-surface p-6 shadow-2xl space-y-4 animate-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto">
+          <div className="w-full max-w-lg rounded-3xl border border-border/80 bg-surface p-6 shadow-2xl space-y-4 animate-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-border/60 pb-3">
               <h3 className="text-base font-serif font-semibold text-chocolate">
                 {modalPortfolio.id ? "Editar Colección del Portfolio" : "Nueva Colección Manual"}

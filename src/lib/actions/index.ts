@@ -2605,6 +2605,60 @@ export async function updateProductoStockInlineAction(
   return { success: true };
 }
 
+export async function updateProductoColeccionInlineAction(
+  productoId: string,
+  nuevaColeccionNombre: string,
+  rubro: "ceramica" | "ilustracion" = "ceramica",
+): Promise<{ success: boolean; categoriaId?: string; error?: string }> {
+  const auth = await requireAdmin();
+  if ("error" in auth) return { success: false, error: auth.error };
+  const { supabase } = auth;
+
+  const nombreLimpio = nuevaColeccionNombre.trim();
+  const tipoCatalogo = rubro === "ceramica" ? "ceramica" : "ilustraciones";
+
+  let targetCatId: string | null = null;
+
+  if (nombreLimpio && nombreLimpio !== "Sin colección") {
+    // Buscar si existe la categoría
+    const { data: existente } = await supabase
+      .from("categorias")
+      .select("id")
+      .eq("tipo_catalogo", tipoCatalogo)
+      .ilike("nombre", nombreLimpio)
+      .maybeSingle();
+
+    if (existente) {
+      targetCatId = existente.id;
+    } else {
+      const { data: creada, error: crErr } = await supabase
+        .from("categorias")
+        .insert({ nombre: nombreLimpio, tipo_catalogo: tipoCatalogo })
+        .select("id")
+        .single();
+      if (crErr || !creada) return { success: false, error: crErr?.message || "Error al crear colección" };
+      targetCatId = creada.id;
+    }
+  }
+
+  const { error: updErr } = await supabase
+    .from("productos")
+    .update({
+      categoria_id: targetCatId,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", productoId);
+
+  if (updErr) return { success: false, error: updErr.message };
+
+  revalidatePath("/");
+  revalidatePath("/ceramica");
+  revalidatePath("/ilustracion");
+  revalidatePath("/admin/ceramica");
+  revalidatePath("/admin/ilustracion");
+  return { success: true, categoriaId: targetCatId || undefined };
+}
+
 export async function saveStockPiezaDirectaAction(
   formData: FormData,
 ): Promise<{ success: boolean; error?: string }> {
