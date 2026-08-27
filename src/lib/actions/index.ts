@@ -2609,42 +2609,40 @@ export async function updateProductoColeccionInlineAction(
   productoId: string,
   nuevaColeccionNombre: string,
   rubro: "ceramica" | "ilustracion" = "ceramica",
-): Promise<{ success: boolean; categoriaId?: string; error?: string }> {
+): Promise<{ success: boolean; produccionId?: string; error?: string }> {
   const auth = await requireAdmin();
   if ("error" in auth) return { success: false, error: auth.error };
   const { supabase } = auth;
 
   const nombreLimpio = nuevaColeccionNombre.trim();
-  const tipoCatalogo = rubro === "ceramica" ? "ceramica" : "ilustraciones";
 
-  let targetCatId: string | null = null;
+  let targetProdId: string | null = null;
 
   if (nombreLimpio && nombreLimpio !== "Sin colección") {
-    // Buscar si existe la categoría
+    // Buscar si existe la producción / colección
     const { data: existente } = await supabase
-      .from("categorias")
+      .from("producciones")
       .select("id")
-      .eq("tipo_catalogo", tipoCatalogo)
       .ilike("nombre", nombreLimpio)
       .maybeSingle();
 
     if (existente) {
-      targetCatId = existente.id;
+      targetProdId = existente.id;
     } else {
       const { data: creada, error: crErr } = await supabase
-        .from("categorias")
-        .insert({ nombre: nombreLimpio, tipo_catalogo: tipoCatalogo })
+        .from("producciones")
+        .insert({ nombre: nombreLimpio, activa: true })
         .select("id")
         .single();
       if (crErr || !creada) return { success: false, error: crErr?.message || "Error al crear colección" };
-      targetCatId = creada.id;
+      targetProdId = creada.id;
     }
   }
 
   const { error: updErr } = await supabase
     .from("productos")
     .update({
-      categoria_id: targetCatId,
+      produccion_id: targetProdId,
       updated_at: new Date().toISOString(),
     })
     .eq("id", productoId);
@@ -2656,7 +2654,7 @@ export async function updateProductoColeccionInlineAction(
   revalidatePath("/ilustracion");
   revalidatePath("/admin/ceramica");
   revalidatePath("/admin/ilustracion");
-  return { success: true, categoriaId: targetCatId || undefined };
+  return { success: true, produccionId: targetProdId || undefined };
 }
 
 export async function saveStockPiezaDirectaAction(
@@ -2671,6 +2669,7 @@ export async function saveStockPiezaDirectaAction(
   const tipoCatalogo = rubro === "ceramica" ? "ceramica" : "ilustraciones";
   const nombre = String(formData.get("nombre") || "").trim();
   const categoriaId = (formData.get("categoriaId") as string) || null;
+  const categoriaNombre = String(formData.get("categoriaNombre") || "").trim();
   const coleccionNombre = String(formData.get("coleccionNombre") || "").trim();
   const precioBase = Number(formData.get("precioBase") || 0);
   const stockDisponible = Number(formData.get("stockDisponible") || 1);
@@ -2694,19 +2693,50 @@ export async function saveStockPiezaDirectaAction(
   // Generar slug
   const slug = `${nombre.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}-${Date.now().toString().slice(-4)}`;
 
+  // 1. Manejo de Categoría física (Taza, Bandeja, Mate...)
   let finalCategoriaId = categoriaId;
-
-  // Si especificó un nombre de colección/categoría nueva y no viene ID
-  if (coleccionNombre && !categoriaId) {
-    const { data: catNueva } = await supabase
+  if (categoriaNombre && !categoriaId) {
+    const { data: catExistente } = await supabase
       .from("categorias")
-      .insert({ nombre: coleccionNombre, tipo_catalogo: tipoCatalogo })
       .select("id")
-      .single();
-    if (catNueva) finalCategoriaId = catNueva.id;
+      .eq("tipo_catalogo", tipoCatalogo)
+      .ilike("nombre", categoriaNombre)
+      .maybeSingle();
+
+    if (catExistente) {
+      finalCategoriaId = catExistente.id;
+    } else {
+      const { data: catNueva } = await supabase
+        .from("categorias")
+        .insert({ nombre: categoriaNombre, tipo_catalogo: tipoCatalogo })
+        .select("id")
+        .single();
+      if (catNueva) finalCategoriaId = catNueva.id;
+    }
   }
 
-  // Generar texto resumen de dimensiones si aplica
+  // 2. Manejo de Colección / Drop (Producción)
+  let finalProduccionId: string | null = null;
+  if (coleccionNombre && coleccionNombre !== "Sin colección") {
+    const { data: prodExistente } = await supabase
+      .from("producciones")
+      .select("id")
+      .ilike("nombre", coleccionNombre)
+      .maybeSingle();
+
+    if (prodExistente) {
+      finalProduccionId = prodExistente.id;
+    } else {
+      const { data: prodNueva } = await supabase
+        .from("producciones")
+        .insert({ nombre: coleccionNombre, activa: true })
+        .select("id")
+        .single();
+      if (prodNueva) finalProduccionId = prodNueva.id;
+    }
+  }
+
+  // Generar texto resumen de dimensiones
   let dimensionesTexto: string | null = null;
   if (altoCm && anchoCm) {
     dimensionesTexto = `${altoCm}x${anchoCm} cm`;
@@ -2724,6 +2754,7 @@ export async function saveStockPiezaDirectaAction(
     activo: true,
     tipo_catalogo: tipoCatalogo,
     categoria_id: finalCategoriaId,
+    produccion_id: finalProduccionId,
     alto_cm: altoCm,
     ancho_cm: anchoCm,
     capacidad_ml: capacidadMl,
@@ -2750,7 +2781,6 @@ export async function saveStockPiezaDirectaAction(
 
   // Actualizar imágenes
   if (targetId && fotos.length > 0) {
-    // Si es edición, reemplazamos o actualizamos
     if (id) {
       await supabase.from("producto_imagenes").delete().eq("producto_id", targetId);
     }
@@ -2828,6 +2858,7 @@ export async function lanzarColeccionDropCompletaAction(data: {
   descripcion?: string;
   piezas: Array<{
     nombre: string;
+    categoriaNombre?: string;
     precioBase: number;
     stock: number;
     altoCm?: number | null;
@@ -2848,24 +2879,57 @@ export async function lanzarColeccionDropCompletaAction(data: {
 
   const tipoCatalogo = rubro === "ceramica" ? "ceramica" : "ilustraciones";
 
-  // 1. Crear categoría para agrupar las piezas del drop
-  const { data: categoria, error: catErr } = await supabase
-    .from("categorias")
-    .insert({ nombre: nombreColeccion.trim(), tipo_catalogo: tipoCatalogo })
+  // 1. Crear o buscar la Colección en la tabla producciones
+  let produccionId: string;
+  const { data: prodExistente } = await supabase
+    .from("producciones")
     .select("id")
-    .single();
+    .ilike("nombre", nombreColeccion.trim())
+    .maybeSingle();
 
-  if (catErr || !categoria) {
-    return { success: false, error: catErr?.message || "Error al registrar la colección." };
+  if (prodExistente) {
+    produccionId = prodExistente.id;
+  } else {
+    const { data: prodNueva, error: prodErr } = await supabase
+      .from("producciones")
+      .insert({ nombre: nombreColeccion.trim(), descripcion: descripcion || null, activa: true })
+      .select("id")
+      .single();
+
+    if (prodErr || !prodNueva) {
+      return { success: false, error: prodErr?.message || "Error al registrar la colección." };
+    }
+    produccionId = prodNueva.id;
   }
 
   const todasLasFotosDeLaColeccion: string[] = [];
   const nombresDeDisenos: string[] = [];
 
-  // 2. Insertar cada pieza de stock
+  // 2. Insertar cada pieza de stock asociada a la colección
   for (const p of piezas) {
     const slug = `${p.nombre.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}-${Date.now().toString().slice(-4)}`;
     
+    // Categoría física opcional (ej. Taza, Bandeja)
+    let catId: string | null = null;
+    if (p.categoriaNombre) {
+      const { data: cData } = await supabase
+        .from("categorias")
+        .select("id")
+        .eq("tipo_catalogo", tipoCatalogo)
+        .ilike("nombre", p.categoriaNombre.trim())
+        .maybeSingle();
+      if (cData) {
+        catId = cData.id;
+      } else {
+        const { data: cNueva } = await supabase
+          .from("categorias")
+          .insert({ nombre: p.categoriaNombre.trim(), tipo_catalogo: tipoCatalogo })
+          .select("id")
+          .single();
+        if (cNueva) catId = cNueva.id;
+      }
+    }
+
     let dimTexto: string | null = null;
     if (p.altoCm && p.anchoCm) {
       dimTexto = `${p.altoCm}x${p.anchoCm} cm`;
@@ -2888,7 +2952,8 @@ export async function lanzarColeccionDropCompletaAction(data: {
         capacidad_ml: p.capacidadMl ?? null,
         dimensiones: dimTexto,
         activo: true,
-        categoria_id: categoria.id,
+        categoria_id: catId,
+        produccion_id: produccionId,
         tipo_catalogo: tipoCatalogo,
         descripcion: p.descripcion || null,
       })
@@ -2907,7 +2972,7 @@ export async function lanzarColeccionDropCompletaAction(data: {
     }
   }
 
-  // 3. Sincronización automática con Portfolio: Creamos el álbum visual
+  // 3. Sincronización automática con Portfolio
   const fotosUnicas = Array.from(new Set(todasLasFotosDeLaColeccion));
   if (fotosUnicas.length > 0) {
     await supabase.from("portfolio_colecciones").insert({

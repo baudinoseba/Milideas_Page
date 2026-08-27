@@ -1,4 +1,10 @@
-import { getFormatosCatalogo, getProductos, getPortfolioColecciones } from "@/lib/supabase/queries";
+import {
+  getFormatosCatalogo,
+  getProductos,
+  getPortfolioColecciones,
+  getCategorias,
+  getProducciones,
+} from "@/lib/supabase/queries";
 import { ArteManager } from "@/components/admin/arte-manager";
 
 export const metadata = {
@@ -6,10 +12,12 @@ export const metadata = {
 };
 
 export default async function AdminCeramicaPage() {
-  const [formatos, productosStock, portfolio] = await Promise.all([
+  const [formatos, productosStock, portfolio, categorias, producciones] = await Promise.all([
     getFormatosCatalogo("ceramica").catch(() => []),
     getProductos({ tipoCatalogo: "ceramica" }).catch(() => []),
     getPortfolioColecciones("ceramica").catch(() => []),
+    getCategorias("ceramica").catch(() => []),
+    getProducciones().catch(() => []),
   ]);
 
   return (
@@ -18,6 +26,8 @@ export default async function AdminCeramicaPage() {
       formatos={formatos}
       productosStock={productosStock}
       portfolio={portfolio}
+      categorias={categorias}
+      producciones={producciones}
     />
   );
 }

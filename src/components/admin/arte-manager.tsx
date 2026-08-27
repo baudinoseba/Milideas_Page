@@ -18,13 +18,21 @@ import {
   deleteStockPiezaDirectaAction,
   lanzarColeccionDropCompletaAction,
 } from "@/lib/actions";
-import type { FormatoCatalogo, ProductoConImagenes, PortfolioColeccion, TipoRubro } from "@/types";
+import type {
+  FormatoCatalogo,
+  ProductoConImagenes,
+  PortfolioColeccion,
+  TipoRubro,
+  Categoria,
+} from "@/types";
 
 interface ArteManagerProps {
   rubro: TipoRubro;
   formatos: FormatoCatalogo[];
   productosStock: ProductoConImagenes[];
   portfolio: PortfolioColeccion[];
+  categorias?: Categoria[];
+  producciones?: Array<{ id: string; nombre: string; descripcion?: string | null }>;
 }
 
 export function ArteManager({
@@ -32,6 +40,8 @@ export function ArteManager({
   formatos: initialFormatos,
   productosStock: initialStock,
   portfolio: initialPortfolio,
+  categorias: initialCategorias = [],
+  producciones: initialProducciones = [],
 }: ArteManagerProps) {
   const [activeTab, setActiveTab] = useState<"catalogo" | "stock" | "portfolio">("catalogo");
   const [formatos, setFormatos] = useState<FormatoCatalogo[]>(initialFormatos);
@@ -62,6 +72,7 @@ export function ArteManager({
   // ─── MODAL PIEZA INDIVIDUAL DE STOCK ───
   const [modalStockPieza, setModalStockPieza] = useState<Partial<ProductoConImagenes> | null>(null);
   const [stockFotos, setStockFotos] = useState<string[]>([]);
+  const [stockCategoriaNombre, setStockCategoriaNombre] = useState<string>("");
   const [stockColeccionNombre, setStockColeccionNombre] = useState<string>("");
 
   // ─── MODAL LANZAR COLECCIÓN / DROP COMPLETO ───
@@ -72,6 +83,7 @@ export function ArteManager({
     Array<{
       id: string;
       nombre: string;
+      categoriaNombre: string;
       precioBase: number;
       stock: number;
       altoCm?: number | null;
@@ -80,7 +92,17 @@ export function ArteManager({
       fotos: string[];
     }>
   >([
-    { id: "1", nombre: "", precioBase: 25000, stock: 1, altoCm: null, anchoCm: null, capacidadMl: null, fotos: [] },
+    {
+      id: "1",
+      nombre: "",
+      categoriaNombre: "",
+      precioBase: 25000,
+      stock: 1,
+      altoCm: null,
+      anchoCm: null,
+      capacidadMl: null,
+      fotos: [],
+    },
   ]);
 
   // ─── MODAL PORTFOLIO ───
@@ -91,9 +113,21 @@ export function ArteManager({
   // ─── LIGHTBOX PREVIEW ───
   const [previewImage, setPreviewImage] = useState<string | null>(null);
 
-  // Colecciones únicas de stock
+  // Lista de Colecciones registradas (desde producciones y productos)
   const coleccionesStockUnicas = Array.from(
-    new Set(stockList.map((p) => p.categorias?.nombre).filter(Boolean)),
+    new Set([
+      ...initialProducciones.map((p) => p.nombre),
+      ...stockList.map((p) => p.producciones?.nombre).filter(Boolean),
+    ]),
+  ) as string[];
+
+  // Lista de Categorías físicas registradas (Taza, Bandeja, Mate, Cuenco...)
+  const categoriasFisicasUnicas = Array.from(
+    new Set([
+      ...initialCategorias.map((c) => c.nombre),
+      ...stockList.map((p) => p.categorias?.nombre).filter(Boolean),
+      ...formatos.map((f) => f.categoria).filter(Boolean),
+    ]),
   ) as string[];
 
   const categoriasUnicasCatalogo = Array.from(
@@ -103,8 +137,8 @@ export function ArteManager({
   // Filtrado de stock por colección
   const stockListFiltrado = stockList.filter((p) => {
     if (filtroColeccionStock === "todas") return true;
-    if (filtroColeccionStock === "sin_coleccion") return !p.categorias?.nombre;
-    return p.categorias?.nombre === filtroColeccionStock;
+    if (filtroColeccionStock === "sin_coleccion") return !p.producciones?.nombre;
+    return p.producciones?.nombre === filtroColeccionStock;
   });
 
   // ─── HANDLERS DE CATÁLOGO ───
@@ -231,7 +265,10 @@ export function ArteManager({
             p.id === asignandoColeccionProd.id
               ? {
                   ...p,
-                  categorias: nombreColeccion && nombreColeccion !== "Sin colección" ? { id: res.categoriaId || "", nombre: nombreColeccion } as any : null,
+                  producciones:
+                    nombreColeccion && nombreColeccion !== "Sin colección"
+                      ? ({ id: res.produccionId || "", nombre: nombreColeccion } as any)
+                      : null,
                 }
               : p,
           ),
@@ -248,10 +285,12 @@ export function ArteManager({
       setModalStockPieza(prod);
       const fotosArr = prod.producto_imagenes?.map((img) => img.url_imagen) || [];
       setStockFotos(fotosArr);
-      setStockColeccionNombre(prod.categorias?.nombre || "");
+      setStockCategoriaNombre(prod.categorias?.nombre || "");
+      setStockColeccionNombre(prod.producciones?.nombre || "");
     } else {
       setModalStockPieza({ stock_disponible: 1, precio_base: 25000 });
       setStockFotos([]);
+      setStockCategoriaNombre(categoriasFisicasUnicas[0] || "");
       setStockColeccionNombre(coleccionesStockUnicas[0] || "");
     }
   };
@@ -261,6 +300,7 @@ export function ArteManager({
     const fd = new FormData(e.currentTarget);
     fd.set("rubro", rubro);
     fd.set("fotos", JSON.stringify(stockFotos));
+    fd.set("categoriaNombre", stockCategoriaNombre);
     fd.set("coleccionNombre", stockColeccionNombre);
 
     startTransition(async () => {
@@ -667,7 +707,7 @@ export function ArteManager({
             </button>
 
             {coleccionesStockUnicas.map((col) => {
-              const count = stockList.filter((p) => p.categorias?.nombre === col).length;
+              const count = stockList.filter((p) => p.producciones?.nombre === col).length;
               return (
                 <button
                   key={col}
@@ -695,7 +735,7 @@ export function ArteManager({
                   : "bg-surface text-muted border border-border/60 hover:bg-secondary/40",
               )}
             >
-              Piezas Sueltas ({stockList.filter((p) => !p.categorias?.nombre).length})
+              Piezas Sueltas ({stockList.filter((p) => !p.producciones?.nombre).length})
             </button>
           </div>
 
@@ -703,7 +743,7 @@ export function ArteManager({
           <div className="rounded-2xl border border-border/60 bg-surface shadow-xs overflow-hidden">
             <div className="p-3 bg-arena/20 border-b border-border/40 flex items-center justify-between text-xs text-muted font-sans">
               <span>{stockListFiltrado.length} piezas en esta vista</span>
-              <span>Podés asignar o cambiar la colección en cada fila</span>
+              <span>Categoría física y Colección artística claramente diferenciadas</span>
             </div>
 
             {stockListFiltrado.length === 0 ? (
@@ -715,7 +755,8 @@ export function ArteManager({
               <div className="divide-y divide-border/40 overflow-x-auto">
                 {stockListFiltrado.map((prod) => {
                   const fotoPrincipal = prod.producto_imagenes?.[0]?.url_imagen;
-                  const coleccionNombre = prod.categorias?.nombre;
+                  const categoriaNombre = prod.categorias?.nombre;
+                  const coleccionNombre = prod.producciones?.nombre;
                   const tieneStock = (prod.stock_disponible ?? 0) > 0;
                   
                   // Generar texto de medidas/capacidad si existen
@@ -763,14 +804,21 @@ export function ArteManager({
                               {prod.nombre}
                             </p>
 
-                            {/* Botón Badge para asignar o cambiar Colección en 1 Clic */}
+                            {/* Badge de Categoría física (Taza, Bandeja, Mate...) */}
+                            {categoriaNombre && (
+                              <span className="rounded-full bg-secondary/80 border border-border/60 px-2 py-0.5 text-[10px] font-semibold text-barro">
+                                🏷️ {categoriaNombre}
+                              </span>
+                            )}
+
+                            {/* Botón Badge para Colección / Drop */}
                             <button
                               type="button"
                               onClick={() => {
                                 setAsignandoColeccionProd(prod);
                                 setNuevaColeccionInput(coleccionNombre || "");
                               }}
-                              className="rounded-full bg-secondary/70 border border-border/50 px-2.5 py-0.5 text-[10px] font-semibold text-terracota hover:bg-terracota hover:text-white transition-colors cursor-pointer flex items-center gap-1"
+                              className="rounded-full bg-arena/60 border border-terracota/40 px-2.5 py-0.5 text-[10px] font-semibold text-terracota hover:bg-terracota hover:text-white transition-colors cursor-pointer flex items-center gap-1"
                               title="Cambiar colección"
                             >
                               <span>✨ {coleccionNombre || "Asignar Colección"}</span>
@@ -1036,7 +1084,7 @@ export function ArteManager({
       )}
 
       {/* ═══════════════════════════════════════════════════════════════════════
-          MODAL 2: CREAR / EDITAR PIEZA INDIVIDUAL DE STOCK (CAMPOS ESPECÍFICOS)
+          MODAL 2: CREAR / EDITAR PIEZA INDIVIDUAL DE STOCK
       ═══════════════════════════════════════════════════════════════════════ */}
       {modalStockPieza && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
@@ -1069,20 +1117,46 @@ export function ArteManager({
                 />
               </div>
 
-              <div>
-                <label className="font-semibold text-chocolate block mb-1">Colección</label>
-                <div className="space-y-1.5">
+              <div className="grid grid-cols-2 gap-3">
+                {/* Categoría física */}
+                <div>
+                  <label className="font-semibold text-chocolate block mb-1">Categoría (Formato)</label>
+                  <input
+                    type="text"
+                    value={stockCategoriaNombre}
+                    onChange={(e) => setStockCategoriaNombre(e.target.value)}
+                    placeholder="ej. Bandeja, Taza, Mate..."
+                    className="w-full rounded-xl border border-border/80 bg-surface px-3 py-2 text-foreground"
+                  />
+                  {categoriasFisicasUnicas.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {categoriasFisicasUnicas.slice(0, 4).map((c) => (
+                        <button
+                          key={c}
+                          type="button"
+                          onClick={() => setStockCategoriaNombre(c)}
+                          className="rounded-full bg-arena/60 px-2 py-0.5 text-[10px] text-chocolate hover:bg-barro hover:text-white"
+                        >
+                          {c}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Colección / Drop */}
+                <div>
+                  <label className="font-semibold text-chocolate block mb-1">Colección / Drop</label>
                   <input
                     type="text"
                     value={stockColeccionNombre}
                     onChange={(e) => setStockColeccionNombre(e.target.value)}
-                    placeholder="Escribí o elegí una colección..."
+                    placeholder="ej. Colección Argentina..."
                     className="w-full rounded-xl border border-border/80 bg-surface px-3 py-2 text-foreground"
                   />
                   {coleccionesStockUnicas.length > 0 && (
-                    <div className="flex flex-wrap gap-1 items-center">
-                      <span className="text-[10px] text-muted">Existentes:</span>
-                      {coleccionesStockUnicas.map((c) => (
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {coleccionesStockUnicas.slice(0, 3).map((c) => (
                         <button
                           key={c}
                           type="button"
@@ -1098,7 +1172,7 @@ export function ArteManager({
               </div>
 
               {/* Fila compacta de Precio, Stock y Medidas separadas */}
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 pt-1">
                 <div className="col-span-1">
                   <label className="font-semibold text-chocolate block mb-1">Precio ($) *</label>
                   <input
@@ -1279,7 +1353,7 @@ export function ArteManager({
       )}
 
       {/* ═══════════════════════════════════════════════════════════════════════
-          MODAL 4: LANZAMIENTO DE COLECCIÓN / DROP COMPLETO (CAMPOS ESPECÍFICOS)
+          MODAL 4: LANZAMIENTO DE COLECCIÓN / DROP COMPLETO (AMPLIO Y LIMPIO)
       ═══════════════════════════════════════════════════════════════════════ */}
       {modalLanzarDrop && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
@@ -1335,7 +1409,17 @@ export function ArteManager({
                     onClick={() =>
                       setDropPiezas((prev) => [
                         ...prev,
-                        { id: Date.now().toString(), nombre: "", precioBase: 25000, stock: 1, altoCm: null, anchoCm: null, capacidadMl: null, fotos: [] },
+                        {
+                          id: Date.now().toString(),
+                          nombre: "",
+                          categoriaNombre: "",
+                          precioBase: 25000,
+                          stock: 1,
+                          altoCm: null,
+                          anchoCm: null,
+                          capacidadMl: null,
+                          fotos: [],
+                        },
                       ])
                     }
                     className="text-xs font-semibold text-terracota hover:underline cursor-pointer flex items-center gap-1"
@@ -1375,6 +1459,21 @@ export function ArteManager({
                               )
                             }
                             placeholder="ej. Taza Glaciar"
+                            className="w-full rounded-xl border border-border bg-surface px-2.5 py-1.5 text-xs text-foreground"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="font-medium text-muted block text-[11px] mb-0.5">Categoría</label>
+                          <input
+                            type="text"
+                            value={pieza.categoriaNombre}
+                            onChange={(e) =>
+                              setDropPiezas((prev) =>
+                                prev.map((p, i) => (i === pIdx ? { ...p, categoriaNombre: e.target.value } : p)),
+                              )
+                            }
+                            placeholder="Taza, Mate..."
                             className="w-full rounded-xl border border-border bg-surface px-2.5 py-1.5 text-xs text-foreground"
                           />
                         </div>
@@ -1448,7 +1547,7 @@ export function ArteManager({
                           />
                         </div>
 
-                        <div className="col-span-2 sm:col-span-6">
+                        <div className="col-span-2 sm:col-span-5">
                           <label className="font-medium text-muted block text-[11px] mb-0.5">Capacidad (ml) - Opcional</label>
                           <input
                             type="number"

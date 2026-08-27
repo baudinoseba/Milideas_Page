@@ -49,6 +49,16 @@ export async function getZonasLogisticas(activasOnly = true): Promise<ZonaLogist
   return (data ?? []) as ZonaLogistica[];
 }
 
+export async function getProducciones(): Promise<Array<{ id: string; nombre: string; descripcion?: string | null }>> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("producciones")
+    .select("id, nombre, descripcion")
+    .order("created_at", { ascending: false });
+  if (error) return [];
+  return data ?? [];
+}
+
 export async function getProductos(filters?: {
   categoriaId?: string;
   tipoCatalogo?: TipoCatalogo;
