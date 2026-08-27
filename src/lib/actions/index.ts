@@ -2674,7 +2674,9 @@ export async function saveStockPiezaDirectaAction(
   const coleccionNombre = String(formData.get("coleccionNombre") || "").trim();
   const precioBase = Number(formData.get("precioBase") || 0);
   const stockDisponible = Number(formData.get("stockDisponible") || 1);
-  const medidas = String(formData.get("medidas") || formData.get("dimensiones") || "").trim() || null;
+  const altoCm = formData.get("altoCm") ? Number(formData.get("altoCm")) : null;
+  const anchoCm = formData.get("anchoCm") ? Number(formData.get("anchoCm")) : null;
+  const capacidadMl = formData.get("capacidadMl") ? Number(formData.get("capacidadMl")) : null;
   const descripcion = String(formData.get("descripcion") || "").trim() || null;
   const fotosRaw = String(formData.get("fotos") || "[]");
 
@@ -2704,6 +2706,16 @@ export async function saveStockPiezaDirectaAction(
     if (catNueva) finalCategoriaId = catNueva.id;
   }
 
+  // Generar texto resumen de dimensiones si aplica
+  let dimensionesTexto: string | null = null;
+  if (altoCm && anchoCm) {
+    dimensionesTexto = `${altoCm}x${anchoCm} cm`;
+  } else if (altoCm) {
+    dimensionesTexto = `${altoCm} cm alto`;
+  } else if (anchoCm) {
+    dimensionesTexto = `${anchoCm} cm ancho`;
+  }
+
   const payload: Record<string, any> = {
     nombre,
     precio_base: precioBase,
@@ -2712,7 +2724,10 @@ export async function saveStockPiezaDirectaAction(
     activo: true,
     tipo_catalogo: tipoCatalogo,
     categoria_id: finalCategoriaId,
-    dimensiones: medidas,
+    alto_cm: altoCm,
+    ancho_cm: anchoCm,
+    capacidad_ml: capacidadMl,
+    dimensiones: dimensionesTexto,
     descripcion,
     updated_at: new Date().toISOString(),
   };
@@ -2815,7 +2830,9 @@ export async function lanzarColeccionDropCompletaAction(data: {
     nombre: string;
     precioBase: number;
     stock: number;
-    medidas?: string;
+    altoCm?: number | null;
+    anchoCm?: number | null;
+    capacidadMl?: number | null;
     fotos: string[];
     descripcion?: string;
   }>;
@@ -2848,6 +2865,16 @@ export async function lanzarColeccionDropCompletaAction(data: {
   // 2. Insertar cada pieza de stock
   for (const p of piezas) {
     const slug = `${p.nombre.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}-${Date.now().toString().slice(-4)}`;
+    
+    let dimTexto: string | null = null;
+    if (p.altoCm && p.anchoCm) {
+      dimTexto = `${p.altoCm}x${p.anchoCm} cm`;
+    } else if (p.altoCm) {
+      dimTexto = `${p.altoCm} cm alto`;
+    } else if (p.anchoCm) {
+      dimTexto = `${p.anchoCm} cm ancho`;
+    }
+
     const { data: prod, error: pErr } = await supabase
       .from("productos")
       .insert({
@@ -2856,7 +2883,10 @@ export async function lanzarColeccionDropCompletaAction(data: {
         precio_base: p.precioBase,
         stock_disponible: p.stock,
         es_entrega_inmediata: p.stock > 0,
-        dimensiones: p.medidas || null,
+        alto_cm: p.altoCm ?? null,
+        ancho_cm: p.anchoCm ?? null,
+        capacidad_ml: p.capacidadMl ?? null,
+        dimensiones: dimTexto,
         activo: true,
         categoria_id: categoria.id,
         tipo_catalogo: tipoCatalogo,

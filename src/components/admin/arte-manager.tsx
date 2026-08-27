@@ -69,9 +69,18 @@ export function ArteManager({
   const [dropNombre, setDropNombre] = useState<string>("");
   const [dropDescripcion, setDropDescripcion] = useState<string>("");
   const [dropPiezas, setDropPiezas] = useState<
-    Array<{ id: string; nombre: string; precioBase: number; stock: number; medidas: string; fotos: string[] }>
+    Array<{
+      id: string;
+      nombre: string;
+      precioBase: number;
+      stock: number;
+      altoCm?: number | null;
+      anchoCm?: number | null;
+      capacidadMl?: number | null;
+      fotos: string[];
+    }>
   >([
-    { id: "1", nombre: "", precioBase: 25000, stock: 1, medidas: "", fotos: [] },
+    { id: "1", nombre: "", precioBase: 25000, stock: 1, altoCm: null, anchoCm: null, capacidadMl: null, fotos: [] },
   ]);
 
   // ─── MODAL PORTFOLIO ───
@@ -708,7 +717,24 @@ export function ArteManager({
                   const fotoPrincipal = prod.producto_imagenes?.[0]?.url_imagen;
                   const coleccionNombre = prod.categorias?.nombre;
                   const tieneStock = (prod.stock_disponible ?? 0) > 0;
-                  const medidas = prod.dimensiones;
+                  
+                  // Generar texto de medidas/capacidad si existen
+                  const partesMedidas: string[] = [];
+                  if (prod.alto_cm && prod.ancho_cm) {
+                    partesMedidas.push(`${prod.alto_cm}x${prod.ancho_cm} cm`);
+                  } else if (prod.alto_cm) {
+                    partesMedidas.push(`${prod.alto_cm} cm alto`);
+                  } else if (prod.ancho_cm) {
+                    partesMedidas.push(`${prod.ancho_cm} cm ancho`);
+                  } else if (prod.dimensiones) {
+                    partesMedidas.push(prod.dimensiones);
+                  }
+
+                  if (prod.capacidad_ml) {
+                    partesMedidas.push(`${prod.capacidad_ml} ml`);
+                  }
+
+                  const medidasTexto = partesMedidas.join(" · ");
 
                   return (
                     <div
@@ -757,11 +783,11 @@ export function ArteManager({
                               {formatPrecio(prod.precio_base)}
                             </span>
                             
-                            {medidas && (
+                            {medidasTexto && (
                               <>
                                 <span className="text-muted text-[11px]">·</span>
                                 <span className="text-[11px] text-barro font-medium">
-                                  📐 {medidas}
+                                  📐 {medidasTexto}
                                 </span>
                               </>
                             )}
@@ -1010,7 +1036,7 @@ export function ArteManager({
       )}
 
       {/* ═══════════════════════════════════════════════════════════════════════
-          MODAL 2: CREAR / EDITAR PIEZA INDIVIDUAL DE STOCK
+          MODAL 2: CREAR / EDITAR PIEZA INDIVIDUAL DE STOCK (CAMPOS ESPECÍFICOS)
       ═══════════════════════════════════════════════════════════════════════ */}
       {modalStockPieza && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
@@ -1071,38 +1097,64 @@ export function ArteManager({
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-2">
-                <div>
+              {/* Fila compacta de Precio, Stock y Medidas separadas */}
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                <div className="col-span-1">
                   <label className="font-semibold text-chocolate block mb-1">Precio ($) *</label>
                   <input
                     type="number"
                     name="precioBase"
                     required
                     defaultValue={modalStockPieza.precio_base || 25000}
-                    className="w-full rounded-xl border border-border/80 bg-surface px-3 py-2 font-mono font-bold text-chocolate"
+                    className="w-full rounded-xl border border-border/80 bg-surface px-2.5 py-2 font-mono font-bold text-chocolate"
                   />
                 </div>
 
-                <div>
-                  <label className="font-semibold text-chocolate block mb-1">Unidades *</label>
+                <div className="col-span-1">
+                  <label className="font-semibold text-chocolate block mb-1">Stock *</label>
                   <input
                     type="number"
                     name="stockDisponible"
                     required
                     min="0"
                     defaultValue={modalStockPieza.stock_disponible ?? 1}
-                    className="w-full rounded-xl border border-border/80 bg-surface px-3 py-2 font-mono font-bold text-chocolate"
+                    className="w-full rounded-xl border border-border/80 bg-surface px-2.5 py-2 font-mono font-bold text-chocolate"
                   />
                 </div>
 
-                <div>
-                  <label className="font-semibold text-chocolate block mb-1">Medidas / Capacidad</label>
+                <div className="col-span-1">
+                  <label className="font-semibold text-chocolate block mb-1">Alto (cm)</label>
                   <input
-                    type="text"
-                    name="medidas"
-                    defaultValue={modalStockPieza.dimensiones || ""}
-                    placeholder="ej. 350ml, 12x8 cm..."
-                    className="w-full rounded-xl border border-border/80 bg-surface px-3 py-2 text-foreground"
+                    type="number"
+                    step="0.5"
+                    name="altoCm"
+                    defaultValue={modalStockPieza.alto_cm || ""}
+                    placeholder="ej. 12"
+                    className="w-full rounded-xl border border-border/80 bg-surface px-2.5 py-2 text-foreground font-mono"
+                  />
+                </div>
+
+                <div className="col-span-1">
+                  <label className="font-semibold text-chocolate block mb-1">Ancho (cm)</label>
+                  <input
+                    type="number"
+                    step="0.5"
+                    name="anchoCm"
+                    defaultValue={modalStockPieza.ancho_cm || ""}
+                    placeholder="ej. 8.5"
+                    className="w-full rounded-xl border border-border/80 bg-surface px-2.5 py-2 text-foreground font-mono"
+                  />
+                </div>
+
+                <div className="col-span-2 sm:col-span-1">
+                  <label className="font-semibold text-chocolate block mb-1">Capacidad (ml)</label>
+                  <input
+                    type="number"
+                    step="10"
+                    name="capacidadMl"
+                    defaultValue={modalStockPieza.capacidad_ml || ""}
+                    placeholder="ej. 350"
+                    className="w-full rounded-xl border border-border/80 bg-surface px-2.5 py-2 text-foreground font-mono"
                   />
                 </div>
               </div>
@@ -1227,7 +1279,7 @@ export function ArteManager({
       )}
 
       {/* ═══════════════════════════════════════════════════════════════════════
-          MODAL 4: LANZAMIENTO DE COLECCIÓN / DROP COMPLETO (AMPLIO Y LIMPIO)
+          MODAL 4: LANZAMIENTO DE COLECCIÓN / DROP COMPLETO (CAMPOS ESPECÍFICOS)
       ═══════════════════════════════════════════════════════════════════════ */}
       {modalLanzarDrop && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
@@ -1283,7 +1335,7 @@ export function ArteManager({
                     onClick={() =>
                       setDropPiezas((prev) => [
                         ...prev,
-                        { id: Date.now().toString(), nombre: "", precioBase: 25000, stock: 1, medidas: "", fotos: [] },
+                        { id: Date.now().toString(), nombre: "", precioBase: 25000, stock: 1, altoCm: null, anchoCm: null, capacidadMl: null, fotos: [] },
                       ])
                     }
                     className="text-xs font-semibold text-terracota hover:underline cursor-pointer flex items-center gap-1"
@@ -1311,8 +1363,8 @@ export function ArteManager({
                         )}
                       </div>
 
-                      <div className="grid sm:grid-cols-4 gap-3">
-                        <div className="sm:col-span-1">
+                      <div className="grid grid-cols-2 sm:grid-cols-6 gap-2">
+                        <div className="col-span-2 sm:col-span-2">
                           <label className="font-medium text-muted block text-[11px] mb-0.5">Nombre *</label>
                           <input
                             type="text"
@@ -1361,17 +1413,56 @@ export function ArteManager({
                         </div>
 
                         <div>
-                          <label className="font-medium text-muted block text-[11px] mb-0.5">Medidas / Capacidad</label>
+                          <label className="font-medium text-muted block text-[11px] mb-0.5">Alto (cm)</label>
                           <input
-                            type="text"
-                            value={pieza.medidas}
+                            type="number"
+                            step="0.5"
+                            value={pieza.altoCm ?? ""}
                             onChange={(e) =>
                               setDropPiezas((prev) =>
-                                prev.map((p, i) => (i === pIdx ? { ...p, medidas: e.target.value } : p)),
+                                prev.map((p, i) =>
+                                  i === pIdx ? { ...p, altoCm: parseFloat(e.target.value) || null } : p,
+                                ),
                               )
                             }
-                            placeholder="ej. 350ml, 12x8 cm..."
-                            className="w-full rounded-xl border border-border bg-surface px-2.5 py-1.5 text-xs text-foreground"
+                            placeholder="12"
+                            className="w-full rounded-xl border border-border bg-surface px-2.5 py-1.5 text-xs text-foreground font-mono"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="font-medium text-muted block text-[11px] mb-0.5">Ancho (cm)</label>
+                          <input
+                            type="number"
+                            step="0.5"
+                            value={pieza.anchoCm ?? ""}
+                            onChange={(e) =>
+                              setDropPiezas((prev) =>
+                                prev.map((p, i) =>
+                                  i === pIdx ? { ...p, anchoCm: parseFloat(e.target.value) || null } : p,
+                                ),
+                              )
+                            }
+                            placeholder="8"
+                            className="w-full rounded-xl border border-border bg-surface px-2.5 py-1.5 text-xs text-foreground font-mono"
+                          />
+                        </div>
+
+                        <div className="col-span-2 sm:col-span-6">
+                          <label className="font-medium text-muted block text-[11px] mb-0.5">Capacidad (ml) - Opcional</label>
+                          <input
+                            type="number"
+                            step="10"
+                            value={pieza.capacidadMl ?? ""}
+                            onChange={(e) =>
+                              setDropPiezas((prev) =>
+                                prev.map((p, i) =>
+                                  i === pIdx ? { ...p, capacidadMl: parseFloat(e.target.value) || null } : p,
+                                ),
+                              )
+                            }
+                            placeholder="ej. 350 ml"
+                            className="w-full max-w-[200px] rounded-xl border border-border bg-surface px-2.5 py-1.5 text-xs text-foreground font-mono"
                           />
                         </div>
                       </div>
