@@ -12,6 +12,10 @@ import {
   aumentarPreciosMasivoAction,
   savePortfolioColeccionAction,
   deletePortfolioColeccionAction,
+  updateProductoStockInlineAction,
+  saveStockPiezaDirectaAction,
+  deleteStockPiezaDirectaAction,
+  lanzarColeccionDropCompletaAction,
 } from "@/lib/actions";
 import type { FormatoCatalogo, ProductoConImagenes, PortfolioColeccion, TipoRubro } from "@/types";
 
@@ -25,37 +29,56 @@ interface ArteManagerProps {
 export function ArteManager({
   rubro,
   formatos: initialFormatos,
-  productosStock,
+  productosStock: initialStock,
   portfolio: initialPortfolio,
 }: ArteManagerProps) {
   const [activeTab, setActiveTab] = useState<"catalogo" | "stock" | "portfolio">("catalogo");
   const [formatos, setFormatos] = useState<FormatoCatalogo[]>(initialFormatos);
+  const [stockList, setStockList] = useState<ProductoConImagenes[]>(initialStock);
   const [portfolioList, setPortfolioList] = useState<PortfolioColeccion[]>(initialPortfolio);
   const [isPending, startTransition] = useTransition();
 
-  // Estados para aumento masivo
+  // ─── ESTADOS DE AUMENTO MASIVO EN CATÁLOGO ───
   const [porcentajeAumento, setPorcentajeAumento] = useState<string>("5");
   const [categoriaAumento, setCategoriaAumento] = useState<string>("todas");
   const [feedbackAumento, setFeedbackAumento] = useState<string | null>(null);
 
-  // Estados para edición inline de precios
+  // ─── ESTADOS DE EDICIÓN INLINE CATÁLOGO ───
   const [preciosEditados, setPreciosEditados] = useState<Record<string, number>>({});
   const [guardadoId, setGuardadoId] = useState<string | null>(null);
 
-  // Estados para modal crear/editar Formato
+  // ─── MODAL FORMATO (CATÁLOGO) ───
   const [modalFormato, setModalFormato] = useState<Partial<FormatoCatalogo> | null>(null);
   const [formatoFotoUrl, setFormatoFotoUrl] = useState<string>("");
 
-  // Estados para modal crear/editar Portfolio
+  // ─── MODAL PIEZA INDIVIDUAL DE STOCK ───
+  const [modalStockPieza, setModalStockPieza] = useState<Partial<ProductoConImagenes> | null>(null);
+  const [stockFotos, setStockFotos] = useState<string[]>([]);
+  const [stockColeccionNombre, setStockColeccionNombre] = useState<string>("");
+
+  // ─── MODAL LANZAR COLECCIÓN / DROP COMPLETO ───
+  const [modalLanzarDrop, setModalLanzarDrop] = useState<boolean>(false);
+  const [dropNombre, setDropNombre] = useState<string>("");
+  const [dropDescripcion, setDropDescripcion] = useState<string>("");
+  const [dropPiezas, setDropPiezas] = useState<
+    Array<{ id: string; nombre: string; precioBase: number; stock: number; fotos: string[] }>
+  >([
+    { id: "1", nombre: "", precioBase: 25000, stock: 1, fotos: [] },
+  ]);
+
+  // ─── MODAL PORTFOLIO ───
   const [modalPortfolio, setModalPortfolio] = useState<Partial<PortfolioColeccion> | null>(null);
   const [portfolioFotos, setPortfolioFotos] = useState<string[]>([]);
   const [portfolioDisenosInput, setPortfolioDisenosInput] = useState<string>("");
 
-  const categoriasUnicas = Array.from(
+  // ─── LIGHTBOX PREVIEW ───
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+
+  const categoriasUnicasCatalogo = Array.from(
     new Set(formatos.map((f) => f.categoria).filter(Boolean)),
   ) as string[];
 
-  // ─── HANDLERS DE FORMATO ───
+  // ─── HANDLERS DE CATÁLOGO ───
   const abrirModalFormato = (formato?: FormatoCatalogo) => {
     if (formato) {
       setModalFormato(formato);
@@ -143,6 +166,99 @@ export function ArteManager({
     });
   };
 
+  // ─── HANDLERS DE STOCK / DROPS ───
+  const handleModificarStockRapido = (id: string, delta: number) => {
+    const target = stockList.find((p) => p.id === id);
+    if (!target) return;
+    const nuevo = Math.max(0, (target.stock_disponible ?? 0) + delta);
+
+    // Optimistic update
+    setStockList((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, stock_disponible: nuevo, es_entrega_inmediata: nuevo > 0 } : p)),
+    );
+
+    startTransition(async () => {
+      const res = await updateProductoStockInlineAction(id, nuevo);
+      if (!res.success) {
+        alert(res.error || "Error al actualizar stock");
+        window.location.reload();
+      }
+    });
+  };
+
+  const abrirModalStockPieza = (prod?: ProductoConImagenes) => {
+    if (prod) {
+      setModalStockPieza(prod);
+      const fotosArr = prod.producto_imagenes?.map((img) => img.url_imagen) || [];
+      setStockFotos(fotosArr);
+      setStockColeccionNombre(prod.categorias?.nombre || "");
+    } else {
+      setModalStockPieza({ stock_disponible: 1, precio_base: 25000 });
+      setStockFotos([]);
+      setStockColeccionNombre("");
+    }
+  };
+
+  const handleGuardarStockPiezaModal = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    fd.set("rubro", rubro);
+    fd.set("fotos", JSON.stringify(stockFotos));
+    fd.set("coleccionNombre", stockColeccionNombre);
+
+    startTransition(async () => {
+      const res = await saveStockPiezaDirectaAction(fd);
+      if (res.success) {
+        setModalStockPieza(null);
+        window.location.reload();
+      } else {
+        alert(res.error || "Error al guardar pieza de stock");
+      }
+    });
+  };
+
+  const handleEliminarStockPieza = (id: string, nombre: string) => {
+    if (!confirm(`¿Eliminar la pieza "${nombre}" del stock?`)) return;
+    startTransition(async () => {
+      const res = await deleteStockPiezaDirectaAction(id);
+      if (res.success) {
+        setStockList((prev) => prev.filter((p) => p.id !== id));
+      } else {
+        alert(res.error || "Error al eliminar pieza");
+      }
+    });
+  };
+
+  // ─── HANDLER LANZAR DROP / COLECCIÓN COMPLETO CON AUTO-SYNC A PORTFOLIO ───
+  const handleGuardarDropCompleto = () => {
+    if (!dropNombre.trim()) {
+      alert("Ingresá el nombre de la colección/drop");
+      return;
+    }
+    const piezasValidas = dropPiezas.filter((p) => p.nombre.trim());
+    if (piezasValidas.length === 0) {
+      alert("Cargá al menos una pieza con nombre");
+      return;
+    }
+
+    startTransition(async () => {
+      const res = await lanzarColeccionDropCompletaAction({
+        rubro: rubro as "ceramica" | "ilustracion",
+        nombreColeccion: dropNombre.trim(),
+        descripcion: dropDescripcion.trim(),
+        piezas: piezasValidas,
+      });
+
+      if (res.success) {
+        alert("✓ ¡Colección lanzada con éxito y sincronizada automáticamente al Portfolio!");
+        setModalLanzarDrop(false);
+        window.location.reload();
+      } else {
+        alert(res.error || "Error al lanzar colección");
+      }
+    });
+  };
+
   // ─── HANDLERS DE PORTFOLIO ───
   const abrirModalPortfolio = (item?: PortfolioColeccion) => {
     if (item) {
@@ -214,7 +330,7 @@ export function ArteManager({
                 Gestión de {rubro === "ceramica" ? "Cerámica" : "Ilustraciones"}
               </h1>
               <p className="text-xs text-muted font-sans">
-                Administrá el catálogo de piezas a pedido, el stock en drops y el portfolio visual.
+                Control de catálogo base, stock listo para entrega inmediata y portfolio de colecciones.
               </p>
             </div>
           </div>
@@ -245,7 +361,7 @@ export function ArteManager({
                 : "bg-surface text-chocolate border border-border/70 hover:bg-secondary/40",
             )}
           >
-            <span>📦 Stock / Drops ({productosStock.length})</span>
+            <span>📦 Stock / Drops ({stockList.length})</span>
           </button>
 
           <button
@@ -269,7 +385,7 @@ export function ArteManager({
       {activeTab === "catalogo" && (
         <div className="space-y-5">
           
-          {/* Barra de Ajuste de Precios Masivo % */}
+          {/* Barra de Ajuste Masivo % */}
           <div className="rounded-2xl border border-terracota/30 bg-arena/30 p-4 sm:p-5 space-y-3">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
               <div>
@@ -277,7 +393,7 @@ export function ArteManager({
                   <span>⚡</span> Actualización Masiva de Precios por Porcentaje
                 </h3>
                 <p className="text-[11px] text-muted font-sans">
-                  Aumentá los precios de todo el catálogo en 1 clic aplicando un porcentaje directo.
+                  Ajustá los precios de todo el catálogo en 1 solo clic.
                 </p>
               </div>
 
@@ -309,7 +425,7 @@ export function ArteManager({
                 className="rounded-xl border border-border/80 bg-surface px-3 py-1.5 text-xs text-foreground shadow-2xs focus:ring-2 focus:ring-terracota/40"
               >
                 <option value="todas">Aplicar a TODAS las categorías</option>
-                {categoriasUnicas.map((cat) => (
+                {categoriasUnicasCatalogo.map((cat) => (
                   <option key={cat} value={cat}>
                     Solo en &quot;{cat}&quot;
                   </option>
@@ -333,7 +449,7 @@ export function ArteManager({
             </div>
           </div>
 
-          {/* Tabla de Piezas del Catálogo */}
+          {/* Lista de Piezas del Catálogo */}
           <div className="rounded-2xl border border-border/60 bg-surface shadow-xs overflow-hidden">
             <div className="p-3 bg-arena/20 border-b border-border/40 flex items-center justify-between text-xs text-muted font-sans">
               <span>{formatos.length} formatos registrados</span>
@@ -354,13 +470,17 @@ export function ArteManager({
                   >
                     {/* Foto e Info */}
                     <div className="flex items-center gap-3 min-w-0 flex-1">
-                      <div className="h-12 w-12 shrink-0 rounded-xl bg-arena/40 border border-border/50 overflow-hidden flex items-center justify-center text-lg">
+                      <button
+                        type="button"
+                        onClick={() => formato.foto_url && setPreviewImage(formato.foto_url)}
+                        className="h-12 w-12 shrink-0 rounded-xl bg-arena/40 border border-border/50 overflow-hidden flex items-center justify-center text-lg cursor-zoom-in"
+                      >
                         {formato.foto_url ? (
                           <img src={formato.foto_url} alt="" className="h-full w-full object-cover" />
                         ) : (
                           <span>{rubro === "ceramica" ? "🏺" : "🎨"}</span>
                         )}
-                      </div>
+                      </button>
 
                       <div className="min-w-0 space-y-0.5">
                         <div className="flex items-center gap-2 flex-wrap">
@@ -437,63 +557,166 @@ export function ArteManager({
       )}
 
       {/* ═══════════════════════════════════════════════════════════════════════
-          SUB-PESTAÑA 2: STOCK / DROPS DE COLECCIÓN
+          SUB-PESTAÑA 2: STOCK / DROPS DE COLECCIÓN (UNIFICADO EN LISTA LIMPIA)
       ═══════════════════════════════════════════════════════════════════════ */}
       {activeTab === "stock" && (
-        <div className="space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+        <div className="space-y-5">
+          
+          {/* Barra de Acciones de Stock */}
+          <div className="rounded-2xl border border-border/60 bg-arena/25 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
-              <h3 className="text-sm font-semibold text-chocolate">
-                Piezas Listas de Stock ({productosStock.length})
+              <h3 className="text-sm font-semibold text-chocolate flex items-center gap-1.5">
+                <span>📦</span> Inventario de Stock Disponible ({stockList.length} piezas)
               </h3>
-              <p className="text-xs text-muted font-sans">
-                Piezas disponibles para despacho inmediato en la tienda online.
+              <p className="text-xs text-muted font-sans mt-0.5">
+                Podés ajustar el stock directamente con los botones + / - o lanzar una colección completa.
               </p>
             </div>
 
-            <Link
-              href={`/admin/productos?rubro=${rubro}`}
-              className="rounded-full bg-chocolate text-crema-cruda hover:bg-chocolate/90 px-4 py-2 text-xs font-semibold shadow-xs self-start sm:self-auto"
-            >
-              + Gestionar y Cargar Piezas en Stock
-            </Link>
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {productosStock.map((prod) => (
-              <div
-                key={prod.id}
-                className="rounded-2xl border border-border/60 bg-surface p-4 shadow-xs flex items-center gap-3 justify-between"
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setModalLanzarDrop(true)}
+                className="rounded-full bg-terracota text-white hover:bg-terracota/90 px-4 py-2 text-xs font-semibold shadow-xs cursor-pointer flex items-center gap-1.5"
               >
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="h-14 w-14 shrink-0 rounded-xl bg-arena/30 overflow-hidden border border-border/50">
-                    {prod.producto_imagenes?.[0]?.url_imagen ? (
-                      <img src={prod.producto_imagenes[0].url_imagen} alt="" className="h-full w-full object-cover" />
-                    ) : (
-                      <span className="flex h-full w-full items-center justify-center text-xl">🏺</span>
-                    )}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-xs font-semibold text-chocolate truncate">{prod.nombre}</p>
-                    <p className="text-xs text-terracota font-mono font-bold">{formatPrecio(prod.precio_base)}</p>
-                    <p className="text-[11px] text-muted">Stock: {prod.stock_disponible} u.</p>
-                  </div>
-                </div>
+                <span>🚀 Lanzar Colección de Stock</span>
+              </button>
 
-                <Link
-                  href={`/admin/productos/${prod.id}`}
-                  className="rounded-xl border border-border bg-surface px-2.5 py-1 text-xs text-chocolate hover:bg-secondary/40 font-medium shrink-0"
-                >
-                  Editar
-                </Link>
-              </div>
-            ))}
+              <button
+                type="button"
+                onClick={() => abrirModalStockPieza()}
+                className="rounded-full bg-chocolate text-crema-cruda hover:bg-chocolate/90 px-4 py-2 text-xs font-semibold shadow-xs cursor-pointer"
+              >
+                + Cargar Pieza Suelta
+              </button>
+            </div>
           </div>
+
+          {/* LISTA UNIFICADA DE PIEZAS DE STOCK (Una debajo de la otra) */}
+          <div className="rounded-2xl border border-border/60 bg-surface shadow-xs overflow-hidden">
+            <div className="p-3 bg-arena/20 border-b border-border/40 flex items-center justify-between text-xs text-muted font-sans">
+              <span>{stockList.length} piezas en inventario</span>
+              <span>Modificación de stock y precios en tiempo real</span>
+            </div>
+
+            {stockList.length === 0 ? (
+              <div className="p-8 text-center text-xs text-muted space-y-2">
+                <p className="text-2xl">📦</p>
+                <p className="font-semibold text-chocolate">No hay piezas cargadas en stock actualmente.</p>
+                <p>Podés lanzar un nuevo Drop o cargar piezas individuales listas para la venta.</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-border/40 overflow-x-auto">
+                {stockList.map((prod) => {
+                  const fotoPrincipal = prod.producto_imagenes?.[0]?.url_imagen;
+                  const coleccionNombre = prod.categorias?.nombre || "Sin colección asignada";
+                  const tieneStock = (prod.stock_disponible ?? 0) > 0;
+
+                  return (
+                    <div
+                      key={prod.id}
+                      className={`flex items-center justify-between gap-3 p-3.5 sm:p-4 transition-colors ${
+                        !tieneStock ? "bg-muted/10 opacity-75" : "hover:bg-arena/10"
+                      }`}
+                    >
+                      {/* Foto e Info de la Pieza */}
+                      <div className="flex items-center gap-3.5 min-w-0 flex-1">
+                        <button
+                          type="button"
+                          onClick={() => fotoPrincipal && setPreviewImage(fotoPrincipal)}
+                          className="h-14 w-14 shrink-0 rounded-2xl bg-arena/40 border border-border/60 overflow-hidden flex items-center justify-center text-xl cursor-zoom-in"
+                        >
+                          {fotoPrincipal ? (
+                            <img src={fotoPrincipal} alt="" className="h-full w-full object-cover" />
+                          ) : (
+                            <span>🏺</span>
+                          )}
+                        </button>
+
+                        <div className="min-w-0 space-y-0.5">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="text-xs sm:text-sm font-semibold text-chocolate truncate">
+                              {prod.nombre}
+                            </p>
+                            <span className="rounded-full bg-secondary/70 border border-border/50 px-2 py-0.5 text-[10px] font-semibold text-terracota">
+                              ✨ {coleccionNombre}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-2 text-xs">
+                            <span className="font-mono font-bold text-chocolate">
+                              {formatPrecio(prod.precio_base)}
+                            </span>
+                            <span className="text-muted text-[11px]">·</span>
+                            <span
+                              className={`text-[11px] font-semibold ${
+                                tieneStock ? "text-emerald-700" : "text-amber-700"
+                              }`}
+                            >
+                              {tieneStock
+                                ? `🟢 En stock (${prod.stock_disponible} u.)`
+                                : "⚪ Agotado"}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Control de Stock Rápido Inline & Acciones */}
+                      <div className="flex items-center gap-2.5 sm:gap-4 shrink-0">
+                        {/* Selector - / + */}
+                        <div className="flex items-center gap-1.5 bg-arena/20 border border-border/80 rounded-xl p-1 shadow-2xs">
+                          <button
+                            type="button"
+                            disabled={isPending}
+                            onClick={() => handleModificarStockRapido(prod.id, -1)}
+                            className="h-7 w-7 flex items-center justify-center rounded-lg bg-surface border border-border font-bold text-xs text-chocolate hover:bg-secondary/40 cursor-pointer disabled:opacity-40"
+                            title="Disminuir stock"
+                          >
+                            -
+                          </button>
+                          <span className="w-8 text-center text-xs font-mono font-bold text-chocolate">
+                            {prod.stock_disponible}
+                          </span>
+                          <button
+                            type="button"
+                            disabled={isPending}
+                            onClick={() => handleModificarStockRapido(prod.id, 1)}
+                            className="h-7 w-7 flex items-center justify-center rounded-lg bg-surface border border-border font-bold text-xs text-chocolate hover:bg-secondary/40 cursor-pointer disabled:opacity-40"
+                            title="Aumentar stock"
+                          >
+                            +
+                          </button>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => abrirModalStockPieza(prod)}
+                          className="rounded-xl border border-border/80 bg-surface px-3 py-1.5 text-xs font-medium text-chocolate hover:bg-secondary/40 cursor-pointer shadow-2xs"
+                        >
+                          ✏️ Editar
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleEliminarStockPieza(prod.id, prod.nombre)}
+                          className="text-red-500 hover:text-red-700 p-1 text-xs cursor-pointer"
+                          title="Eliminar del stock"
+                        >
+                          🗑️
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
         </div>
       )}
 
       {/* ═══════════════════════════════════════════════════════════════════════
-          SUB-PESTAÑA 3: PORTFOLIO DE DISEÑOS
+          SUB-PESTAÑA 3: PORTFOLIO DE DISEÑOS (Álbumes Visuales)
       ═══════════════════════════════════════════════════════════════════════ */}
       {activeTab === "portfolio" && (
         <div className="space-y-4">
@@ -503,7 +726,7 @@ export function ArteManager({
                 Colecciones del Portfolio ({portfolioList.length})
               </h3>
               <p className="text-xs text-muted font-sans">
-                Álbumes visuales para inspirar a los clientes en sus encargos.
+                Álbumes visuales históricos e inspiracionales para los clientes.
               </p>
             </div>
 
@@ -512,7 +735,7 @@ export function ArteManager({
               onClick={() => abrirModalPortfolio()}
               className="rounded-full bg-chocolate text-crema-cruda hover:bg-chocolate/90 px-4 py-1.5 text-xs font-semibold shadow-xs cursor-pointer"
             >
-              + Nueva Colección
+              + Nueva Colección Manual
             </button>
           </div>
 
@@ -534,7 +757,13 @@ export function ArteManager({
                     {fotos.length > 0 && (
                       <div className="flex gap-2 pt-1 overflow-x-auto pb-1 scrollbar-none">
                         {fotos.map((url, i) => (
-                          <img key={i} src={url} alt="" className="h-10 w-10 rounded-lg object-cover border border-border/50" />
+                          <img
+                            key={i}
+                            src={url}
+                            alt=""
+                            onClick={() => setPreviewImage(url)}
+                            className="h-12 w-12 rounded-xl object-cover border border-border/50 cursor-zoom-in"
+                          />
                         ))}
                       </div>
                     )}
@@ -564,7 +793,7 @@ export function ArteManager({
       )}
 
       {/* ═══════════════════════════════════════════════════════════════════════
-          MODAL CREAR/EDITAR FORMATO DE CATÁLOGO (Con Subida Directa de Fotos)
+          MODAL 1: CREAR/EDITAR FORMATO DE CATÁLOGO
       ═══════════════════════════════════════════════════════════════════════ */}
       {modalFormato && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
@@ -662,14 +891,305 @@ export function ArteManager({
       )}
 
       {/* ═══════════════════════════════════════════════════════════════════════
-          MODAL CREAR/EDITAR PORTFOLIO (Con Subida Múltiple de Fotos)
+          MODAL 2: CREAR / EDITAR PIEZA INDIVIDUAL DE STOCK
+      ═══════════════════════════════════════════════════════════════════════ */}
+      {modalStockPieza && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
+          <div className="w-full max-w-md rounded-3xl border border-border/80 bg-surface p-6 shadow-2xl space-y-4 animate-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-border/60 pb-3">
+              <h3 className="text-base font-serif font-semibold text-chocolate">
+                {modalStockPieza.id ? "Editar Pieza en Stock" : "Nueva Pieza en Stock"}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setModalStockPieza(null)}
+                className="h-8 w-8 rounded-full bg-arena/50 text-muted hover:text-foreground cursor-pointer flex items-center justify-center"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleGuardarStockPiezaModal} className="space-y-3 text-xs">
+              {modalStockPieza.id && <input type="hidden" name="id" value={modalStockPieza.id} />}
+
+              <div>
+                <label className="font-semibold text-chocolate block mb-1">Nombre de la pieza *</label>
+                <input
+                  type="text"
+                  name="nombre"
+                  required
+                  defaultValue={modalStockPieza.nombre || ""}
+                  placeholder="ej. Taza Perro Salchicha, Bandeja Sol..."
+                  className="w-full rounded-xl border border-border/80 bg-surface px-3 py-2 text-foreground"
+                />
+              </div>
+
+              <div>
+                <label className="font-semibold text-chocolate block mb-1">Colección / Drop *</label>
+                <input
+                  type="text"
+                  value={stockColeccionNombre}
+                  onChange={(e) => setStockColeccionNombre(e.target.value)}
+                  placeholder="ej. Colección Argentina, Colección Botánica..."
+                  className="w-full rounded-xl border border-border/80 bg-surface px-3 py-2 text-foreground"
+                />
+                <p className="text-[10px] text-muted mt-0.5">
+                  Las fotos se sincronizan automáticamente con el Portfolio bajo este nombre.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="font-semibold text-chocolate block mb-1">Precio ($) *</label>
+                  <input
+                    type="number"
+                    name="precioBase"
+                    required
+                    defaultValue={modalStockPieza.precio_base || 25000}
+                    className="w-full rounded-xl border border-border/80 bg-surface px-3 py-2 font-mono font-bold text-chocolate"
+                  />
+                </div>
+
+                <div>
+                  <label className="font-semibold text-chocolate block mb-1">Unidades en Stock *</label>
+                  <input
+                    type="number"
+                    name="stockDisponible"
+                    required
+                    min="0"
+                    defaultValue={modalStockPieza.stock_disponible ?? 1}
+                    className="w-full rounded-xl border border-border/80 bg-surface px-3 py-2 font-mono font-bold text-chocolate"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="font-semibold text-chocolate block mb-1">Descripción breve</label>
+                <textarea
+                  name="descripcion"
+                  rows={2}
+                  defaultValue={modalStockPieza.descripcion || ""}
+                  placeholder="ej. Modelada a mano en torno con esmalte apto vajilla..."
+                  className="w-full rounded-xl border border-border/80 bg-surface p-2.5 text-foreground"
+                />
+              </div>
+
+              {/* Subida Múltiple de Fotos de la Pieza */}
+              <FileImageUpload
+                value={stockFotos}
+                onChange={setStockFotos}
+                multiple
+                folder="stock"
+                label="Fotos de la Pieza (Subir desde celular o PC)"
+              />
+
+              <div className="pt-2 flex gap-2">
+                <button
+                  type="submit"
+                  disabled={isPending}
+                  className="flex-1 rounded-full bg-chocolate text-crema-cruda py-2.5 font-semibold hover:bg-chocolate/90 cursor-pointer"
+                >
+                  {isPending ? "Guardando..." : "Guardar en Stock"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setModalStockPieza(null)}
+                  className="rounded-full border border-border bg-surface px-4 py-2.5 font-medium text-muted cursor-pointer"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════════════════
+          MODAL 3: LANZAMIENTO DE COLECCIÓN / DROP COMPLETO (Auto-sync a Portfolio)
+      ═══════════════════════════════════════════════════════════════════════ */}
+      {modalLanzarDrop && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
+          <div className="w-full max-w-2xl rounded-3xl border border-border/80 bg-surface p-6 shadow-2xl space-y-4 animate-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-border/60 pb-3">
+              <div>
+                <span className="text-[11px] font-semibold text-terracota uppercase tracking-wider">Lanzamiento</span>
+                <h3 className="text-base sm:text-lg font-serif font-semibold text-chocolate">
+                  Lanzar Nueva Colección en Stock
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setModalLanzarDrop(false)}
+                className="h-8 w-8 rounded-full bg-arena/50 text-muted hover:text-foreground cursor-pointer flex items-center justify-center"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="bg-arena/30 border border-terracota/30 rounded-2xl p-3 text-xs text-barro space-y-1">
+              <p>✨ <strong>Sincronización Automática:</strong> Al publicar este Drop, las piezas estarán disponibles para compra en Stock y sus fotos se registrarán automáticamente en el <strong>Portfolio de Colecciones</strong>.</p>
+            </div>
+
+            <div className="space-y-4 text-xs">
+              <div className="grid sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="font-semibold text-chocolate block mb-1">Nombre de la Colección / Drop *</label>
+                  <input
+                    type="text"
+                    value={dropNombre}
+                    onChange={(e) => setDropNombre(e.target.value)}
+                    placeholder="ej. Colección Patagonia, Drops de Otoño..."
+                    className="w-full rounded-xl border border-border/80 bg-surface px-3 py-2 text-foreground"
+                  />
+                </div>
+
+                <div>
+                  <label className="font-semibold text-chocolate block mb-1">Descripción conceptual</label>
+                  <input
+                    type="text"
+                    value={dropDescripcion}
+                    onChange={(e) => setDropDescripcion(e.target.value)}
+                    placeholder="ej. Inspirada en los paisajes sureños..."
+                    className="w-full rounded-xl border border-border/80 bg-surface px-3 py-2 text-foreground"
+                  />
+                </div>
+              </div>
+
+              {/* Lista dinámica de piezas para la colección */}
+              <div className="space-y-3 pt-2">
+                <div className="flex items-center justify-between border-b border-border/40 pb-2">
+                  <p className="font-semibold text-chocolate">Piezas de este Lanzamiento ({dropPiezas.length}):</p>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setDropPiezas((prev) => [
+                        ...prev,
+                        { id: Date.now().toString(), nombre: "", precioBase: 25000, stock: 1, fotos: [] },
+                      ])
+                    }
+                    className="text-xs font-semibold text-terracota hover:underline cursor-pointer"
+                  >
+                    + Agregar otra pieza a la colección
+                  </button>
+                </div>
+
+                <div className="space-y-3">
+                  {dropPiezas.map((pieza, pIdx) => (
+                    <div
+                      key={pieza.id}
+                      className="rounded-2xl border border-border/70 bg-arena/20 p-3.5 space-y-2.5"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold text-chocolate">Pieza #{pIdx + 1}</span>
+                        {dropPiezas.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => setDropPiezas((prev) => prev.filter((_, i) => i !== pIdx))}
+                            className="text-red-500 hover:text-red-700 text-xs cursor-pointer"
+                          >
+                            Quitar pieza ✕
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="grid sm:grid-cols-3 gap-2">
+                        <div className="sm:col-span-1">
+                          <label className="font-medium text-muted block text-[11px]">Nombre</label>
+                          <input
+                            type="text"
+                            value={pieza.nombre}
+                            onChange={(e) =>
+                              setDropPiezas((prev) =>
+                                prev.map((p, i) => (i === pIdx ? { ...p, nombre: e.target.value } : p)),
+                              )
+                            }
+                            placeholder="ej. Taza Glaciar"
+                            className="w-full rounded-xl border border-border bg-surface px-2.5 py-1.5 text-xs text-foreground"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="font-medium text-muted block text-[11px]">Precio ($)</label>
+                          <input
+                            type="number"
+                            value={pieza.precioBase}
+                            onChange={(e) =>
+                              setDropPiezas((prev) =>
+                                prev.map((p, i) =>
+                                  i === pIdx ? { ...p, precioBase: parseFloat(e.target.value) || 0 } : p,
+                                ),
+                              )
+                            }
+                            className="w-full rounded-xl border border-border bg-surface px-2.5 py-1.5 text-xs font-mono font-bold text-chocolate"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="font-medium text-muted block text-[11px]">Stock</label>
+                          <input
+                            type="number"
+                            min="1"
+                            value={pieza.stock}
+                            onChange={(e) =>
+                              setDropPiezas((prev) =>
+                                prev.map((p, i) =>
+                                  i === pIdx ? { ...p, stock: parseInt(e.target.value) || 1 } : p,
+                                ),
+                              )
+                            }
+                            className="w-full rounded-xl border border-border bg-surface px-2.5 py-1.5 text-xs font-mono font-bold text-chocolate"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Fotos de la pieza */}
+                      <FileImageUpload
+                        value={pieza.fotos}
+                        onChange={(newFotos) =>
+                          setDropPiezas((prev) =>
+                            prev.map((p, i) => (i === pIdx ? { ...p, fotos: newFotos } : p)),
+                          )
+                        }
+                        multiple
+                        folder="drops"
+                        label="Fotos de esta pieza (se suben y agregan al Portfolio)"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="pt-3 border-t border-border/60 flex gap-2">
+                <button
+                  type="button"
+                  disabled={isPending}
+                  onClick={handleGuardarDropCompleto}
+                  className="flex-1 rounded-full bg-terracota text-white py-2.5 font-semibold text-xs hover:bg-terracota/90 cursor-pointer shadow-xs"
+                >
+                  {isPending ? "Lanzando y Sincronizando..." : "🚀 Publicar Lanzamiento y Sincronizar Portfolio"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setModalLanzarDrop(false)}
+                  className="rounded-full border border-border bg-surface px-4 py-2.5 font-medium text-muted cursor-pointer"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════════════════
+          MODAL 4: CREAR/EDITAR PORTFOLIO MANUAL
       ═══════════════════════════════════════════════════════════════════════ */}
       {modalPortfolio && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
           <div className="w-full max-w-md rounded-3xl border border-border/80 bg-surface p-6 shadow-2xl space-y-4 animate-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-border/60 pb-3">
               <h3 className="text-base font-serif font-semibold text-chocolate">
-                {modalPortfolio.id ? "Editar Colección del Portfolio" : "Nueva Colección"}
+                {modalPortfolio.id ? "Editar Colección del Portfolio" : "Nueva Colección Manual"}
               </h3>
               <button
                 type="button"
@@ -732,6 +1252,18 @@ export function ArteManager({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Preview Zoom Lightbox ─── */}
+      {previewImage && (
+        <div
+          onClick={() => setPreviewImage(null)}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-xs p-4 cursor-zoom-out animate-in fade-in duration-150"
+        >
+          <div className="relative max-w-lg w-full rounded-3xl overflow-hidden bg-surface p-2 shadow-2xl">
+            <img src={previewImage} alt="" className="h-full w-full object-contain rounded-2xl max-h-[80vh]" />
           </div>
         </div>
       )}

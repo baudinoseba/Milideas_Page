@@ -2572,4 +2572,274 @@ export async function deleteObraProyectoAction(
   return { success: true };
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// ACCIONES ADMIN: GESTIÓN DIRECTA DE STOCK / DROPS & SYNC CON PORTFOLIO
+// ═══════════════════════════════════════════════════════════════════════════
+
+export async function updateProductoStockInlineAction(
+  id: string,
+  nuevoStock: number,
+): Promise<{ success: boolean; error?: string }> {
+  const auth = await requireAdmin();
+  if ("error" in auth) return { success: false, error: auth.error };
+  const { supabase } = auth;
+
+  const stockVal = Math.max(0, Math.floor(nuevoStock));
+
+  const { error } = await supabase
+    .from("productos")
+    .update({
+      stock_disponible: stockVal,
+      es_entrega_inmediata: stockVal > 0,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id);
+
+  if (error) return { success: false, error: error.message };
+
+  revalidatePath("/");
+  revalidatePath("/ceramica");
+  revalidatePath("/ilustracion");
+  revalidatePath("/admin/ceramica");
+  revalidatePath("/admin/ilustracion");
+  return { success: true };
+}
+
+export async function saveStockPiezaDirectaAction(
+  formData: FormData,
+): Promise<{ success: boolean; error?: string }> {
+  const auth = await requireAdmin();
+  if ("error" in auth) return { success: false, error: auth.error };
+  const { supabase } = auth;
+
+  const id = formData.get("id") as string | null;
+  const rubro = (formData.get("rubro") as string) || "ceramica";
+  const tipoCatalogo = rubro === "ceramica" ? "ceramica" : "ilustraciones";
+  const nombre = String(formData.get("nombre") || "").trim();
+  const categoriaId = (formData.get("categoriaId") as string) || null;
+  const coleccionNombre = String(formData.get("coleccionNombre") || "").trim();
+  const precioBase = Number(formData.get("precioBase") || 0);
+  const stockDisponible = Number(formData.get("stockDisponible") || 1);
+  const descripcion = String(formData.get("descripcion") || "").trim() || null;
+  const fotosRaw = String(formData.get("fotos") || "[]");
+
+  if (!nombre) {
+    return { success: false, error: "El nombre de la pieza es obligatorio." };
+  }
+
+  let fotos: string[] = [];
+  try {
+    fotos = JSON.parse(fotosRaw);
+  } catch {
+    fotos = [];
+  }
+
+  // Generar slug
+  const slug = `${nombre.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}-${Date.now().toString().slice(-4)}`;
+
+  let finalCategoriaId = categoriaId;
+
+  // Si especificó un nombre de colección/categoría nueva y no viene ID
+  if (coleccionNombre && !categoriaId) {
+    const { data: catNueva } = await supabase
+      .from("categorias")
+      .insert({ nombre: coleccionNombre, tipo_catalogo: tipoCatalogo })
+      .select("id")
+      .single();
+    if (catNueva) finalCategoriaId = catNueva.id;
+  }
+
+  const payload: Record<string, any> = {
+    nombre,
+    precio_base: precioBase,
+    stock_disponible: stockDisponible,
+    es_entrega_inmediata: stockDisponible > 0,
+    activo: true,
+    tipo_catalogo: tipoCatalogo,
+    categoria_id: finalCategoriaId,
+    descripcion,
+    updated_at: new Date().toISOString(),
+  };
+
+  let targetId = id;
+
+  if (id) {
+    const { error: updErr } = await supabase.from("productos").update(payload).eq("id", id);
+    if (updErr) return { success: false, error: updErr.message };
+  } else {
+    payload.slug = slug;
+    const { data: nuevoProd, error: insErr } = await supabase
+      .from("productos")
+      .insert(payload)
+      .select("id")
+      .single();
+    if (insErr || !nuevoProd) return { success: false, error: insErr?.message || "Error al crear pieza" };
+    targetId = nuevoProd.id;
+  }
+
+  // Actualizar imágenes
+  if (targetId && fotos.length > 0) {
+    // Si es edición, reemplazamos o actualizamos
+    if (id) {
+      await supabase.from("producto_imagenes").delete().eq("producto_id", targetId);
+    }
+    const imagenesToInsert = fotos.map((url, idx) => ({
+      producto_id: targetId!,
+      url_imagen: url,
+      orden: idx,
+    }));
+    await supabase.from("producto_imagenes").insert(imagenesToInsert);
+  }
+
+  // Sincronización automática con Portfolio si hay fotos y nombre de colección
+  if (coleccionNombre && fotos.length > 0) {
+    const { data: colExistente } = await supabase
+      .from("portfolio_colecciones")
+      .select("id, fotos")
+      .eq("rubro", rubro)
+      .ilike("nombre", coleccionNombre)
+      .maybeSingle();
+
+    if (colExistente) {
+      const fotosActuales = Array.isArray(colExistente.fotos) ? colExistente.fotos : [];
+      const combinadas = Array.from(new Set([...fotosActuales, ...fotos]));
+      await supabase
+        .from("portfolio_colecciones")
+        .update({
+          fotos: combinadas,
+          portada_url: combinadas[0] || null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", colExistente.id);
+    } else {
+      await supabase.from("portfolio_colecciones").insert({
+        rubro: rubro as "ceramica" | "ilustracion",
+        nombre: coleccionNombre,
+        descripcion: descripcion || `Piezas de la ${coleccionNombre}`,
+        portada_url: fotos[0] || null,
+        fotos,
+        disenos_disponibles: [nombre],
+        activa: true,
+      });
+    }
+  }
+
+  revalidatePath("/");
+  revalidatePath("/ceramica");
+  revalidatePath("/ilustracion");
+  revalidatePath("/admin/ceramica");
+  revalidatePath("/admin/ilustracion");
+  return { success: true };
+}
+
+export async function deleteStockPiezaDirectaAction(
+  id: string,
+): Promise<{ success: boolean; error?: string }> {
+  const auth = await requireAdmin();
+  if ("error" in auth) return { success: false, error: auth.error };
+  const { supabase } = auth;
+
+  await supabase.from("producto_imagenes").delete().eq("producto_id", id);
+  const { error } = await supabase.from("productos").delete().eq("id", id);
+  if (error) return { success: false, error: error.message };
+
+  revalidatePath("/");
+  revalidatePath("/ceramica");
+  revalidatePath("/ilustracion");
+  revalidatePath("/admin/ceramica");
+  revalidatePath("/admin/ilustracion");
+  return { success: true };
+}
+
+export async function lanzarColeccionDropCompletaAction(data: {
+  rubro: "ceramica" | "ilustracion";
+  nombreColeccion: string;
+  descripcion?: string;
+  piezas: Array<{
+    nombre: string;
+    precioBase: number;
+    stock: number;
+    fotos: string[];
+    descripcion?: string;
+  }>;
+}): Promise<{ success: boolean; error?: string }> {
+  const auth = await requireAdmin();
+  if ("error" in auth) return { success: false, error: auth.error };
+  const { supabase } = auth;
+
+  const { rubro, nombreColeccion, descripcion, piezas } = data;
+  if (!nombreColeccion.trim() || piezas.length === 0) {
+    return { success: false, error: "Ingresá el nombre del lanzamiento y al menos una pieza." };
+  }
+
+  const tipoCatalogo = rubro === "ceramica" ? "ceramica" : "ilustraciones";
+
+  // 1. Crear categoría para agrupar las piezas del drop
+  const { data: categoria, error: catErr } = await supabase
+    .from("categorias")
+    .insert({ nombre: nombreColeccion.trim(), tipo_catalogo: tipoCatalogo })
+    .select("id")
+    .single();
+
+  if (catErr || !categoria) {
+    return { success: false, error: catErr?.message || "Error al registrar la colección." };
+  }
+
+  const todasLasFotosDeLaColeccion: string[] = [];
+  const nombresDeDisenos: string[] = [];
+
+  // 2. Insertar cada pieza de stock
+  for (const p of piezas) {
+    const slug = `${p.nombre.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}-${Date.now().toString().slice(-4)}`;
+    const { data: prod, error: pErr } = await supabase
+      .from("productos")
+      .insert({
+        nombre: p.nombre,
+        slug,
+        precio_base: p.precioBase,
+        stock_disponible: p.stock,
+        es_entrega_inmediata: p.stock > 0,
+        activo: true,
+        categoria_id: categoria.id,
+        tipo_catalogo: tipoCatalogo,
+        descripcion: p.descripcion || null,
+      })
+      .select("id")
+      .single();
+
+    if (!pErr && prod && p.fotos.length > 0) {
+      todasLasFotosDeLaColeccion.push(...p.fotos);
+      nombresDeDisenos.push(p.nombre);
+      const imgRows = p.fotos.map((url, i) => ({
+        producto_id: prod.id,
+        url_imagen: url,
+        orden: i,
+      }));
+      await supabase.from("producto_imagenes").insert(imgRows);
+    }
+  }
+
+  // 3. Sincronización automática con Portfolio: Creamos el álbum visual
+  const fotosUnicas = Array.from(new Set(todasLasFotosDeLaColeccion));
+  if (fotosUnicas.length > 0) {
+    await supabase.from("portfolio_colecciones").insert({
+      rubro,
+      nombre: nombreColeccion.trim(),
+      descripcion: descripcion || `Lanzamiento y colección ${nombreColeccion}`,
+      portada_url: fotosUnicas[0] || null,
+      fotos: fotosUnicas,
+      disenos_disponibles: nombresDeDisenos,
+      activa: true,
+    });
+  }
+
+  revalidatePath("/");
+  revalidatePath("/ceramica");
+  revalidatePath("/ilustracion");
+  revalidatePath("/admin/ceramica");
+  revalidatePath("/admin/ilustracion");
+  return { success: true };
+}
+
+
 
