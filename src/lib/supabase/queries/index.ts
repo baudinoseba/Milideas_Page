@@ -142,7 +142,7 @@ export async function getPedidoById(id: string): Promise<PedidoConItems | null> 
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("pedidos")
-    .select("*, items_pedido(*, productos(*))")
+    .select("*, items_pedido(*, productos(*, producto_imagenes(*), categorias(*), producciones(*)))")
     .eq("id", id)
     .single();
   if (error) return null;

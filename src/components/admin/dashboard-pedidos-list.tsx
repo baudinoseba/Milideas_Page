@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
 import { formatPrecio } from "@/lib/pricing";
 import { confirmarPagoAction, marcarEnviadoAction } from "@/lib/actions";
@@ -11,6 +11,7 @@ interface DashboardPedidosListProps {
 
 export function DashboardPedidosList({ pedidos }: DashboardPedidosListProps) {
   const [isPending, startTransition] = useTransition();
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
 
   const ahora = Date.now();
   const DOS_DIAS_MS = 48 * 60 * 60 * 1000;
@@ -36,7 +37,7 @@ export function DashboardPedidosList({ pedidos }: DashboardPedidosListProps) {
 
   if (pedidos.length === 0) {
     return (
-      <div className="rounded-3xl border border-border/60 bg-arena/20 p-8 text-center text-xs text-muted">
+      <div className="rounded-3xl border border-border/60 bg-surface p-8 text-center text-xs text-muted">
         <p className="text-2xl mb-1">📦</p>
         <p className="font-semibold text-chocolate">No hay pedidos registrados recientemente.</p>
       </div>
@@ -61,11 +62,7 @@ export function DashboardPedidosList({ pedidos }: DashboardPedidosListProps) {
         return (
           <div
             key={pedido.id}
-            className={`p-4 sm:p-5 transition-colors space-y-3 ${
-              esDemorado
-                ? "bg-rose-50/40 dark:bg-rose-950/20 hover:bg-rose-50/60"
-                : "hover:bg-arena/10"
-            }`}
+            className="p-4 sm:p-5 transition-colors space-y-3 bg-surface hover:bg-arena/10"
           >
             {/* Fila 1: Cliente, Badges de Entrega y Estado */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
@@ -76,32 +73,32 @@ export function DashboardPedidosList({ pedidos }: DashboardPedidosListProps) {
 
                 {/* Badge de Entrega: Retiro vs Envío */}
                 {esRetiro ? (
-                  <span className="rounded-full bg-amber-100/90 text-amber-900 border border-amber-300/80 px-2.5 py-0.5 text-[11px] font-bold flex items-center gap-1">
+                  <span className="rounded-full bg-[#FAF0DC] text-[#785418] border border-[#ECD7B2] px-2.5 py-0.5 text-[11px] font-semibold flex items-center gap-1">
                     <span>🏠</span> Retiro en taller
                   </span>
                 ) : (
-                  <span className="rounded-full bg-sky-100/90 text-sky-900 border border-sky-300/80 px-2.5 py-0.5 text-[11px] font-bold flex items-center gap-1">
+                  <span className="rounded-full bg-[#EBF4FA] text-[#245D78] border border-[#CFE4F0] px-2.5 py-0.5 text-[11px] font-semibold flex items-center gap-1">
                     <span>🚚</span> Envío a domicilio
                   </span>
                 )}
 
-                {/* Badge de Estado del Pago / Pedido */}
+                {/* Badge de Estado del Pago / Pedido en Tonos Pastel Suaves */}
                 {pedido.estado === "pendiente_pago" ? (
                   <span
-                    className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold ${
+                    className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
                       esDemorado
-                        ? "bg-rose-600 text-white shadow-xs"
-                        : "bg-amber-100 text-amber-950 border border-amber-300"
+                        ? "bg-[#FDF0EE] text-[#9E3E2E] border border-[#F2CDC6]"
+                        : "bg-[#FDF6E2] text-[#855D1A] border border-[#EADBBD]"
                     }`}
                   >
-                    {esDemorado ? `🚨 Sin pagar (${dias} días)` : "⏳ Esperando Pago"}
+                    {esDemorado ? `⏳ Sin pagar (${dias} días)` : "⏳ Esperando Pago"}
                   </span>
                 ) : pedido.estado === "confirmado" ? (
-                  <span className="rounded-full bg-emerald-100 text-emerald-950 border border-emerald-300 px-2.5 py-0.5 text-[11px] font-bold">
+                  <span className="rounded-full bg-[#EDF7F1] text-[#216738] border border-[#C5E8D2] px-2.5 py-0.5 text-[11px] font-semibold">
                     ✓ Pago Confirmado {esRetiro ? "(Listo para retirar)" : "(Listo para empaque)"}
                   </span>
                 ) : pedido.estado === "enviado" ? (
-                  <span className="rounded-full bg-secondary text-chocolate border border-border px-2.5 py-0.5 text-[11px] font-medium">
+                  <span className="rounded-full bg-secondary/80 text-chocolate border border-border/70 px-2.5 py-0.5 text-[11px] font-medium">
                     ✓ {esRetiro ? "Entregado en taller" : "Despachado"}
                   </span>
                 ) : (
@@ -137,15 +134,19 @@ export function DashboardPedidosList({ pedidos }: DashboardPedidosListProps) {
                     key={i}
                     className="flex items-center gap-2 bg-surface border border-border/80 rounded-2xl p-1.5 pr-3 shrink-0 shadow-2xs"
                   >
-                    <div className="h-9 w-9 rounded-xl bg-arena/40 overflow-hidden flex items-center justify-center text-sm shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => fotoUrl && setPreviewImage(fotoUrl)}
+                      className="h-10 w-10 rounded-xl bg-arena/40 overflow-hidden flex items-center justify-center text-sm shrink-0 cursor-zoom-in"
+                    >
                       {fotoUrl ? (
                         <img src={fotoUrl} alt="" className="h-full w-full object-cover" />
                       ) : (
                         <span>🏺</span>
                       )}
-                    </div>
+                    </button>
                     <div className="min-w-0 text-xs">
-                      <p className="font-semibold text-chocolate truncate max-w-[140px]">
+                      <p className="font-semibold text-chocolate truncate max-w-[150px]">
                         {prod?.nombre || "Pieza de autor"}
                       </p>
                       <p className="text-[10px] text-muted">
@@ -171,14 +172,13 @@ export function DashboardPedidosList({ pedidos }: DashboardPedidosListProps) {
                   </a>
                 )}
                 {pedido.comprobante_url && (
-                  <a
-                    href={pedido.comprobante_url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1 rounded-xl bg-surface border border-border px-3 py-1 text-xs text-chocolate hover:bg-secondary/40 font-medium"
+                  <button
+                    type="button"
+                    onClick={() => setPreviewImage(pedido.comprobante_url)}
+                    className="inline-flex items-center gap-1 rounded-xl bg-surface border border-border px-3 py-1 text-xs text-chocolate hover:bg-secondary/40 font-medium cursor-zoom-in"
                   >
                     <span>📎</span> Comprobante
-                  </a>
+                  </button>
                 )}
               </div>
 
@@ -219,6 +219,18 @@ export function DashboardPedidosList({ pedidos }: DashboardPedidosListProps) {
           </div>
         );
       })}
+
+      {/* Lightbox Preview */}
+      {previewImage && (
+        <div
+          onClick={() => setPreviewImage(null)}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-xs p-4 cursor-zoom-out animate-in fade-in duration-150"
+        >
+          <div className="relative max-w-lg w-full rounded-3xl overflow-hidden bg-surface p-2 shadow-2xl">
+            <img src={previewImage} alt="" className="h-full w-full object-contain rounded-2xl max-h-[80vh]" />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
