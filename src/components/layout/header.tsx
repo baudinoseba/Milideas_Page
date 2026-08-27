@@ -7,6 +7,7 @@ import { NAV_LINKS } from "@/lib/utils/constants";
 import { cn } from "@/lib/utils/cn";
 import { CartButton } from "@/components/cart/cart-button";
 import { createClient } from "@/lib/supabase/client";
+import { logoutAction } from "@/lib/actions";
 
 function IconUser({ className }: { className?: string }) {
   return (
@@ -119,8 +120,13 @@ export function Header() {
   };
 
   const handleLogout = async () => {
-    const supabase = createClient();
-    await supabase.auth.signOut();
+    try {
+      const supabase = createClient();
+      await supabase.auth.signOut();
+      await logoutAction();
+    } catch (e) {
+      console.error(e);
+    }
     setIsLoggedIn(false);
     setIsAdmin(false);
     setMenuOpen(false);

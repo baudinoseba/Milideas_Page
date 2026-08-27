@@ -25,11 +25,6 @@ export default async function CuentaLayout({
           <nav className="flex gap-4 text-sm">
             <Link href="/cuenta/perfil">Perfil</Link>
             <Link href="/cuenta/pedidos">Pedidos</Link>
-            <form action={logoutAction}>
-              <button type="submit" className="text-muted hover:text-foreground">
-                Salir
-              </button>
-            </form>
           </nav>
         </div>
       </header>
