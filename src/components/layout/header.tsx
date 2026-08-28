@@ -123,14 +123,13 @@ export function Header() {
     try {
       const supabase = createClient();
       await supabase.auth.signOut();
-      await logoutAction();
-    } catch (e) {
-      console.error(e);
+    } catch {
+      // ignore
     }
     setIsLoggedIn(false);
     setIsAdmin(false);
     setMenuOpen(false);
-    window.location.href = "/";
+    window.location.href = "/auth/logout";
   };
 
   return (

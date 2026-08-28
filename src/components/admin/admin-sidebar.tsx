@@ -67,11 +67,10 @@ export function AdminSidebar({
     try {
       const supabase = createClient();
       await supabase.auth.signOut();
-      await logoutAction();
-    } catch (e) {
-      console.error(e);
+    } catch {
+      // ignore
     }
-    window.location.href = "/";
+    window.location.href = "/auth/logout";
   };
 
   return (
