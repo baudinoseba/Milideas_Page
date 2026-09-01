@@ -72,6 +72,9 @@ export default async function ProductoPage({
     },
   };
 
+  const baseHref = producto.tipo_catalogo === "ilustracion" ? "/ilustracion" : "/ceramica";
+  const baseLabel = producto.tipo_catalogo === "ilustracion" ? "Ilustración" : "Cerámica";
+
   return (
     <>
       <script
@@ -86,14 +89,14 @@ export default async function ProductoPage({
           Inicio
         </Link>
         <span>/</span>
-        <Link href="/catalogo" className="hover:text-chocolate transition-colors">
-          Catálogo
+        <Link href={baseHref} className="hover:text-chocolate transition-colors">
+          {baseLabel}
         </Link>
         {producto.categorias && (
           <>
             <span>/</span>
             <Link
-              href={`/catalogo?categoria=${producto.categorias.id}`}
+              href={`${baseHref}?categoria=${producto.categorias.id}`}
               className="hover:text-chocolate transition-colors"
             >
               {producto.categorias.nombre}
@@ -105,7 +108,7 @@ export default async function ProductoPage({
       </nav>
 
       <div className="mb-6">
-        <BackButton fallbackHref="/catalogo">Volver al catálogo</BackButton>
+        <BackButton fallbackHref={baseHref}>Volver a {baseLabel.toLowerCase()}</BackButton>
       </div>
 
       {/* Mobile Title & Badge (Shown above image on mobile) */}
@@ -305,7 +308,7 @@ export default async function ProductoPage({
             <h2 className="text-2xl font-medium font-serif text-chocolate">Otras piezas de la colección</h2>
             {producto.categoria_id && (
               <Link
-                href={`/catalogo?categoria=${producto.categoria_id}`}
+                href={`${baseHref}?categoria=${producto.categoria_id}`}
                 className="text-sm font-semibold text-terracota hover:text-chocolate transition-colors font-sans"
               >
                 Ver todas →

@@ -71,7 +71,7 @@ export function CartEmptyState() {
         Explorá las piezas disponibles y encontrá tu favorita.
       </p>
       <Link
-        href="/catalogo"
+        href="/ceramica"
         className="inline-flex items-center gap-1 rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground transition-all duration-200 hover:bg-primary-hover active:scale-[0.98] shadow-sm"
       >
         Explorar catálogo

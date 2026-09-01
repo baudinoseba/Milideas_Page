@@ -109,7 +109,7 @@ export function EncargosCheckoutClient() {
             </div>
           )}
 
-          <Link href="/catalogo" className="block pt-2">
+          <Link href="/ceramica" className="block pt-2">
             <Button variant="outline" className="rounded-full px-6 py-3 border-border text-chocolate text-xs font-semibold">
               Explorar Catálogo de Autor →
             </Button>
@@ -783,7 +783,7 @@ ${emailContacto ? `*Email:* ${emailContacto}\n` : ""}${entregaText}
             </p>
 
             <div className="pt-4 border-t border-border/60 space-y-3">
-              <Link href="/catalogo">
+              <Link href="/ceramica">
                 <Button className="w-full rounded-full bg-chocolate text-crema-cruda hover:bg-chocolate/90 py-3 text-xs font-semibold">
                   Volver al Catálogo
                 </Button>

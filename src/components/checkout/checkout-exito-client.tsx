@@ -196,7 +196,7 @@ ${window.location.origin}/checkout/exito/${pedido.id}`;
       </Card>
 
       <div className="flex justify-center pt-4">
-        <Link href="/catalogo">
+        <Link href="/ceramica">
           <Button variant="outline" className="w-full sm:w-auto">
             Volver a la tienda
           </Button>

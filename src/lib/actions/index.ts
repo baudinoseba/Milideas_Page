@@ -168,6 +168,8 @@ export async function crearPedidoAction(
   }
 
   revalidatePath("/catalogo");
+  revalidatePath("/ceramica");
+  revalidatePath("/ilustracion");
 
   // Notificación de nueva venta de stock para la administradora (en segundo plano, no bloqueante)
   if (data) {

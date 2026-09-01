@@ -7,7 +7,7 @@ export default async function CatalogoPage({
 }) {
   const { categoria } = await searchParams;
   if (categoria) {
-    redirect(`/catalogo/ceramica?categoria=${categoria}`);
+    redirect(`/ceramica?categoria=${categoria}`);
   }
-  redirect("/catalogo/ceramica");
+  redirect("/ceramica");
 }

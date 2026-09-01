@@ -91,7 +91,7 @@ export default function CarritoPage() {
             </Link>
 
             <div className="space-y-2 pt-2 border-t border-border/40 text-center">
-              <Link href="/catalogo" className="inline-block text-xs font-semibold text-barro hover:text-chocolate transition-colors">
+              <Link href="/ceramica" className="inline-block text-xs font-semibold text-barro hover:text-chocolate transition-colors">
                 ← Seguir explorando el catálogo
               </Link>
               <p className="text-[11px] text-barro/80">

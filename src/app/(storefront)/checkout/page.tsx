@@ -21,7 +21,7 @@ export default async function CheckoutPage() {
   return (
     <div>
       <div className="mb-6">
-        <BackButton fallbackHref="/catalogo">Volver a la tienda</BackButton>
+        <BackButton fallbackHref="/ceramica">Volver a la tienda</BackButton>
       </div>
       <h1 className="mb-8 text-2xl font-medium">Checkout</h1>
       {zonas.length === 0 ? (
