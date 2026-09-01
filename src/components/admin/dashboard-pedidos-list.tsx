@@ -12,8 +12,7 @@ interface DashboardPedidosListProps {
 export function DashboardPedidosList({ pedidos }: DashboardPedidosListProps) {
   const [isPending, startTransition] = useTransition();
   const [previewImage, setPreviewImage] = useState<string | null>(null);
-
-  const ahora = Date.now();
+  const [ahora] = useState(() => Date.now());
   const DOS_DIAS_MS = 48 * 60 * 60 * 1000;
 
   const handleConfirmarPago = (id: string, cliente: string) => {

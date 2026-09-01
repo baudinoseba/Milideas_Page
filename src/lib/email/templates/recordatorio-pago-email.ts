@@ -10,7 +10,6 @@ export interface RecordatorioPagoEmailProps {
   }[];
   total: number;
   horasTranscurridas?: number;
-  horasRestantes?: number;
   appUrl: string;
 }
 
@@ -18,7 +17,6 @@ export function renderRecordatorioPagoHtml(props: RecordatorioPagoEmailProps): s
   const shortId = props.pedidoId.slice(0, 8).toUpperCase();
   const cleanPhone = props.whatsappContacto.replace(/\D/g, "");
   const horasTranscurridas = props.horasTranscurridas ?? 24;
-  const horasRestantes = props.horasRestantes ?? 24;
 
   const waMessage = encodeURIComponent(
     `¡Hola ${props.nombreContacto}! Te escribo de Milideas Arte sobre tu reserva del pedido #${shortId} por $${props.total.toLocaleString("es-AR")}. Quería consultarte si tuviste alguna duda con la transferencia o si necesitás los datos bancarios nuevamente. ¡Muchas gracias!`

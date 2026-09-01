@@ -62,7 +62,7 @@ export function PedidosManager({ initialPedidos, configSitio }: PedidosManagerPr
   const [copiedFeedback, setCopiedFeedback] = useState(false);
 
   const bankInfo: WhatsAppBankInfo = useMemo(() => extractBankInfo(configSitio), [configSitio]);
-  const ahora = Date.now();
+  const [ahora] = useState(() => Date.now());
   const VEINTICUATRO_HORAS_MS = 24 * 60 * 60 * 1000;
 
   // Counts for KPIs and Filter Tabs

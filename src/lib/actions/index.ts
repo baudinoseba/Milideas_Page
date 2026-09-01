@@ -3096,7 +3096,7 @@ export async function saveStockPiezaDirectaAction(
   let targetId = id;
 
   if (id) {
-    let { error: updErr } = await supabase.from("productos").update(payloadCompleto).eq("id", id);
+    const { error: updErr } = await supabase.from("productos").update(payloadCompleto).eq("id", id);
     if (updErr && updErr.message?.includes("column")) {
       // Fallback sin columnas nuevas opcionales
       const payloadFallback = {
@@ -3119,7 +3119,7 @@ export async function saveStockPiezaDirectaAction(
     }
   } else {
     payloadCompleto.slug = slug;
-    let { data: nuevoProd, error: insErr } = await supabase
+    const { data: nuevoProd, error: insErr } = await supabase
       .from("productos")
       .insert(payloadCompleto)
       .select("id")

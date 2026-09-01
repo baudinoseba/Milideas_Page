@@ -174,7 +174,6 @@ export async function notificarRecordatorioPagoAdmin(pedido: any): Promise<boole
       items,
       total: Number(pedido.total),
       horasTranscurridas: 24,
-      horasRestantes: 24,
       appUrl,
     });
 
