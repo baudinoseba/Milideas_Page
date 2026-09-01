@@ -1,251 +1,590 @@
 import Link from "next/link";
-import { getAdminStats } from "@/lib/supabase/queries";
-import { DashboardPedidosList } from "@/components/admin/dashboard-pedidos-list";
+import {
+  getProductos,
+  getFormatosCatalogo,
+  getEncargos,
+  getAdminPedidos,
+} from "@/lib/supabase/queries";
+import type { Encargo } from "@/types";
 
-export const metadata = { title: "Admin — Dashboard de Control" };
+export const metadata = { title: "Panel de Control · Milideas" };
+
+function isEncargoEntregado(encargo: Encargo): boolean {
+  if (encargo.estado === "entregado") return true;
+  if (!encargo.notas_admin) return false;
+  try {
+    const meta = JSON.parse(encargo.notas_admin);
+    return meta?.archivado === true || meta?.entregado === true;
+  } catch {
+    return false;
+  }
+}
 
 export default async function AdminDashboardPage() {
-  const stats = await getAdminStats().catch(() => ({
-    pedidosPendientes: 0,
-    pedidosConfirmados: 0,
-    pedidosRetiroTaller: 0,
-    pedidosEnvioDomicilio: 0,
-    totalStockPiezas: 0,
-    encargosPendientes: 0,
-    ultimosPedidos: [],
-    ultimosEncargos: [],
-  }));
+  // Cargar datos en paralelo para todas las secciones
+  const [
+    productos,
+    formatosCeramica,
+    formatosIlustracion,
+    encargos,
+    pedidos,
+  ] = await Promise.all([
+    getProductos({ includeInactive: true }).catch(() => []),
+    getFormatosCatalogo("ceramica").catch(() => []),
+    getFormatosCatalogo("ilustracion").catch(() => []),
+    getEncargos().catch(() => []),
+    getAdminPedidos().catch(() => []),
+  ]);
 
-  const ahora = Date.now();
-  const DOS_DIAS_MS = 48 * 60 * 60 * 1000;
+  // ─── 1. MÉTRICAS DE ENCARGOS ───
+  let encargosPendientes = 0;
+  let encargosEsperaSena = 0;
+  let encargosEnTaller = 0;
+  let encargosListosSaldo = 0;
 
-  // Detectar cuántos pedidos pendientes tienen más de 48hs
-  const pedidosDemorados = stats.ultimosPedidos.filter((p: any) => {
-    if (p.estado !== "pendiente_pago") return false;
-    const diff = ahora - new Date(p.created_at).getTime();
-    return diff > DOS_DIAS_MS;
-  });
+  for (const e of encargos) {
+    if (isEncargoEntregado(e) || e.estado === "rechazado" || e.estado === "cancelado") continue;
+    if (e.estado === "pendiente") encargosPendientes++;
+    else if (e.estado === "aceptado") encargosEsperaSena++;
+    else if (e.estado === "en_proceso") encargosEnTaller++;
+    else if (e.estado === "listo") encargosListosSaldo++;
+  }
+
+  // ─── 2. MÉTRICAS DE GESTIÓN DE STOCK DE LA TIENDA (PEDIDOS/DESPACHOS) ───
+  let pedidosPendientesPago = 0;
+  let pedidosListosEnvio = 0;
+  let pedidosListosRetiro = 0;
+  let pedidosEntregados = 0;
+
+  for (const p of pedidos) {
+    const isRetiro =
+      String(p.tipo_envio || "").toLowerCase().includes("retiro") ||
+      Number(p.costo_envio || 0) === 0;
+
+    if (p.estado === "pendiente_pago") {
+      pedidosPendientesPago++;
+    } else if (p.estado === "confirmado") {
+      if (isRetiro) pedidosListosRetiro++;
+      else pedidosListosEnvio++;
+    } else if (p.estado === "enviado") {
+      pedidosEntregados++;
+    }
+  }
+
+  // ─── 3. MÉTRICAS DE STOCK TIENDA GENERAL ───
+  const stockEnTienda = productos.filter((p) => p.activo && p.stock_disponible > 0).length;
+  const stockBorradores = productos.filter((p) => !p.activo).length;
+  const stockAgotados = productos.filter((p) => p.activo && p.stock_disponible <= 0).length;
+  const stockTotalCatalogo = productos.length;
+
+  // ─── 4. MÉTRICAS DE CERÁMICA ───
+  const prodsCeramica = productos.filter((p) => p.tipo_catalogo === "ceramica");
+  const ceramicaPublicadas = prodsCeramica.filter((p) => p.activo).length;
+  const ceramicaBorradores = prodsCeramica.filter((p) => !p.activo).length;
+  const ceramicaColecciones = new Set(
+    prodsCeramica.map((p) => p.producciones?.nombre).filter(Boolean)
+  ).size;
+  const ceramicaCatalogo = formatosCeramica.length;
+
+  // ─── 5. MÉTRICAS DE ILUSTRACIÓN ───
+  const prodsIlustracion = productos.filter((p) => p.tipo_catalogo === "ilustraciones");
+  const ilustracionPublicadas = prodsIlustracion.filter((p) => p.activo).length;
+  const ilustracionBorradores = prodsIlustracion.filter((p) => !p.activo).length;
+  const ilustracionColecciones = new Set(
+    prodsIlustracion.map((p) => p.producciones?.nombre).filter(Boolean)
+  ).size;
+  const ilustracionCatalogo = formatosIlustracion.length;
 
   return (
-    <div className="space-y-8 pb-12">
-      
-      {/* ─── Encabezado Limpio del Panel ─── */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-border/60 pb-4">
+    <div className="space-y-4 pb-10">
+      {/* ─── Encabezado Principal ─── */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 border-b border-border/60 pb-3">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-serif font-semibold text-chocolate">
-            Panel de Control · Milideas
+          <h1 className="text-xl sm:text-2xl font-serif font-bold text-chocolate">
+            Panel de Control
           </h1>
-          <p className="mt-0.5 text-xs sm:text-sm text-muted font-sans">
-            Métricas operativas en tiempo real, conciliación de pagos y estado del taller.
+          <p className="text-xs text-stone-600 font-sans">
+            Visión global del taller, stock en tienda, encargos y pedidos.
           </p>
         </div>
       </div>
 
-      {/* ─── 1. MÉTRICAS CLAVE CON FONDOS PASTEL SUAVES Y NÚMEROS ELEGANTES ─── */}
-      <section className="space-y-3">
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-barro font-sans flex items-center gap-1.5">
-          <span>⚡</span> Resumen Operativo
-        </h2>
-
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
-          
-          {/* Card 1: Pagos por revisar */}
-          <Link
-            href="/admin/pedidos?estado=pendiente_pago"
-            className="rounded-3xl border border-[#E8DAB2] bg-[#FDF8EC] p-4 sm:p-5 shadow-2xs transition-all hover:shadow-xs hover:border-[#D6C291] flex flex-col justify-between"
-          >
-            <div>
-              <div className="flex items-center justify-between text-xs font-semibold text-[#6E4F1A]">
-                <span>Pagos por revisar</span>
-                <span>💳</span>
-              </div>
-              <p className="mt-2 text-3xl sm:text-4xl font-bold font-mono text-[#B35436]">
-                {stats.pedidosPendientes}
-              </p>
+      <div className="space-y-3.5">
+        {/* ═══════════════════════════════════════════════════════════════════════ */}
+        {/* ─── 1. GESTIÓN DE ENCARGOS ─── */}
+        {/* ═══════════════════════════════════════════════════════════════════════ */}
+        <section className="p-3.5 sm:p-4 rounded-2xl bg-[#FAF7F2]/75 border border-[#E5E0D8] space-y-2.5 shadow-2xs">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">📝</span>
+              <h2 className="text-sm sm:text-base font-serif font-bold text-chocolate">
+                Gestión de Encargos
+              </h2>
             </div>
-            <div className="mt-2">
-              {pedidosDemorados.length > 0 ? (
-                <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-rose-700 bg-rose-100/80 px-2 py-0.5 rounded-full">
-                  ⚠️ {pedidosDemorados.length} con más de 48hs
+            <Link
+              href="/admin/encargos"
+              className="text-[11px] font-bold text-chocolate hover:text-emerald-800 transition-colors flex items-center gap-1 group"
+            >
+              <span>Gestionar Encargos</span>
+              <span className="group-hover:translate-x-0.5 transition-transform">→</span>
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+            <Link
+              href="/admin/encargos"
+              className="p-2.5 sm:p-3 rounded-xl border-2 bg-[#FFFBEB] border-amber-300 hover:border-amber-500 text-left transition-all hover:shadow-xs cursor-pointer block"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-black tracking-tight text-stone-900">
+                  1. Pendientes
                 </span>
-              ) : (
-                <p className="text-[11px] text-[#8C6D34] font-medium">
-                  {stats.pedidosPendientes > 0 ? "Transferencias a conciliar" : "✓ Todo al día"}
-                </p>
-              )}
-            </div>
-          </Link>
-
-          {/* Card 2: Listos para despacho / retiro */}
-          <Link
-            href="/admin/pedidos?estado=confirmado"
-            className="rounded-3xl border border-[#C6E4D2] bg-[#EFF8F2] p-4 sm:p-5 shadow-2xs transition-all hover:shadow-xs hover:border-[#A4D4B6] flex flex-col justify-between"
-          >
-            <div>
-              <div className="flex items-center justify-between text-xs font-semibold text-[#205C33]">
-                <span>Listos para entrega</span>
-                <span>📦</span>
+                <span className="text-xs">⏳</span>
               </div>
-              <p className="mt-2 text-3xl sm:text-4xl font-bold font-mono text-[#1E6838]">
-                {stats.pedidosConfirmados}
+              <p className="text-xl sm:text-2xl font-black font-sans mt-0.5 text-chocolate">
+                {encargosPendientes}
               </p>
-            </div>
-            <p className="text-[11px] text-[#2D7344] mt-2 font-medium">
-              {stats.pedidosConfirmados > 0
-                ? `${stats.pedidosEnvioDomicilio} por correo · ${stats.pedidosRetiroTaller} en taller`
-                : "Sin pedidos por entregar"}
-            </p>
-          </Link>
-
-          {/* Card 3: Encargos a Medida en Taller */}
-          <Link
-            href="/admin/encargos"
-            className="rounded-3xl border border-[#E0D2EC] bg-[#F7F2FA] p-4 sm:p-5 shadow-2xs transition-all hover:shadow-xs hover:border-[#CBB7DD] flex flex-col justify-between"
-          >
-            <div>
-              <div className="flex items-center justify-between text-xs font-semibold text-[#54366C]">
-                <span>Encargos a Medida</span>
-                <span>📝</span>
-              </div>
-              <p className="mt-2 text-3xl sm:text-4xl font-bold font-mono text-[#5C347A]">
-                {stats.encargosPendientes}
+              <p className="text-[10px] font-semibold text-stone-700 truncate">
+                Aceptar o rechazar
               </p>
-            </div>
-            <p className="text-[11px] text-[#694883] mt-2 font-medium">
-              {stats.encargosPendientes > 0
-                ? "Solicitudes por presupuestar"
-                : "Taller al día"}
-            </p>
-          </Link>
+            </Link>
 
-          {/* Card 4: Stock Total Disponible en Tienda */}
-          <Link
-            href="/admin/ceramica"
-            className="rounded-3xl border border-[#CDE3EC] bg-[#F0F7FA] p-4 sm:p-5 shadow-2xs transition-all hover:shadow-xs hover:border-[#B2D5E3] flex flex-col justify-between"
-          >
-            <div>
-              <div className="flex items-center justify-between text-xs font-semibold text-[#2C5F74]">
-                <span>Stock en Tienda</span>
-                <span>🏺</span>
+            <Link
+              href="/admin/encargos"
+              className="p-2.5 sm:p-3 rounded-xl border-2 bg-[#F0F9FF] border-sky-300 hover:border-sky-500 text-left transition-all hover:shadow-xs cursor-pointer block"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-black tracking-tight text-stone-900">
+                  2. Espera de Seña
+                </span>
+                <span className="text-xs">💳</span>
               </div>
-              <p className="mt-2 text-3xl sm:text-4xl font-bold font-mono text-[#24596F]">
-                {stats.totalStockPiezas}
+              <p className="text-xl sm:text-2xl font-black font-sans mt-0.5 text-chocolate">
+                {encargosEsperaSena}
               </p>
-            </div>
-            <p className="text-[11px] text-[#366B80] mt-2 font-medium">
-              Unidades listas para entrega
-            </p>
-          </Link>
+              <p className="text-[10px] font-semibold text-stone-700 truncate">
+                Esperando comprobante
+              </p>
+            </Link>
 
-        </div>
-      </section>
-
-      {/* ─── 2. PEDIDOS RECIENTES CON DETALLE REAL Y ACCIONES RÁPIDAS ─── */}
-      <section className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-barro font-sans flex items-center gap-1.5">
-              <span>🛒</span> Pedidos Recientes de la Tienda
-            </h2>
-            <p className="text-[11px] text-muted font-sans mt-0.5">
-              Revisá comprobantes de transferencia y gestioná despachos o retiros en el taller.
-            </p>
-          </div>
-          <Link
-            href="/admin/pedidos"
-            className="text-xs font-semibold text-terracota hover:underline font-sans"
-          >
-            Ver todos los pedidos →
-          </Link>
-        </div>
-
-        <DashboardPedidosList pedidos={stats.ultimosPedidos} />
-      </section>
-
-      {/* ─── 3. ENCARGOS A MEDIDA RECIENTES DEL TALLER ─── */}
-      <section className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-barro font-sans flex items-center gap-1.5">
-              <span>🎨</span> Encargos Especiales & Personalizados
-            </h2>
-            <p className="text-[11px] text-muted font-sans mt-0.5">
-              Solicitudes de clientes para piezas personalizadas y proyectos a medida.
-            </p>
-          </div>
-          <Link
-            href="/admin/encargos"
-            className="text-xs font-semibold text-terracota hover:underline font-sans"
-          >
-            Ver todos los encargos →
-          </Link>
-        </div>
-
-        {stats.ultimosEncargos.length === 0 ? (
-          <div className="rounded-3xl border border-border/60 bg-arena/20 p-8 text-center text-xs text-muted">
-            <p className="text-2xl mb-1">✨</p>
-            <p className="font-semibold text-chocolate">No hay encargos a medida pendientes en este momento.</p>
-          </div>
-        ) : (
-          <div className="rounded-3xl border border-border/60 bg-surface divide-y divide-border/40 shadow-xs overflow-hidden">
-            {stats.ultimosEncargos.map((enc: any) => (
-              <div
-                key={enc.id}
-                className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 sm:p-5 hover:bg-arena/10 transition-colors"
-              >
-                <div className="space-y-1 min-w-0 flex-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="text-xs sm:text-sm font-semibold text-chocolate">
-                      {enc.nombre_contacto || "Cliente"}
-                    </p>
-                    <span className="rounded-full bg-arena/60 border border-border/60 px-2.5 py-0.5 text-[10px] font-semibold text-barro">
-                      {enc.tipo_encargo || "Personalizado"}
-                    </span>
-                    <span
-                      className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
-                        enc.estado === "pendiente"
-                          ? "bg-amber-100 text-amber-950 border border-amber-300"
-                          : enc.estado === "en_produccion"
-                            ? "bg-sky-100 text-sky-950 border border-sky-300"
-                            : "bg-emerald-100 text-emerald-950 border border-emerald-300"
-                      }`}
-                    >
-                      {enc.estado === "pendiente"
-                        ? "⏳ Pendiente"
-                        : enc.estado === "en_produccion"
-                          ? "🛠️ En Producción"
-                          : "✓ Listo"}
-                    </span>
-                  </div>
-
-                  {enc.descripcion_idea && (
-                    <p className="text-xs text-barro truncate">
-                      {enc.descripcion_idea}
-                    </p>
-                  )}
-
-                  <p className="text-[11px] text-muted font-sans">
-                    {new Date(enc.created_at).toLocaleDateString("es-AR", {
-                      day: "2-digit",
-                      month: "short",
-                    })}
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-3 shrink-0 self-end sm:self-auto">
-                  <Link
-                    href={`/admin/encargos/${enc.id}`}
-                    className="rounded-xl border border-border bg-surface px-3 py-1.5 text-xs text-chocolate hover:bg-secondary/40 font-semibold shadow-2xs"
-                  >
-                    Ver detalle →
-                  </Link>
-                </div>
+            <Link
+              href="/admin/encargos"
+              className="p-2.5 sm:p-3 rounded-xl border-2 bg-[#F5F3FF] border-violet-300 hover:border-violet-500 text-left transition-all hover:shadow-xs cursor-pointer block"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-black tracking-tight text-stone-900">
+                  3. En Taller
+                </span>
+                <span className="text-xs">🎨</span>
               </div>
-            ))}
-          </div>
-        )}
-      </section>
+              <p className="text-xl sm:text-2xl font-black font-sans mt-0.5 text-chocolate">
+                {encargosEnTaller}
+              </p>
+              <p className="text-[10px] font-semibold text-stone-700 truncate">
+                Producción en curso
+              </p>
+            </Link>
 
+            <Link
+              href="/admin/encargos"
+              className="p-2.5 sm:p-3 rounded-xl border-2 bg-[#ECFDF5] border-emerald-300 hover:border-emerald-500 text-left transition-all hover:shadow-xs cursor-pointer block"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-black tracking-tight text-stone-900">
+                  4. Listos / Saldo
+                </span>
+                <span className="text-xs">✨</span>
+              </div>
+              <p className="text-xl sm:text-2xl font-black font-sans mt-0.5 text-chocolate">
+                {encargosListosSaldo}
+              </p>
+              <p className="text-[10px] font-semibold text-stone-700 truncate">
+                Saldo y entrega
+              </p>
+            </Link>
+          </div>
+        </section>
+
+        {/* ═══════════════════════════════════════════════════════════════════════ */}
+        {/* ─── 2. GESTIÓN DE STOCK DE LA TIENDA ─── */}
+        {/* ═══════════════════════════════════════════════════════════════════════ */}
+        <section className="p-3.5 sm:p-4 rounded-2xl bg-[#FAF7F2]/75 border border-[#E5E0D8] space-y-2.5 shadow-2xs">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">📦</span>
+              <h2 className="text-sm sm:text-base font-serif font-bold text-chocolate">
+                Gestión de Stock de la Tienda
+              </h2>
+            </div>
+            <Link
+              href="/admin/pedidos"
+              className="text-[11px] font-bold text-chocolate hover:text-emerald-800 transition-colors flex items-center gap-1 group"
+            >
+              <span>Gestionar Stock de Tienda</span>
+              <span className="group-hover:translate-x-0.5 transition-transform">→</span>
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+            <Link
+              href="/admin/pedidos"
+              className="p-2.5 sm:p-3 rounded-xl border-2 bg-[#FFFBEB] border-amber-300 hover:border-amber-500 text-left transition-all hover:shadow-xs cursor-pointer block"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-black tracking-tight text-stone-900">
+                  1. Pendientes Transferencia
+                </span>
+                <span className="text-xs">💳</span>
+              </div>
+              <p className="text-xl sm:text-2xl font-black font-sans mt-0.5 text-chocolate">
+                {pedidosPendientesPago}
+              </p>
+              <p className="text-[10px] font-semibold text-stone-700 truncate">
+                Por conciliar
+              </p>
+            </Link>
+
+            <Link
+              href="/admin/pedidos"
+              className="p-2.5 sm:p-3 rounded-xl border-2 bg-[#F0F9FF] border-sky-300 hover:border-sky-500 text-left transition-all hover:shadow-xs cursor-pointer block"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-black tracking-tight text-stone-900">
+                  2. Listos / Despacho
+                </span>
+                <span className="text-xs">📦</span>
+              </div>
+              <p className="text-xl sm:text-2xl font-black font-sans mt-0.5 text-chocolate">
+                {pedidosListosEnvio}
+              </p>
+              <p className="text-[10px] font-semibold text-stone-700 truncate">
+                Embalar y enviar
+              </p>
+            </Link>
+
+            <Link
+              href="/admin/pedidos"
+              className="p-2.5 sm:p-3 rounded-xl border-2 bg-[#F5F3FF] border-violet-300 hover:border-violet-500 text-left transition-all hover:shadow-xs cursor-pointer block"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-black tracking-tight text-stone-900">
+                  3. Listos / Retiro
+                </span>
+                <span className="text-xs">🏺</span>
+              </div>
+              <p className="text-xl sm:text-2xl font-black font-sans mt-0.5 text-chocolate">
+                {pedidosListosRetiro}
+              </p>
+              <p className="text-[10px] font-semibold text-stone-700 truncate">
+                Retiro en taller
+              </p>
+            </Link>
+
+            <Link
+              href="/admin/pedidos"
+              className="p-2.5 sm:p-3 rounded-xl border-2 bg-[#ECFDF5] border-emerald-300 hover:border-emerald-500 text-left transition-all hover:shadow-xs cursor-pointer block"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-black tracking-tight text-stone-900">
+                  4. Entregados / Histórico
+                </span>
+                <span className="text-xs">✓</span>
+              </div>
+              <p className="text-xl sm:text-2xl font-black font-sans mt-0.5 text-chocolate">
+                {pedidosEntregados}
+              </p>
+              <p className="text-[10px] font-semibold text-stone-700 truncate">
+                Enviados y completados
+              </p>
+            </Link>
+          </div>
+        </section>
+
+        {/* ═══════════════════════════════════════════════════════════════════════ */}
+        {/* ─── 3. STOCK TIENDA ─── */}
+        {/* ═══════════════════════════════════════════════════════════════════════ */}
+        <section className="p-3.5 sm:p-4 rounded-2xl bg-[#FAF7F2]/75 border border-[#E5E0D8] space-y-2.5 shadow-2xs">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">📦</span>
+              <h2 className="text-sm sm:text-base font-serif font-bold text-chocolate">
+                Stock Tienda
+              </h2>
+            </div>
+            <Link
+              href="/admin/productos"
+              className="text-[11px] font-bold text-chocolate hover:text-emerald-800 transition-colors flex items-center gap-1 group"
+            >
+              <span>Gestionar Stock</span>
+              <span className="group-hover:translate-x-0.5 transition-transform">→</span>
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+            <Link
+              href="/admin/productos"
+              className="p-2.5 sm:p-3 rounded-xl border-2 bg-[#ECFDF5] border-emerald-300 hover:border-emerald-500 text-left transition-all hover:shadow-xs cursor-pointer block"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-black tracking-tight text-stone-900">
+                  1. En Tienda (Disponibles)
+                </span>
+                <span className="text-xs">✓</span>
+              </div>
+              <p className="text-xl sm:text-2xl font-black font-sans mt-0.5 text-chocolate">
+                {stockEnTienda}
+              </p>
+              <p className="text-[10px] font-semibold text-stone-700 truncate">
+                Entrega inmediata
+              </p>
+            </Link>
+
+            <Link
+              href="/admin/productos"
+              className="p-2.5 sm:p-3 rounded-xl border-2 bg-[#FFFBEB] border-amber-300 hover:border-amber-500 text-left transition-all hover:shadow-xs cursor-pointer block"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-black tracking-tight text-stone-900">
+                  2. Por Estrenar (Borrador)
+                </span>
+                <span className="text-xs">⏳</span>
+              </div>
+              <p className="text-xl sm:text-2xl font-black font-sans mt-0.5 text-chocolate">
+                {stockBorradores}
+              </p>
+              <p className="text-[10px] font-semibold text-stone-700 truncate">
+                Guardadas para estrenos
+              </p>
+            </Link>
+
+            <Link
+              href="/admin/productos"
+              className="p-2.5 sm:p-3 rounded-xl border-2 bg-[#FEE2E2] border-rose-300 hover:border-rose-500 text-left transition-all hover:shadow-xs cursor-pointer block"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-black tracking-tight text-stone-900">
+                  3. Agotados (Sin stock)
+                </span>
+                <span className="text-xs">⚠️</span>
+              </div>
+              <p className="text-xl sm:text-2xl font-black font-sans mt-0.5 text-chocolate">
+                {stockAgotados}
+              </p>
+              <p className="text-[10px] font-semibold text-stone-700 truncate">
+                Piezas a reponer
+              </p>
+            </Link>
+
+            <Link
+              href="/admin/productos"
+              className="p-2.5 sm:p-3 rounded-xl border-2 bg-[#F0F9FF] border-sky-300 hover:border-sky-500 text-left transition-all hover:shadow-xs cursor-pointer block"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-black tracking-tight text-stone-900">
+                  4. Total Catálogo
+                </span>
+                <span className="text-xs">📦</span>
+              </div>
+              <p className="text-xl sm:text-2xl font-black font-sans mt-0.5 text-chocolate">
+                {stockTotalCatalogo}
+              </p>
+              <p className="text-[10px] font-semibold text-stone-700 truncate">
+                Modelos y piezas
+              </p>
+            </Link>
+          </div>
+        </section>
+
+        {/* ═══════════════════════════════════════════════════════════════════════ */}
+        {/* ─── 4. CERÁMICA ─── */}
+        {/* ═══════════════════════════════════════════════════════════════════════ */}
+        <section className="p-3.5 sm:p-4 rounded-2xl bg-[#FAF7F2]/75 border border-[#E5E0D8] space-y-2.5 shadow-2xs">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">🏺</span>
+              <h2 className="text-sm sm:text-base font-serif font-bold text-chocolate">
+                Cerámica
+              </h2>
+            </div>
+            <Link
+              href="/admin/ceramica"
+              className="text-[11px] font-bold text-chocolate hover:text-emerald-800 transition-colors flex items-center gap-1 group"
+            >
+              <span>Gestionar Cerámica</span>
+              <span className="group-hover:translate-x-0.5 transition-transform">→</span>
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+            <Link
+              href="/admin/ceramica"
+              className="p-2.5 sm:p-3 rounded-xl border-2 bg-[#ECFDF5] border-emerald-300 hover:border-emerald-500 text-left transition-all hover:shadow-xs cursor-pointer block"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-black tracking-tight text-stone-900">
+                  1. En Tienda (Publicadas)
+                </span>
+                <span className="text-xs">✓</span>
+              </div>
+              <p className="text-xl sm:text-2xl font-black font-sans mt-0.5 text-chocolate">
+                {ceramicaPublicadas}
+              </p>
+              <p className="text-[10px] font-semibold text-stone-700 truncate">
+                Visibles en la web
+              </p>
+            </Link>
+
+            <Link
+              href="/admin/ceramica"
+              className="p-2.5 sm:p-3 rounded-xl border-2 bg-[#FFFBEB] border-amber-300 hover:border-amber-500 text-left transition-all hover:shadow-xs cursor-pointer block"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-black tracking-tight text-stone-900">
+                  2. Borradores / Por Lanzar
+                </span>
+                <span className="text-xs">⏳</span>
+              </div>
+              <p className="text-xl sm:text-2xl font-black font-sans mt-0.5 text-chocolate">
+                {ceramicaBorradores}
+              </p>
+              <p className="text-[10px] font-semibold text-stone-700 truncate">
+                Guardadas para estreno
+              </p>
+            </Link>
+
+            <Link
+              href="/admin/ceramica"
+              className="p-2.5 sm:p-3 rounded-xl border-2 bg-[#F5F3FF] border-violet-300 hover:border-violet-500 text-left transition-all hover:shadow-xs cursor-pointer block"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-black tracking-tight text-stone-900">
+                  3. Colecciones Activas
+                </span>
+                <span className="text-xs">✨</span>
+              </div>
+              <p className="text-xl sm:text-2xl font-black font-sans mt-0.5 text-chocolate">
+                {ceramicaColecciones}
+              </p>
+              <p className="text-[10px] font-semibold text-stone-700 truncate">
+                Lanzamientos temáticos
+              </p>
+            </Link>
+
+            <Link
+              href="/admin/ceramica"
+              className="p-2.5 sm:p-3 rounded-xl border-2 bg-[#F0F9FF] border-sky-300 hover:border-sky-500 text-left transition-all hover:shadow-xs cursor-pointer block"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-black tracking-tight text-stone-900">
+                  4. Catálogo de Cerámica
+                </span>
+                <span className="text-xs">📜</span>
+              </div>
+              <p className="text-xl sm:text-2xl font-black font-sans mt-0.5 text-chocolate">
+                {ceramicaCatalogo}
+              </p>
+              <p className="text-[10px] font-semibold text-stone-700 truncate">
+                Tarifas y medidas
+              </p>
+            </Link>
+          </div>
+        </section>
+
+        {/* ═══════════════════════════════════════════════════════════════════════ */}
+        {/* ─── 5. ILUSTRACIÓN ─── */}
+        {/* ═══════════════════════════════════════════════════════════════════════ */}
+        <section className="p-3.5 sm:p-4 rounded-2xl bg-[#FAF7F2]/75 border border-[#E5E0D8] space-y-2.5 shadow-2xs">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">🎨</span>
+              <h2 className="text-sm sm:text-base font-serif font-bold text-chocolate">
+                Ilustración
+              </h2>
+            </div>
+            <Link
+              href="/admin/ilustracion"
+              className="text-[11px] font-bold text-chocolate hover:text-emerald-800 transition-colors flex items-center gap-1 group"
+            >
+              <span>Gestionar Ilustración</span>
+              <span className="group-hover:translate-x-0.5 transition-transform">→</span>
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+            <Link
+              href="/admin/ilustracion"
+              className="p-2.5 sm:p-3 rounded-xl border-2 bg-[#ECFDF5] border-emerald-300 hover:border-emerald-500 text-left transition-all hover:shadow-xs cursor-pointer block"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-black tracking-tight text-stone-900">
+                  1. En Tienda (Publicadas)
+                </span>
+                <span className="text-xs">✓</span>
+              </div>
+              <p className="text-xl sm:text-2xl font-black font-sans mt-0.5 text-chocolate">
+                {ilustracionPublicadas}
+              </p>
+              <p className="text-[10px] font-semibold text-stone-700 truncate">
+                Visibles en la web
+              </p>
+            </Link>
+
+            <Link
+              href="/admin/ilustracion"
+              className="p-2.5 sm:p-3 rounded-xl border-2 bg-[#FFFBEB] border-amber-300 hover:border-amber-500 text-left transition-all hover:shadow-xs cursor-pointer block"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-black tracking-tight text-stone-900">
+                  2. Borradores / Por Lanzar
+                </span>
+                <span className="text-xs">⏳</span>
+              </div>
+              <p className="text-xl sm:text-2xl font-black font-sans mt-0.5 text-chocolate">
+                {ilustracionBorradores}
+              </p>
+              <p className="text-[10px] font-semibold text-stone-700 truncate">
+                Guardadas para estreno
+              </p>
+            </Link>
+
+            <Link
+              href="/admin/ilustracion"
+              className="p-2.5 sm:p-3 rounded-xl border-2 bg-[#F5F3FF] border-violet-300 hover:border-violet-500 text-left transition-all hover:shadow-xs cursor-pointer block"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-black tracking-tight text-stone-900">
+                  3. Colecciones Activas
+                </span>
+                <span className="text-xs">✨</span>
+              </div>
+              <p className="text-xl sm:text-2xl font-black font-sans mt-0.5 text-chocolate">
+                {ilustracionColecciones}
+              </p>
+              <p className="text-[10px] font-semibold text-stone-700 truncate">
+                Lanzamientos temáticos
+              </p>
+            </Link>
+
+            <Link
+              href="/admin/ilustracion"
+              className="p-2.5 sm:p-3 rounded-xl border-2 bg-[#F0F9FF] border-sky-300 hover:border-sky-500 text-left transition-all hover:shadow-xs cursor-pointer block"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-black tracking-tight text-stone-900">
+                  4. Catálogo de Ilustración
+                </span>
+                <span className="text-xs">📜</span>
+              </div>
+              <p className="text-xl sm:text-2xl font-black font-sans mt-0.5 text-chocolate">
+                {ilustracionCatalogo}
+              </p>
+              <p className="text-[10px] font-semibold text-stone-700 truncate">
+                Tarifas y medidas
+              </p>
+            </Link>
+          </div>
+        </section>
+      </div>
     </div>
   );
 }

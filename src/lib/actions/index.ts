@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { checkoutSchema } from "@/lib/validations/schemas";
 import type { CrearPedidoItem, TipoCatalogo } from "@/types";
+import { notificarNuevoPedidoAdmin, notificarNuevoEncargoAdmin } from "@/lib/email/send-notifications";
 
 export type CheckoutResult =
   | { success: true; pedidoId: string }
@@ -167,6 +168,14 @@ export async function crearPedidoAction(
   }
 
   revalidatePath("/catalogo");
+
+  // Notificación de nueva venta de stock para la administradora (en segundo plano, no bloqueante)
+  if (data) {
+    notificarNuevoPedidoAdmin(data).catch((err) => {
+      console.error("[crearPedidoAction] Error al notificar nuevo pedido por email:", err);
+    });
+  }
+
   return { success: true, pedidoId: data };
 }
 
@@ -581,17 +590,20 @@ export async function saveProductoAction(
   // Discipline specific fields
   const capacidadMl = formData.get("capacidadMl") ? Number(formData.get("capacidadMl")) : null;
   const papelSoporte = String(formData.get("papelSoporte") || "").trim() || null;
-  const materialTecnica = String(formData.get("materialTecnica") || "").trim() || null;
+  const rawMaterialTecnica = String(formData.get("materialTecnica") || "").trim() || null;
+  const hechoEnTorno = formData.get("hechoEnTorno") === "on";
+  const materialTecnica = rawMaterialTecnica || (hechoEnTorno ? "Torneado en torno alfarero" : null);
   const edicionNumerada = String(formData.get("edicionNumerada") || "").trim() || null;
   const marcoIncluido = formData.get("marcoIncluido") === "on";
   const pedestalIncluido = formData.get("pedestalIncluido") === "on";
   const aptoLavavajillas = formData.get("aptoLavavajillas") === "on";
   const aptoMicroondas = formData.get("aptoMicroondas") === "on";
 
-  const atributosEspecificos = {
+  const atributosEspecificos: Record<string, any> = {
     capacidad_ml: capacidadMl,
     papel_soporte: papelSoporte,
     material_tecnica: materialTecnica,
+    hecho_en_torno: hechoEnTorno,
     edicion_numerada: edicionNumerada,
     marco_incluido: marcoIncluido,
     pedestal_incluido: pedestalIncluido,
@@ -654,20 +666,49 @@ export async function saveProductoAction(
   return { success: true };
 }
 
-export async function saveCategoriaAction(formData: FormData, id?: string) {
-  const supabase = await createClient();
-  const nombre = String(formData.get("nombre"));
+export async function saveCategoriaAction(
+  formData: FormData,
+  id?: string,
+): Promise<{ success: boolean; error?: string; categoria?: any }> {
+  const auth = await requireAdmin();
+  if ("error" in auth) return { success: false, error: auth.error };
+  const { supabase } = auth;
+
+  const nombre = String(formData.get("nombre") || "").trim();
   const tipoCatalogo = (formData.get("tipoCatalogo") as any) || "ceramica";
-  if (id) {
-    const { error } = await supabase.from("categorias").update({ nombre, tipo_catalogo: tipoCatalogo }).eq("id", id);
-    if (error) return { error: error.message };
-  } else {
-    const { error } = await supabase.from("categorias").insert({ nombre, tipo_catalogo: tipoCatalogo });
-    if (error) return { error: error.message };
+
+  if (!nombre) {
+    return { success: false, error: "El nombre de la categoría es obligatorio." };
   }
-  revalidatePath("/admin/categorias");
-  revalidatePath("/catalogo");
-  return { success: true };
+
+  if (id) {
+    const { data, error } = await supabase
+      .from("categorias")
+      .update({ nombre, tipo_catalogo: tipoCatalogo })
+      .eq("id", id)
+      .select()
+      .single();
+    if (error) return { success: false, error: error.message };
+    revalidatePath("/admin/ceramica");
+    revalidatePath("/admin/ilustracion");
+    revalidatePath("/admin/productos");
+    revalidatePath("/ceramica");
+    revalidatePath("/ilustracion");
+    return { success: true, categoria: data };
+  } else {
+    const { data, error } = await supabase
+      .from("categorias")
+      .insert({ nombre, tipo_catalogo: tipoCatalogo })
+      .select()
+      .single();
+    if (error) return { success: false, error: error.message };
+    revalidatePath("/admin/ceramica");
+    revalidatePath("/admin/ilustracion");
+    revalidatePath("/admin/productos");
+    revalidatePath("/ceramica");
+    revalidatePath("/ilustracion");
+    return { success: true, categoria: data };
+  }
 }
 
 export async function saveZonaAction(formData: FormData, id?: string) {
@@ -890,23 +931,68 @@ export async function toggleProductoActivoAction(
   return { success: true };
 }
 
-export async function marcarEnviadoAction(pedidoId: string) {
+export async function marcarEnviadoAction(pedidoId: string, trackingCode?: string) {
+  const supabase = await createClient();
+  const payload: any = { estado: "enviado" };
+  if (trackingCode) {
+    payload.comprobante_url = trackingCode; // or store tracking code in notes or comprobante_url field
+  }
+  const { error } = await supabase
+    .from("pedidos")
+    .update(payload)
+    .eq("id", pedidoId);
+
+  if (error) return { success: false, error: error.message };
+  revalidatePath("/admin/pedidos");
+  return { success: true };
+}
+
+export async function reabrirPedidoAction(pedidoId: string, nuevoEstado: string = "pendiente_pago") {
   const supabase = await createClient();
   const { error } = await supabase
     .from("pedidos")
-    .update({ estado: "enviado" })
-    .eq("id", pedidoId)
-    .eq("estado", "confirmado");
+    .update({ estado: nuevoEstado })
+    .eq("id", pedidoId);
 
-  if (error) return { error: error.message };
+  if (error) return { success: false, error: error.message };
   revalidatePath("/admin/pedidos");
   return { success: true };
+}
+
+export async function eliminarPedidoAction(pedidoId: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const adminClient = createAdminClient();
+    await adminClient.from("items_pedido").delete().eq("pedido_id", pedidoId);
+    const { error } = await adminClient.from("pedidos").delete().eq("id", pedidoId);
+    if (error) return { success: false, error: error.message };
+    revalidatePath("/admin/pedidos");
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message || "Error al eliminar pedido" };
+  }
+}
+
+export async function eliminarPedidosMultiplesAction(ids: string[]): Promise<{ success: boolean; error?: string }> {
+  try {
+    if (!ids || ids.length === 0) return { success: true };
+    const adminClient = createAdminClient();
+    await adminClient.from("items_pedido").delete().in("pedido_id", ids);
+    const { error } = await adminClient.from("pedidos").delete().in("id", ids);
+    if (error) return { success: false, error: error.message };
+    revalidatePath("/admin/pedidos");
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message || "Error al eliminar múltiples pedidos" };
+  }
 }
 
 export async function deleteCategoriaAction(
   categoriaId: string,
 ): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createClient();
+  const auth = await requireAdmin();
+  if ("error" in auth) return { success: false, error: auth.error };
+  const { supabase } = auth;
+
   const { error } = await supabase
     .from("categorias")
     .delete()
@@ -914,7 +1000,12 @@ export async function deleteCategoriaAction(
 
   if (error) return { success: false, error: error.message };
 
+  revalidatePath("/admin/ceramica");
+  revalidatePath("/admin/ilustracion");
+  revalidatePath("/admin/productos");
   revalidatePath("/admin/categorias");
+  revalidatePath("/ceramica");
+  revalidatePath("/ilustracion");
   return { success: true };
 }
 
@@ -1260,9 +1351,15 @@ export async function saveConfiguracionSitioAction(
   formData: FormData,
 ): Promise<{ success: boolean; error?: string }> {
   const supabase = await createClient();
-  const heroTitulo = String(formData.get("heroTitulo") || "").trim();
-  const heroSubtitulo = String(formData.get("heroSubtitulo") || "").trim();
   const coleccionDestacadaId = (formData.get("coleccionDestacadaId") as string) || null;
+
+  const sobreMiTitulo = String(formData.get("sobreMiTitulo") || "Mili Ferrero").trim();
+  const sobreMiFrase = String(formData.get("sobreMiFrase") || "Cada pieza tiene alma propia y provoca una sonrisa.").trim();
+  const sobreMiTexto = String(formData.get("sobreMiTexto") || "").trim();
+  const sobreMiFotoPosX = Number(formData.get("sobreMiFotoPosX") || 50);
+  const sobreMiFotoPosY = Number(formData.get("sobreMiFotoPosY") || 50);
+  const sobreMiFotoZoom = Number(formData.get("sobreMiFotoZoom") || 100);
+  const sobreMiFotoFit = String(formData.get("sobreMiFotoFit") || "cover").trim();
 
   const bancoTitular = String(formData.get("bancoTitular") || "Milagros Anita Ferrero").trim();
   const bancoCuit = String(formData.get("bancoCuit") || "27-43717260-4").trim();
@@ -1276,10 +1373,15 @@ export async function saveConfiguracionSitioAction(
   const tallerCodigoPostal = String(formData.get("tallerCodigoPostal") || "2322").trim();
   const vendedorWhatsapp = String(formData.get("vendedorWhatsapp") || "5493493668308").trim();
 
-  const payload = {
-    hero_titulo: heroTitulo || "Piezas únicas, hechas a mano.",
-    hero_subtitulo: heroSubtitulo || "Cerámica de autor en ediciones limitadas.",
+  const payload: any = {
     coleccion_destacada_id: coleccionDestacadaId || null,
+    sobre_mi_titulo: sobreMiTitulo,
+    sobre_mi_frase: sobreMiFrase,
+    sobre_mi_texto: sobreMiTexto,
+    sobre_mi_foto_pos_x: sobreMiFotoPosX,
+    sobre_mi_foto_pos_y: sobreMiFotoPosY,
+    sobre_mi_foto_zoom: sobreMiFotoZoom,
+    sobre_mi_foto_fit: sobreMiFotoFit,
     banco_titular: bancoTitular,
     banco_cuit: bancoCuit,
     banco_nombre: bancoNombre,
@@ -1297,7 +1399,25 @@ export async function saveConfiguracionSitioAction(
     const { data: existing } = await supabase.from("configuracion_sitio").select("id").limit(1).single();
 
     if (existing) {
-      await supabase.from("configuracion_sitio").update(payload).eq("id", existing.id);
+      const { error } = await supabase.from("configuracion_sitio").update(payload).eq("id", existing.id);
+      if (error) {
+        // Fallback safely if custom columns are pending migration
+        const safePayload = {
+          coleccion_destacada_id: coleccionDestacadaId || null,
+          banco_titular: bancoTitular,
+          banco_cuit: bancoCuit,
+          banco_nombre: bancoNombre,
+          banco_alias: bancoAlias,
+          banco_cbu: bancoCbu,
+          taller_direccion: tallerDireccion,
+          taller_ciudad: tallerCiudad,
+          taller_provincia: tallerProvincia,
+          taller_codigo_postal: tallerCodigoPostal,
+          vendedor_whatsapp: vendedorWhatsapp,
+          updated_at: new Date().toISOString(),
+        };
+        await supabase.from("configuracion_sitio").update(safePayload).eq("id", existing.id);
+      }
     } else {
       await supabase.from("configuracion_sitio").insert(payload);
     }
@@ -1306,6 +1426,7 @@ export async function saveConfiguracionSitioAction(
   }
 
   revalidatePath("/");
+  revalidatePath("/sobre-mi");
   revalidatePath("/admin/personalizacion");
   return { success: true };
 }
@@ -1418,6 +1539,57 @@ export async function uploadHeroImageAction(
   return { success: true, url: urlData.publicUrl };
 }
 
+export async function uploadSobreMiFotoAction(
+  formData: FormData,
+): Promise<{ success: boolean; error?: string; url?: string }> {
+  const auth = await requireAdmin();
+  if ("error" in auth) return { success: false, error: auth.error };
+  const { supabase } = auth;
+
+  const file = formData.get("sobreMiFoto") as File | null;
+  if (!file || file.size === 0) {
+    return { success: false, error: "Seleccioná una imagen para Sobre Mí" };
+  }
+
+  const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
+  const MAX_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
+  if (!ALLOWED_TYPES.includes(file.type)) {
+    return { success: false, error: "Tipo de archivo no permitido. Usá JPG, PNG o WEBP." };
+  }
+  if (file.size > MAX_SIZE_BYTES) {
+    return { success: false, error: "La foto supera el tamaño máximo permitido (10MB)." };
+  }
+
+  const ext = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
+  const safeExt = ["jpg", "jpeg", "png", "webp"].includes(ext) ? ext : "jpg";
+  const path = `sobre_mi_${Date.now()}.${safeExt}`;
+
+  const { error: uploadError } = await supabase.storage.from("productos").upload(path, file);
+  if (uploadError) {
+    const { error: fallbackErr } = await supabase.storage.from("sitio").upload(path, file);
+    if (fallbackErr && uploadError) {
+      return { success: false, error: uploadError.message };
+    }
+  }
+
+  const { data: urlData } = supabase.storage.from("productos").getPublicUrl(path);
+
+  try {
+    const { data: existing } = await supabase.from("configuracion_sitio").select("id").limit(1).single();
+
+    if (existing) {
+      await supabase.from("configuracion_sitio").update({ sobre_mi_foto_url: urlData.publicUrl }).eq("id", existing.id);
+    } else {
+      await supabase.from("configuracion_sitio").insert({ sobre_mi_foto_url: urlData.publicUrl });
+    }
+  } catch (err) {
+    console.warn("DB config update notice:", err);
+  }
+
+  revalidatePath("/sobre-mi");
+  revalidatePath("/admin/personalizacion");
+  return { success: true, url: urlData.publicUrl };
+}
 
 export async function bulkAdjustZonasAction(
   porcentaje: number,
@@ -1573,10 +1745,37 @@ export async function crearEncargoAction(formData: FormData): Promise<{
 
   const serverTotalEstimado = serverPrecioEstimado + serverRecargoPersonalizado + serverAdicionalMedida + serverAdicionalMarco;
 
+  // SECURITY & INTEGRITY: Validar si el producto_id realmente existe en la tabla "productos" para no violar la foreign key
+  const candidateProductoId = firstItem?.productoId ?? productoId;
+  let validProductoId: string | null = null;
+  if (candidateProductoId) {
+    const { data: prodExists } = await supabase
+      .from("productos")
+      .select("id")
+      .eq("id", candidateProductoId)
+      .maybeSingle();
+    if (prodExists) {
+      validProductoId = prodExists.id;
+    }
+  }
+
+  // Validar también los IDs de cada ítem para items_encargo
+  const allCandidateIds = itemsArray.map((i) => i.productoId).filter(Boolean);
+  let validIdsSet = new Set<string>();
+  if (allCandidateIds.length > 0) {
+    const { data: validProds } = await supabase
+      .from("productos")
+      .select("id")
+      .in("id", allCandidateIds);
+    if (validProds) {
+      validIdsSet = new Set(validProds.map((p) => p.id));
+    }
+  }
+
   const { data, error } = await supabase
     .from("encargos")
     .insert({
-      producto_id: firstItem?.productoId ?? productoId,
+      producto_id: validProductoId,
       nombre_contacto: nombreContacto,
       whatsapp_contacto: whatsappContacto,
       email_contacto: emailContacto,
@@ -1605,7 +1804,7 @@ export async function crearEncargoAction(formData: FormData): Promise<{
   if (itemsArray.length > 0) {
     const itemsPayload = itemsArray.map((it) => ({
       encargo_id: data.id,
-      producto_id: it.productoId || null,
+      producto_id: validIdsSet.has(it.productoId) ? it.productoId : null,
       nombre_producto: it.nombre,
       tipo_catalogo: it.tipoCatalogo || "ceramica",
       es_personalizado: it.esPersonalizado || false,
@@ -1625,69 +1824,183 @@ export async function crearEncargoAction(formData: FormData): Promise<{
   }
 
   revalidatePath("/admin/encargos");
+
+  // Notificación de nuevo encargo para la administradora (en segundo plano, no bloqueante)
+  if (data?.id) {
+    notificarNuevoEncargoAdmin(data.id).catch((err) => {
+      console.error("[crearEncargoAction] Error al notificar nuevo encargo por email:", err);
+    });
+  }
+
   return { success: true, encargoId: data.id };
 }
 
 export async function actualizarEstadoEncargoAction(
-
   id: string,
   nuevoEstado: string,
   demoraDias?: number,
   notas?: string,
 ): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createClient();
+  try {
+    const adminClient = createAdminClient();
 
-  const payload: any = {
-    estado: nuevoEstado,
-    updated_at: new Date().toISOString(),
-  };
+    const payload: any = {
+      estado: nuevoEstado,
+      updated_at: new Date().toISOString(),
+    };
 
-  if (demoraDias != null) payload.demora_estimada_dias = demoraDias;
-  if (notas != null) payload.notas_admin = notas;
+    if (demoraDias != null) payload.demora_estimada_dias = demoraDias;
+    if (notas != null) payload.notas_admin = notas;
 
-  const { error } = await supabase
-    .from("encargos")
-    .update(payload)
-    .eq("id", id);
+    let { error } = await adminClient
+      .from("encargos")
+      .update(payload)
+      .eq("id", id);
 
-  if (error) return { success: false, error: error.message };
+    // Si 'entregado' aún no está en el enum de Postgres en la DB remota, fallback seguro a 'listo' + flag entregado en notas_admin
+    if (error && nuevoEstado === "entregado") {
+      const { data: current } = await adminClient
+        .from("encargos")
+        .select("notas_admin")
+        .eq("id", id)
+        .single();
 
-  revalidatePath("/admin/encargos");
-  return { success: true };
+      let currentMeta: any = {};
+      try {
+        currentMeta = JSON.parse(current?.notas_admin || "{}");
+      } catch {
+        currentMeta = { notasTexto: current?.notas_admin };
+      }
+      currentMeta.entregado = true;
+      currentMeta.archivado = true;
+
+      const fallbackPayload: any = {
+        estado: "listo",
+        notas_admin: JSON.stringify(currentMeta),
+        updated_at: new Date().toISOString(),
+      };
+      const resFallback = await adminClient
+        .from("encargos")
+        .update(fallbackPayload)
+        .eq("id", id);
+      error = resFallback.error;
+    }
+
+    if (error) return { success: false, error: error.message };
+
+    revalidatePath("/admin/encargos");
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message || "Error al actualizar encargo" };
+  }
+}
+
+export async function actualizarNotasEncargoAction(
+  id: string,
+  notas: string,
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const adminClient = createAdminClient();
+
+    const { error } = await adminClient
+      .from("encargos")
+      .update({
+        notas_admin: notas,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", id);
+
+    if (error) return { success: false, error: error.message };
+
+    revalidatePath("/admin/encargos");
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message || "Error al actualizar notas" };
+  }
+}
+
+export async function eliminarEncargoAction(
+  id: string,
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const adminClient = createAdminClient();
+
+    // Eliminar posibles items hijos primero
+    await adminClient.from("items_encargo").delete().eq("encargo_id", id);
+
+    // Eliminar el encargo principal
+    const { error } = await adminClient.from("encargos").delete().eq("id", id);
+    if (error) return { success: false, error: error.message };
+
+    revalidatePath("/admin/encargos");
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message || "Error al eliminar encargo" };
+  }
+}
+
+export async function eliminarEncargosMultiplesAction(
+  ids: string[],
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    if (!ids || ids.length === 0) return { success: true };
+    const adminClient = createAdminClient();
+
+    // Eliminar posibles items hijos primero
+    await adminClient.from("items_encargo").delete().in("encargo_id", ids);
+
+    // Eliminar los encargos principales
+    const { error } = await adminClient.from("encargos").delete().in("id", ids);
+    if (error) return { success: false, error: error.message };
+
+    revalidatePath("/admin/encargos");
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message || "Error al eliminar múltiples encargos" };
+  }
 }
 
 export async function saveConfiguracionEncargosAction(formData: FormData): Promise<{
   success: boolean;
   error?: string;
 }> {
-  const supabase = await createClient();
-
-  const medidasRaw = String(formData.get("medidasJson") || "[]");
-  let medidasObj = [];
   try {
-    medidasObj = JSON.parse(medidasRaw);
-  } catch (e) {}
+    const adminClient = createAdminClient();
 
-  const precioMarcoMadera = Number(formData.get("precioMarcoMadera")) || 8500;
-  const porcentajeRecargo = Number(formData.get("porcentajeRecargoPersonalizado")) || 0.15;
-  const demoraDefault = Number(formData.get("demoraDefaultDias")) || 15;
+    const precioMarcoMadera = Number(formData.get("precioMarcoMadera")) || 8500;
+    const porcentajeRecargo = Number(formData.get("porcentajeRecargoPersonalizado")) || 0.15;
+    const demoraDefault = Number(formData.get("demoraDefaultDias")) || 30;
+    const porcentajeSena = Number(formData.get("porcentajeSena")) || 0.20;
 
-  const { error } = await supabase
-    .from("configuracion_encargos")
-    .upsert({
+    const payload: any = {
       id: "e2000000-0000-4000-8000-000000000001",
-      medidas_ilustraciones: medidasObj,
       precio_marco_madera: precioMarcoMadera,
       porcentaje_recargo_personalizado: porcentajeRecargo,
       demora_default_dias: demoraDefault,
+      porcentaje_sena: porcentajeSena,
       updated_at: new Date().toISOString(),
-    });
+    };
 
-  if (error) return { success: false, error: error.message };
+    const { error } = await adminClient
+      .from("configuracion_encargos")
+      .upsert(payload);
 
-  revalidatePath("/admin/encargos/configuracion");
-  revalidatePath("/catalogo");
-  return { success: true };
+    if (error) {
+      // Fallback if porcentaje_sena column is missing
+      delete payload.porcentaje_sena;
+      const fallbackRes = await adminClient
+        .from("configuracion_encargos")
+        .upsert(payload);
+      if (fallbackRes.error) return { success: false, error: fallbackRes.error.message };
+    }
+
+    revalidatePath("/admin/encargos/configuracion");
+    revalidatePath("/admin/encargos");
+    revalidatePath("/catalogo");
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message || "Error al guardar configuración" };
+  }
 }
 
 const MILIDEAS_GEMINI_PROMPT = `Sos la asistente de escritura de Milideas Arte, un emprendimiento de cerámica artesanal y piezas ilustradas a mano.
@@ -2678,6 +2991,8 @@ export async function saveStockPiezaDirectaAction(
   const capacidadMl = formData.get("capacidadMl") ? Number(formData.get("capacidadMl")) : null;
   const descripcion = String(formData.get("descripcion") || "").trim() || null;
   const fotosRaw = String(formData.get("fotos") || "[]");
+  const activo = formData.get("activo") !== null ? formData.get("activo") === "true" || formData.get("activo") === "on" : true;
+  const hechoEnTorno = formData.get("hechoEnTorno") === "true" || formData.get("hechoEnTorno") === "on";
 
   if (!nombre) {
     return { success: false, error: "El nombre de la pieza es obligatorio." };
@@ -2745,13 +3060,23 @@ export async function saveStockPiezaDirectaAction(
   } else if (anchoCm) {
     dimensionesTexto = `${anchoCm} cm ancho`;
   }
+  if (capacidadMl) {
+    dimensionesTexto = dimensionesTexto ? `${dimensionesTexto} (${capacidadMl} ml)` : `${capacidadMl} ml`;
+  }
 
-  const payload: Record<string, any> = {
+  const atributos: Record<string, any> = {
+    alto_cm: altoCm,
+    ancho_cm: anchoCm,
+    capacidad_ml: capacidadMl,
+    hecho_en_torno: hechoEnTorno,
+  };
+
+  const payloadCompleto: Record<string, any> = {
     nombre,
     precio_base: precioBase,
     stock_disponible: stockDisponible,
     es_entrega_inmediata: stockDisponible > 0,
-    activo: true,
+    activo,
     tipo_catalogo: tipoCatalogo,
     categoria_id: finalCategoriaId,
     produccion_id: finalProduccionId,
@@ -2760,23 +3085,75 @@ export async function saveStockPiezaDirectaAction(
     capacidad_ml: capacidadMl,
     dimensiones: dimensionesTexto,
     descripcion,
+    material_tecnica: hechoEnTorno ? "Torneado en torno alfarero" : null,
+    atributos_especificos: atributos,
+    fecha_lanzamiento: activo ? new Date().toISOString() : null,
     updated_at: new Date().toISOString(),
   };
 
   let targetId = id;
 
   if (id) {
-    const { error: updErr } = await supabase.from("productos").update(payload).eq("id", id);
-    if (updErr) return { success: false, error: updErr.message };
+    let { error: updErr } = await supabase.from("productos").update(payloadCompleto).eq("id", id);
+    if (updErr && updErr.message?.includes("column")) {
+      // Fallback sin columnas nuevas opcionales
+      const payloadFallback = {
+        nombre,
+        precio_base: precioBase,
+        stock_disponible: stockDisponible,
+        es_entrega_inmediata: stockDisponible > 0,
+        activo,
+        tipo_catalogo: tipoCatalogo,
+        categoria_id: finalCategoriaId,
+        produccion_id: finalProduccionId,
+        dimensiones: dimensionesTexto,
+        descripcion,
+        updated_at: new Date().toISOString(),
+      };
+      const fallbackRes = await supabase.from("productos").update(payloadFallback).eq("id", id);
+      if (fallbackRes.error) return { success: false, error: fallbackRes.error.message };
+    } else if (updErr) {
+      return { success: false, error: updErr.message };
+    }
   } else {
-    payload.slug = slug;
-    const { data: nuevoProd, error: insErr } = await supabase
+    payloadCompleto.slug = slug;
+    let { data: nuevoProd, error: insErr } = await supabase
       .from("productos")
-      .insert(payload)
+      .insert(payloadCompleto)
       .select("id")
       .single();
-    if (insErr || !nuevoProd) return { success: false, error: insErr?.message || "Error al crear pieza" };
-    targetId = nuevoProd.id;
+
+    if (insErr && insErr.message?.includes("column")) {
+      // Fallback sin columnas nuevas opcionales
+      const payloadFallback = {
+        nombre,
+        slug,
+        precio_base: precioBase,
+        stock_disponible: stockDisponible,
+        es_entrega_inmediata: stockDisponible > 0,
+        activo,
+        tipo_catalogo: tipoCatalogo,
+        categoria_id: finalCategoriaId,
+        produccion_id: finalProduccionId,
+        dimensiones: dimensionesTexto,
+        descripcion,
+        fecha_lanzamiento: activo ? new Date().toISOString() : null,
+        updated_at: new Date().toISOString(),
+      };
+      const fallbackRes = await supabase
+        .from("productos")
+        .insert(payloadFallback)
+        .select("id")
+        .single();
+      if (fallbackRes.error || !fallbackRes.data) {
+        return { success: false, error: fallbackRes.error?.message || "Error al crear pieza" };
+      }
+      targetId = fallbackRes.data.id;
+    } else if (insErr || !nuevoProd) {
+      return { success: false, error: insErr?.message || "Error al crear pieza" };
+    } else {
+      targetId = nuevoProd.id;
+    }
   }
 
   // Actualizar imágenes
@@ -2852,10 +3229,147 @@ export async function deleteStockPiezaDirectaAction(
   return { success: true };
 }
 
+export async function togglePublicarProductoAction(
+  productoId: string,
+  nuevoActivo: boolean,
+): Promise<{ success: boolean; error?: string }> {
+  const auth = await requireAdmin();
+  if ("error" in auth) return { success: false, error: auth.error };
+  const { supabase } = auth;
+
+  const payload: Record<string, any> = {
+    activo: nuevoActivo,
+    updated_at: new Date().toISOString(),
+  };
+  if (nuevoActivo) {
+    payload.fecha_lanzamiento = new Date().toISOString();
+  }
+
+  const { error } = await supabase.from("productos").update(payload).eq("id", productoId);
+  if (error) return { success: false, error: error.message };
+
+  revalidatePath("/");
+  revalidatePath("/ceramica");
+  revalidatePath("/ilustracion");
+  revalidatePath("/admin/ceramica");
+  revalidatePath("/admin/ilustracion");
+  return { success: true };
+}
+
+export async function publicarColeccionAction(
+  produccionIdOrNombre: string,
+  nombreColeccion?: string,
+): Promise<{ success: boolean; error?: string }> {
+  const auth = await requireAdmin();
+  if ("error" in auth) return { success: false, error: auth.error };
+  const { supabase } = auth;
+
+  let finalId = produccionIdOrNombre;
+  let finalNombre = nombreColeccion;
+
+  if (finalId.startsWith("col_")) {
+    finalNombre = finalId.replace(/^col_/, "");
+  }
+
+  if (finalNombre) {
+    const { data: prod } = await supabase
+      .from("producciones")
+      .select("id")
+      .ilike("nombre", finalNombre.trim())
+      .maybeSingle();
+    if (prod) {
+      finalId = prod.id;
+    }
+  }
+
+  // 1. Activar todas las piezas de la colección
+  const { error: prodErr } = await supabase
+    .from("productos")
+    .update({
+      activo: true,
+      fecha_lanzamiento: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("produccion_id", finalId);
+
+  if (prodErr && !finalNombre) return { success: false, error: prodErr.message };
+
+  if (finalNombre) {
+    const { data: prodsList } = await supabase
+      .from("producciones")
+      .select("id")
+      .ilike("nombre", finalNombre.trim());
+    const ids = prodsList?.map((p) => p.id) || [];
+    if (ids.length > 0) {
+      await supabase
+        .from("productos")
+        .update({
+          activo: true,
+          fecha_lanzamiento: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .in("produccion_id", ids);
+      await supabase.from("producciones").update({ activa: true }).in("id", ids);
+    }
+  } else {
+    await supabase.from("producciones").update({ activa: true }).eq("id", finalId);
+  }
+
+  revalidatePath("/");
+  revalidatePath("/ceramica");
+  revalidatePath("/ilustracion");
+  revalidatePath("/admin/ceramica");
+  revalidatePath("/admin/ilustracion");
+  revalidatePath("/admin/productos");
+  return { success: true };
+}
+
+export async function publicarTodasLasColeccionesAction(
+  rubro: "ceramica" | "ilustracion",
+): Promise<{ success: boolean; actualizados: number; error?: string }> {
+  const auth = await requireAdmin();
+  if ("error" in auth) return { success: false, actualizados: 0, error: auth.error };
+  const { supabase } = auth;
+
+  const tipoCatalogo = rubro === "ceramica" ? "ceramica" : "ilustraciones";
+
+  // 1. Activar todos los productos en borrador de este rubro
+  const { data: updatedProds, error: prodErr } = await supabase
+    .from("productos")
+    .update({
+      activo: true,
+      fecha_lanzamiento: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("tipo_catalogo", tipoCatalogo)
+    .eq("activo", false)
+    .select("id, produccion_id");
+
+  if (prodErr) return { success: false, actualizados: 0, error: prodErr.message };
+
+  // 2. Activar las producciones asociadas
+  const prodIds = Array.from(
+    new Set((updatedProds || []).map((p) => p.produccion_id).filter(Boolean))
+  ) as string[];
+
+  if (prodIds.length > 0) {
+    await supabase.from("producciones").update({ activa: true }).in("id", prodIds);
+  }
+
+  revalidatePath("/");
+  revalidatePath("/ceramica");
+  revalidatePath("/ilustracion");
+  revalidatePath("/admin/ceramica");
+  revalidatePath("/admin/ilustracion");
+  revalidatePath("/admin/productos");
+  return { success: true, actualizados: updatedProds?.length || 0 };
+}
+
 export async function lanzarColeccionDropCompletaAction(data: {
   rubro: "ceramica" | "ilustracion";
   nombreColeccion: string;
   descripcion?: string;
+  publicarInmediatamente?: boolean;
   piezas: Array<{
     nombre: string;
     categoriaNombre?: string;
@@ -2864,6 +3378,7 @@ export async function lanzarColeccionDropCompletaAction(data: {
     altoCm?: number | null;
     anchoCm?: number | null;
     capacidadMl?: number | null;
+    hechoEnTorno?: boolean;
     fotos: string[];
     descripcion?: string;
   }>;
@@ -2872,7 +3387,8 @@ export async function lanzarColeccionDropCompletaAction(data: {
   if ("error" in auth) return { success: false, error: auth.error };
   const { supabase } = auth;
 
-  const { rubro, nombreColeccion, descripcion, piezas } = data;
+  // Por defecto, siempre se guarda en borrador (staging) para lanzar en el estreno
+  const { rubro, nombreColeccion, descripcion, piezas, publicarInmediatamente = false } = data;
   if (!nombreColeccion.trim() || piezas.length === 0) {
     return { success: false, error: "Ingresá el nombre del lanzamiento y al menos una pieza." };
   }
@@ -2892,7 +3408,7 @@ export async function lanzarColeccionDropCompletaAction(data: {
   } else {
     const { data: prodNueva, error: prodErr } = await supabase
       .from("producciones")
-      .insert({ nombre: nombreColeccion.trim(), descripcion: descripcion || null, activa: true })
+      .insert({ nombre: nombreColeccion.trim(), descripcion: descripcion || null, activa: publicarInmediatamente })
       .select("id")
       .single();
 
@@ -2938,27 +3454,67 @@ export async function lanzarColeccionDropCompletaAction(data: {
     } else if (p.anchoCm) {
       dimTexto = `${p.anchoCm} cm ancho`;
     }
+    if (p.capacidadMl) {
+      dimTexto = dimTexto ? `${dimTexto} (${p.capacidadMl} ml)` : `${p.capacidadMl} ml`;
+    }
 
-    const { data: prod, error: pErr } = await supabase
+    const payloadPiezaCompleta: Record<string, any> = {
+      nombre: p.nombre,
+      slug,
+      precio_base: p.precioBase,
+      stock_disponible: p.stock,
+      es_entrega_inmediata: p.stock > 0,
+      alto_cm: p.altoCm ?? null,
+      ancho_cm: p.anchoCm ?? null,
+      capacidad_ml: p.capacidadMl ?? null,
+      dimensiones: dimTexto,
+      activo: publicarInmediatamente,
+      fecha_lanzamiento: publicarInmediatamente ? new Date().toISOString() : null,
+      categoria_id: catId,
+      produccion_id: produccionId,
+      tipo_catalogo: tipoCatalogo,
+      material_tecnica: p.hechoEnTorno ? "Torneado en torno alfarero" : null,
+      atributos_especificos: {
+        alto_cm: p.altoCm,
+        ancho_cm: p.anchoCm,
+        capacidad_ml: p.capacidadMl,
+        hecho_en_torno: p.hechoEnTorno,
+      },
+      descripcion: p.descripcion || null,
+    };
+
+    let { data: prod, error: pErr } = await supabase
       .from("productos")
-      .insert({
+      .insert(payloadPiezaCompleta)
+      .select("id")
+      .single();
+
+    if (pErr && pErr.message?.includes("column")) {
+      // Fallback sin columnas nuevas opcionales
+      const payloadFallback = {
         nombre: p.nombre,
         slug,
         precio_base: p.precioBase,
         stock_disponible: p.stock,
         es_entrega_inmediata: p.stock > 0,
-        alto_cm: p.altoCm ?? null,
-        ancho_cm: p.anchoCm ?? null,
-        capacidad_ml: p.capacidadMl ?? null,
         dimensiones: dimTexto,
-        activo: true,
+        activo: publicarInmediatamente,
+        fecha_lanzamiento: publicarInmediatamente ? new Date().toISOString() : null,
         categoria_id: catId,
         produccion_id: produccionId,
         tipo_catalogo: tipoCatalogo,
         descripcion: p.descripcion || null,
-      })
-      .select("id")
-      .single();
+      };
+      const fallbackRes = await supabase
+        .from("productos")
+        .insert(payloadFallback)
+        .select("id")
+        .single();
+      if (!fallbackRes.error && fallbackRes.data) {
+        prod = fallbackRes.data;
+        pErr = null;
+      }
+    }
 
     if (!pErr && prod && p.fotos.length > 0) {
       todasLasFotosDeLaColeccion.push(...p.fotos);
@@ -2993,6 +3549,7 @@ export async function lanzarColeccionDropCompletaAction(data: {
   revalidatePath("/admin/ilustracion");
   return { success: true };
 }
+
 
 
 

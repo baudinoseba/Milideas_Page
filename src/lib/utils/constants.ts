@@ -17,4 +17,5 @@ export const NAV_LINKS = [
   { href: "/ceramica", label: "Cerámica", emoji: "🏺" },
   { href: "/ilustracion", label: "Ilustración", emoji: "🎨" },
   { href: "/obras", label: "Obras & Proyectos", emoji: "🌟" },
+  { href: "/sobre-mi", label: "Sobre Mí", emoji: "✨" },
 ] as const;

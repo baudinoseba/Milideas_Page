@@ -14,7 +14,7 @@ export const metadata = {
 export default async function AdminCeramicaPage() {
   const [formatos, productosStock, portfolio, categorias, producciones] = await Promise.all([
     getFormatosCatalogo("ceramica").catch(() => []),
-    getProductos({ tipoCatalogo: "ceramica" }).catch(() => []),
+    getProductos({ tipoCatalogo: "ceramica", includeInactive: true }).catch(() => []),
     getPortfolioColecciones("ceramica").catch(() => []),
     getCategorias("ceramica").catch(() => []),
     getProducciones().catch(() => []),

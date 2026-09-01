@@ -14,7 +14,7 @@ export const metadata = {
 export default async function AdminIlustracionPage() {
   const [formatos, productosStock, portfolio, categorias, producciones] = await Promise.all([
     getFormatosCatalogo("ilustracion").catch(() => []),
-    getProductos({ tipoCatalogo: "ilustraciones" }).catch(() => []),
+    getProductos({ tipoCatalogo: "ilustraciones", includeInactive: true }).catch(() => []),
     getPortfolioColecciones("ilustracion").catch(() => []),
     getCategorias("ilustraciones").catch(() => []),
     getProducciones().catch(() => []),

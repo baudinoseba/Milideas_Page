@@ -29,7 +29,7 @@ const navItems = [
   },
   {
     href: "/admin/pedidos",
-    label: "Pedidos",
+    label: "Stock Tienda",
     icon: "📦",
   },
   {

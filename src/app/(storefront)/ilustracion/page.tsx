@@ -2,8 +2,8 @@ import { getFormatosCatalogo, getProductos, getPortfolioColecciones } from "@/li
 import { CatalogoView } from "@/components/catalogo/catalogo-view";
 
 export const metadata = {
-  title: "Ilustraciones — Catálogo & Obras",
-  description: "Láminas en papel texturado, cuadros enmarcados artesanalmente e ilustraciones originales de autor.",
+  title: "Ilustraciones — Catálogo & Obras Originales",
+  description: "Pinturas originales en acuarela, cuadros enmarcados artesanalmente y dibujos de autor.",
 };
 
 export default async function IlustracionPage({

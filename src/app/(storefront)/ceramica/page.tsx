@@ -3,7 +3,7 @@ import { CatalogoView } from "@/components/catalogo/catalogo-view";
 
 export const metadata = {
   title: "Cerámica de Autor — Catálogo & Stock",
-  description: "Formatos base para encargar a pedido, stock disponible y portfolio de colecciones de cerámica de autor.",
+  description: "Piezas únicas y en pequeñas ediciones listas para entregar.",
 };
 
 export default async function CeramicaPage({

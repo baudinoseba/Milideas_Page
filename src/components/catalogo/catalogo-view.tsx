@@ -4,6 +4,8 @@ import { useState } from "react";
 import { ProductCard } from "@/components/product/product-card";
 import { formatPrecio } from "@/lib/pricing";
 import { cn } from "@/lib/utils/cn";
+import { ImageLightbox } from "@/components/ui/image-lightbox";
+import { PortfolioCarouselCard } from "./portfolio-carousel-card";
 import { useEncargosCartStore } from "@/stores/encargos-cart-store";
 import type { FormatoCatalogo, ProductoConImagenes, PortfolioColeccion, TipoRubro } from "@/types";
 
@@ -26,12 +28,10 @@ export function CatalogoView({
   const [selectedCategoria, setSelectedCategoria] = useState<string>("todas");
   const [searchQuery, setSearchQuery] = useState<string>("");
   
-  // Estado para modal de encargo
+  // Estado para modal de encargo con memoria inteligente
   const [encargoModalFormato, setEncargoModalFormato] = useState<FormatoCatalogo | null>(null);
   const [cantidad, setCantidad] = useState<number>(1);
-  const [disenoTipo, setDisenoTipo] = useState<"a_coordinar" | "portfolio" | "personalizado">("a_coordinar");
-  const [nombreDisenoPortfolio, setNombreDisenoPortfolio] = useState<string>("");
-  const [detallePersonalizado, setDetallePersonalizado] = useState<string>("");
+  const [disenoTipo, setDisenoTipo] = useState<"coleccion" | "personalizado">("coleccion");
   const [agregadoExitoso, setAgregadoExitoso] = useState<boolean>(false);
   const [confirmandoWhatsapp, setConfirmandoWhatsapp] = useState<boolean>(false);
 
@@ -63,21 +63,16 @@ export function CatalogoView({
   const abrirModalEncargo = (formato: FormatoCatalogo) => {
     setEncargoModalFormato(formato);
     setCantidad(1);
-    setDisenoTipo("a_coordinar");
-    setNombreDisenoPortfolio(todosLosDisenos[0] || "Diseño a elección");
-    setDetallePersonalizado("");
+    // Memoria inteligente: se mantiene disenoTipo previamente seleccionado
     setAgregadoExitoso(false);
     setConfirmandoWhatsapp(false);
   };
 
   const getDisenoTexto = () => {
     if (disenoTipo === "personalizado") {
-      return `Personalizado (+15%): ${detallePersonalizado || "A coordinar"}`;
+      return "Personalizado a medida (+15%) (te cuento mi idea)";
     }
-    if (disenoTipo === "portfolio") {
-      return `Diseño Portfolio: ${nombreDisenoPortfolio || "A elección"}`;
-    }
-    return "Diseño a coordinar por WhatsApp";
+    return "Colección existente (te paso captura del que me gustó)";
   };
 
   const handleAgregarAlCarrito = () => {
@@ -133,26 +128,24 @@ export function CatalogoView({
   };
 
   return (
-    <div className="space-y-6 pb-16">
+    <div className="space-y-8 pb-16">
       
-      {/* ─── Encabezado de Sección ─── */}
-      <div className="border-b border-border/60 pb-5 space-y-3">
-        <div className="flex items-center gap-2.5">
-          <span className="text-3xl sm:text-4xl">{rubro === "ceramica" ? "🏺" : "🎨"}</span>
-          <div>
-            <h1 className="text-2xl sm:text-4xl font-serif font-medium text-chocolate">
-              {rubro === "ceramica" ? "Cerámica de Autor" : "Ilustraciones"}
-            </h1>
-            <p className="text-xs sm:text-sm text-barro font-sans">
-              {rubro === "ceramica"
-                ? "Piezas listas en stock, catálogo de formatos para encargar y portfolio de colecciones."
-                : "Láminas originales, cuadros enmarcados y diseños ilustrados por Mili Ferrero."}
-            </p>
-          </div>
+      {/* ─── Cabecera Principal de Página Centrada ─── */}
+      <div className="space-y-3 text-center flex flex-col items-center">
+        <div className="flex items-center justify-center gap-2.5">
+          <span className="text-2xl sm:text-3xl">{rubro === "ceramica" ? "🏺" : "🎨"}</span>
+          <h1 className="text-3xl sm:text-4xl font-serif font-medium text-chocolate">
+            {rubro === "ceramica" ? "Cerámica de Autor" : "Ilustración de Autor"}
+          </h1>
         </div>
+        <p className="text-xs sm:text-sm text-barro font-sans max-w-lg mx-auto leading-relaxed">
+          {rubro === "ceramica"
+            ? "Piezas únicas y en pequeñas ediciones listas para entregar."
+            : "Pinturas y dibujos originales en acuarela, cuadros enmarcados a mano por Mili Ferrero."}
+        </p>
 
-        {/* ─── Navegación de Secciones (Pestañas Claras en Orden: Stock -> Catálogo -> Portfolio) ─── */}
-        <div className="flex gap-2 pt-2 overflow-x-auto scrollbar-none">
+        {/* ─── Navegación de Secciones Centrada (Pestañas Claras en Orden: Stock -> Catálogo -> Portfolio) ─── */}
+        <div className="flex flex-wrap justify-center gap-2 pt-2">
           
           {/* 1. STOCK DISPONIBLE (Primero por defecto) */}
           <button
@@ -269,7 +262,7 @@ export function CatalogoView({
             <div className="rounded-xl border border-border/60 bg-arena/30 p-3 text-left">
               <span className="text-base">🎨</span>
               <p className="text-xs font-semibold text-chocolate mt-1">Diseño a Elección</p>
-              <p className="text-[11px] text-muted leading-tight">Elegí del portfolio o de nuestro Instagram.</p>
+              <p className="text-[11px] text-muted leading-tight">Elegí del portfolio o de mi Instagram.</p>
             </div>
 
             <div className="rounded-xl border border-border/60 bg-arena/30 p-3 text-left">
@@ -417,71 +410,19 @@ export function CatalogoView({
         </div>
       )}
 
-      {/* ═══════════════════════════════════════════════════════════════════════
-          PESTAÑA 3: PORTFOLIO (Galería visual limpia y lightbox para ver fotos)
-      ═══════════════════════════════════════════════════════════════════════ */}
+      {/* ═══════════════════════════════════════════════════════════════════════ */}
+      {/* ─── PESTAÑA 3: PORTFOLIO (Carrusel interactivo y lightbox completo) ─── */}
+      {/* ═══════════════════════════════════════════════════════════════════════ */}
       {activeTab === "portfolio" && (
         <div className="space-y-6">
           <p className="text-xs sm:text-sm text-barro font-sans">
             Archivo visual de colecciones y estilos creados por Mili. Hacé clic en cualquier foto para verla en pantalla completa e inspirarte para tu próximo encargo:
           </p>
 
-          <div className="space-y-6">
-            {portfolio.map((coleccion) => {
-              const fotosList = Array.isArray(coleccion.fotos) && coleccion.fotos.length > 0
-                ? coleccion.fotos
-                : [coleccion.portada_url || ""].filter(Boolean);
-
-              return (
-                <div
-                  key={coleccion.id}
-                  className="rounded-2xl sm:rounded-3xl border border-border/60 bg-surface p-4 sm:p-6 shadow-xs space-y-4"
-                >
-                  <div className="border-b border-border/40 pb-2">
-                    <h3 className="text-base sm:text-lg font-serif font-medium text-chocolate">
-                      ✨ {coleccion.nombre}
-                    </h3>
-                    {coleccion.descripcion && (
-                      <p className="text-xs text-barro font-sans mt-0.5">{coleccion.descripcion}</p>
-                    )}
-                  </div>
-
-                  {/* Carrusel / Tira de fotos de la colección */}
-                  {fotosList.length > 0 ? (
-                    <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none">
-                      {fotosList.map((fotoUrl, idx) => (
-                        <button
-                          key={idx}
-                          type="button"
-                          onClick={() =>
-                            setLightboxImage({
-                              url: fotoUrl,
-                              titulo: coleccion.nombre,
-                              descripcion: `Foto ${idx + 1} de ${fotosList.length}`,
-                            })
-                          }
-                          className="group/photo relative h-28 w-28 sm:h-36 sm:w-36 shrink-0 rounded-2xl overflow-hidden bg-arena/30 border border-border/50 shadow-2xs cursor-zoom-in transition-transform hover:scale-105"
-                        >
-                          <img
-                            src={fotoUrl}
-                            alt={`${coleccion.nombre} ${idx + 1}`}
-                            className="h-full w-full object-cover rounded-2xl"
-                          />
-                          <span className="absolute inset-0 bg-black/20 opacity-0 group-hover/photo:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-semibold">
-                            🔍 Ampliar
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-3 p-4 rounded-2xl bg-arena/20 border border-border/40 text-xs text-muted">
-                      <span>🎨</span>
-                      <span>Colección registrada. Las fotos de archivo se están digitalizando.</span>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+            {portfolio.map((coleccion) => (
+              <PortfolioCarouselCard key={coleccion.id} coleccion={coleccion} rubro={rubro} />
+            ))}
           </div>
         </div>
       )}
@@ -515,104 +456,75 @@ export function CatalogoView({
             </div>
 
             {/* Selector de Diseño (Por defecto: A coordinar por WhatsApp) */}
-            <div className="space-y-2">
+            {/* Selector de Diseño (2 Opciones Claras y Directas) */}
+            <div className="space-y-2.5">
               <label className="text-xs font-semibold text-chocolate block">
                 🎨 ¿Cómo te gustaría el diseño?
               </label>
 
-              <div className="space-y-1.5">
-                {/* Opción 1: A coordinar por WhatsApp (Por defecto) */}
+              <div className="space-y-2">
+                {/* Opción 1: Colección / Catálogo */}
                 <label className={cn(
-                  "flex items-center gap-2.5 rounded-xl border p-2.5 text-xs transition-all cursor-pointer",
-                  disenoTipo === "a_coordinar"
-                    ? "border-terracota bg-terracota/10 font-semibold text-chocolate ring-1 ring-terracota/40"
-                    : "border-border/60 bg-surface text-muted",
+                  "flex items-start gap-2.5 rounded-xl border p-3 text-xs transition-all cursor-pointer",
+                  disenoTipo === "coleccion"
+                    ? "border-terracota bg-terracota/10 font-semibold text-chocolate ring-1 ring-terracota/40 shadow-2xs"
+                    : "border-border/60 bg-surface text-muted hover:border-terracota/40",
                 )}>
                   <input
                     type="radio"
                     name="disenoTipo"
-                    checked={disenoTipo === "a_coordinar"}
-                    onChange={() => setDisenoTipo("a_coordinar")}
-                    className="accent-terracota"
+                    checked={disenoTipo === "coleccion"}
+                    onChange={() => setDisenoTipo("coleccion")}
+                    className="accent-terracota mt-0.5"
                   />
-                  <div>
-                    <p className="font-semibold text-foreground">A coordinar por WhatsApp (Recomendado)</p>
-                    <p className="text-[10px] text-muted">Hablamos directamente con Mili y acordamos el diseño</p>
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="font-semibold text-foreground">🌿 Diseño de Catálogo / Colección</p>
+                      <span className="text-[11px] font-bold text-chocolate bg-surface/90 px-2 py-0.5 rounded-md border border-border/40 shrink-0">
+                        {formatPrecio(encargoModalFormato.precio_base)}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-muted font-normal mt-0.5">
+                      Elegís cualquier diseño ya existente de Mili visto en la web o Instagram.
+                    </p>
                   </div>
                 </label>
 
-                {/* Opción 2: Elegir del Portfolio */}
+                {/* Opción 2: Personalizado (+15%) */}
                 <label className={cn(
-                  "flex items-center gap-2.5 rounded-xl border p-2.5 text-xs transition-all cursor-pointer",
-                  disenoTipo === "portfolio"
-                    ? "border-terracota bg-terracota/10 font-semibold text-chocolate ring-1 ring-terracota/40"
-                    : "border-border/60 bg-surface text-muted",
-                )}>
-                  <input
-                    type="radio"
-                    name="disenoTipo"
-                    checked={disenoTipo === "portfolio"}
-                    onChange={() => setDisenoTipo("portfolio")}
-                    className="accent-terracota"
-                  />
-                  <div>
-                    <p className="font-semibold text-foreground">Diseño de una Colección</p>
-                    <p className="text-[10px] text-muted">Elegir un diseño de los vistos en el Portfolio</p>
-                  </div>
-                </label>
-
-                {/* Opción 3: Personalizado (+15%) */}
-                <label className={cn(
-                  "flex items-center gap-2.5 rounded-xl border p-2.5 text-xs transition-all cursor-pointer",
+                  "flex items-start gap-2.5 rounded-xl border p-3 text-xs transition-all cursor-pointer",
                   disenoTipo === "personalizado"
-                    ? "border-terracota bg-terracota/10 font-semibold text-chocolate ring-1 ring-terracota/40"
-                    : "border-border/60 bg-surface text-muted",
+                    ? "border-terracota bg-terracota/10 font-semibold text-chocolate ring-1 ring-terracota/40 shadow-2xs"
+                    : "border-border/60 bg-surface text-muted hover:border-terracota/40",
                 )}>
                   <input
                     type="radio"
                     name="disenoTipo"
                     checked={disenoTipo === "personalizado"}
                     onChange={() => setDisenoTipo("personalizado")}
-                    className="accent-terracota"
+                    className="accent-terracota mt-0.5"
                   />
-                  <div>
-                    <p className="font-semibold text-foreground">Diseño Personalizado (+15%)</p>
-                    <p className="text-[10px] text-muted">Visto en Instagram o composición exclusiva</p>
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="font-semibold text-foreground">✨ Diseño Personalizado Exclusivo (+15%)</p>
+                      <span className="text-[11px] font-bold text-terracota bg-terracota/10 px-2 py-0.5 rounded-md border border-terracota/30 shrink-0">
+                        {formatPrecio(encargoModalFormato.precio_base * 1.15)}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-muted font-normal mt-0.5">
+                      Ilustración nueva a medida (nombres, mascotas, motivo especial).
+                    </p>
                   </div>
                 </label>
               </div>
 
-              {/* Detalle según selección */}
-              {disenoTipo === "portfolio" && (
-                <div className="pt-1">
-                  <label className="text-[11px] text-muted block mb-1">Elegí el diseño:</label>
-                  <select
-                    value={nombreDisenoPortfolio}
-                    onChange={(e) => setNombreDisenoPortfolio(e.target.value)}
-                    className="w-full rounded-xl border border-border/80 bg-surface px-3 py-2 text-xs text-foreground focus:ring-2 focus:ring-terracota/40"
-                  >
-                    {todosLosDisenos.map((d) => (
-                      <option key={d} value={d}>
-                        {d}
-                      </option>
-                    ))}
-                    <option value="Diseño visto en portfolio">Diseño visto en portfolio</option>
-                  </select>
-                </div>
-              )}
-
-              {disenoTipo === "personalizado" && (
-                <div className="pt-1">
-                  <label className="text-[11px] text-muted block mb-1">Describí tu idea o link de Instagram:</label>
-                  <input
-                    type="text"
-                    value={detallePersonalizado}
-                    onChange={(e) => setDetallePersonalizado(e.target.value)}
-                    placeholder="ej. Motivo floral lila / link al post..."
-                    className="w-full rounded-xl border border-border/80 bg-surface px-3 py-2 text-xs text-foreground focus:ring-2 focus:ring-terracota/40"
-                  />
-                </div>
-              )}
+              {/* Cartelito amigable */}
+              <div className="flex items-start gap-2 rounded-xl bg-arena/30 p-2.5 text-[11px] text-barro border border-border/40 font-sans">
+                <span className="text-sm shrink-0">💬</span>
+                <p className="leading-snug">
+                  El diseño exacto y los detalles se coordinan directamente con Mili por WhatsApp al confirmar.
+                </p>
+              </div>
             </div>
 
             {/* Cantidad */}
@@ -692,51 +604,22 @@ export function CatalogoView({
         </div>
       )}
 
-      {/* ═══════════════════════════════════════════════════════════════════════
-          LIGHTBOX / POPUP PARA AMPLIAR FOTOS (Tanto de catálogo como de portfolio)
-      ═══════════════════════════════════════════════════════════════════════ */}
-      {lightboxImage && (
-        <div
-          onClick={() => setLightboxImage(null)}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-in fade-in duration-200 cursor-zoom-out"
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="relative max-w-lg w-full rounded-3xl bg-surface p-4 shadow-2xl space-y-3 cursor-default"
-          >
-            <button
-              type="button"
-              onClick={() => setLightboxImage(null)}
-              className="absolute top-3 right-3 flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white hover:bg-black cursor-pointer z-10"
-            >
-              ✕
-            </button>
-
-            <div className="relative aspect-square sm:aspect-[4/3] rounded-2xl overflow-hidden bg-arena/30 flex items-center justify-center">
-              {lightboxImage.url ? (
-                <img
-                  src={lightboxImage.url}
-                  alt={lightboxImage.titulo}
-                  className="h-full w-full object-contain rounded-2xl"
-                />
-              ) : (
-                <span className="text-6xl">{rubro === "ceramica" ? "🏺" : "🎨"}</span>
-              )}
-            </div>
-
-            <div className="px-1 text-center">
-              <h4 className="text-base font-serif font-medium text-chocolate">
-                {lightboxImage.titulo}
-              </h4>
-              {lightboxImage.descripcion && (
-                <p className="text-xs text-muted font-sans mt-0.5">
-                  {lightboxImage.descripcion}
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Lightbox / Popup con Zoom para Fotos */}
+      <ImageLightbox
+        images={
+          lightboxImage
+            ? [
+                {
+                  url: lightboxImage.url,
+                  title: lightboxImage.titulo,
+                  subtitle: lightboxImage.descripcion,
+                },
+              ]
+            : []
+        }
+        isOpen={!!lightboxImage}
+        onClose={() => setLightboxImage(null)}
+      />
 
     </div>
   );

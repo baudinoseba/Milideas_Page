@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { cn } from "@/lib/utils/cn";
+import { ImageLightbox, type LightboxImage } from "@/components/ui/image-lightbox";
 import type { ObraProyecto } from "@/types";
 
 interface ObrasGalleryProps {
@@ -20,14 +21,9 @@ const CATEGORIAS_CONFIG: Array<{ id: string; label: string; emoji: string }> = [
 
 export function ObrasGallery({ obras, categoriaInicial }: ObrasGalleryProps) {
   const [categoriaActiva, setCategoriaActiva] = useState<string>(categoriaInicial || "todas");
-  const [lightboxData, setLightboxData] = useState<{
-    titulo: string;
-    subtitulo?: string | null;
-    descripcion?: string | null;
-    fotos: string[];
-    fotoActualIdx: number;
-    clienteLugar?: string | null;
-  } | null>(null);
+  const [lightboxImages, setLightboxImages] = useState<LightboxImage[]>([]);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
 
   const obrasFiltradas = obras.filter((o) => {
     if (categoriaActiva === "todas") return true;
@@ -35,24 +31,74 @@ export function ObrasGallery({ obras, categoriaInicial }: ObrasGalleryProps) {
   });
 
   const abrirLightbox = (obra: ObraProyecto, startIdx = 0) => {
-    const fotos = Array.isArray(obra.fotos) && obra.fotos.length > 0
+    const rawFotos = Array.isArray(obra.fotos) && obra.fotos.length > 0
       ? obra.fotos
       : [obra.portada_url || ""].filter(Boolean);
 
-    setLightboxData({
-      titulo: obra.titulo,
-      subtitulo: obra.subtitulo,
-      descripcion: obra.descripcion,
-      fotos,
-      fotoActualIdx: startIdx,
-      clienteLugar: obra.cliente_lugar,
-    });
+    const catInfo = CATEGORIAS_CONFIG.find((c) => c.id === obra.categoria);
+
+    const formatted: LightboxImage[] = rawFotos.map((url, idx) => ({
+      url,
+      title: obra.titulo,
+      subtitle: obra.subtitulo || obra.descripcion || undefined,
+      tag: `${catInfo?.label || "Obra"} ${rawFotos.length > 1 ? `(${idx + 1}/${rawFotos.length})` : ""}`,
+    }));
+
+    if (formatted.length === 0) return;
+
+    setLightboxImages(formatted);
+    setLightboxIndex(startIdx);
+    setLightboxOpen(true);
   };
 
   return (
     <div className="space-y-6">
-      {/* ─── Filtros por Categoría ─── */}
-      <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+      {/* ─── Filtros por Categoría: Responsive (Píldoras en Desktop, Menú Desplegable en Móviles) ─── */}
+      
+      {/* Vista Móvil / Pantallas Angostas: Botón "Todas" + Desplegable de Categorías */}
+      <div className="flex md:hidden items-center gap-2 w-full">
+        <button
+          type="button"
+          onClick={() => setCategoriaActiva("todas")}
+          className={cn(
+            "flex items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-semibold font-sans transition-all shrink-0 cursor-pointer shadow-xs",
+            categoriaActiva === "todas"
+              ? "bg-chocolate text-crema-cruda"
+              : "bg-surface text-chocolate border border-border/70 hover:bg-secondary/40"
+          )}
+        >
+          <span>✨</span>
+          <span>Todas</span>
+        </button>
+
+        <div className="relative flex-1 min-w-0">
+          <select
+            value={categoriaActiva === "todas" ? "" : categoriaActiva}
+            onChange={(e) => setCategoriaActiva(e.target.value || "todas")}
+            className={cn(
+              "w-full appearance-none rounded-full px-4 py-2 pr-8 text-xs font-semibold font-sans transition-all cursor-pointer shadow-xs truncate",
+              categoriaActiva !== "todas"
+                ? "bg-chocolate text-crema-cruda border-chocolate"
+                : "bg-surface text-chocolate border border-border/70 hover:bg-secondary/40"
+            )}
+          >
+            <option value="" className="bg-surface text-chocolate">
+              📁 Filtrar por categoría...
+            </option>
+            {CATEGORIAS_CONFIG.filter((c) => c.id !== "todas").map((cat) => (
+              <option key={cat.id} value={cat.id} className="bg-surface text-chocolate font-sans">
+                {cat.emoji} {cat.label}
+              </option>
+            ))}
+          </select>
+          <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs opacity-70">
+            ▼
+          </span>
+        </div>
+      </div>
+
+      {/* Vista Desktop / Pantallas Anchas: Píldoras completas visibles */}
+      <div className="hidden md:flex flex-wrap gap-2 pb-1">
         {CATEGORIAS_CONFIG.map((cat) => (
           <button
             key={cat.id}
@@ -189,109 +235,13 @@ export function ObrasGallery({ obras, categoriaInicial }: ObrasGalleryProps) {
         </div>
       )}
 
-      {/* ─── Lightbox Modal para Obras ─── */}
-      {lightboxData && (
-        <div
-          onClick={() => setLightboxData(null)}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-in fade-in duration-200 cursor-zoom-out"
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="relative max-w-xl w-full rounded-3xl bg-surface p-5 shadow-2xl space-y-4 cursor-default"
-          >
-            <button
-              type="button"
-              onClick={() => setLightboxData(null)}
-              className="absolute top-4 right-4 flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white hover:bg-black cursor-pointer z-10"
-            >
-              ✕
-            </button>
-
-            {/* Foto principal */}
-            <div className="relative aspect-[4/3] rounded-2xl overflow-hidden bg-arena/30 flex items-center justify-center">
-              {lightboxData.fotos.length > 0 && lightboxData.fotos[lightboxData.fotoActualIdx] ? (
-                <img
-                  src={lightboxData.fotos[lightboxData.fotoActualIdx]}
-                  alt={lightboxData.titulo}
-                  className="h-full w-full object-contain rounded-2xl"
-                />
-              ) : (
-                <span className="text-6xl">🎨</span>
-              )}
-
-              {/* Botones Prev / Next si hay más de 1 foto */}
-              {lightboxData.fotos.length > 1 && (
-                <>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setLightboxData((prev) =>
-                        prev
-                          ? {
-                              ...prev,
-                              fotoActualIdx:
-                                (prev.fotoActualIdx - 1 + prev.fotos.length) % prev.fotos.length,
-                            }
-                          : null,
-                      )
-                    }
-                    className="absolute left-3 top-1/2 -translate-y-1/2 h-9 w-9 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-black cursor-pointer"
-                  >
-                    ‹
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setLightboxData((prev) =>
-                        prev
-                          ? {
-                              ...prev,
-                              fotoActualIdx: (prev.fotoActualIdx + 1) % prev.fotos.length,
-                            }
-                          : null,
-                      )
-                    }
-                    className="absolute right-3 top-1/2 -translate-y-1/2 h-9 w-9 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-black cursor-pointer"
-                  >
-                    ›
-                  </button>
-                </>
-              )}
-            </div>
-
-            {/* Texto de la obra */}
-            <div className="space-y-1 text-left">
-              <div className="flex items-center justify-between text-xs text-muted">
-                <span>{lightboxData.clienteLugar ? `📍 ${lightboxData.clienteLugar}` : ""}</span>
-                {lightboxData.fotos.length > 1 && (
-                  <span>
-                    Foto {lightboxData.fotoActualIdx + 1} de {lightboxData.fotos.length}
-                  </span>
-                )}
-              </div>
-              <h3 className="text-lg font-serif font-medium text-chocolate">
-                {lightboxData.titulo}
-              </h3>
-              {lightboxData.subtitulo && (
-                <p className="text-xs font-semibold text-terracota">{lightboxData.subtitulo}</p>
-              )}
-              {lightboxData.descripcion && (
-                <p className="text-xs text-barro leading-relaxed pt-1">{lightboxData.descripcion}</p>
-              )}
-            </div>
-
-            <a
-              href={`https://wa.me/5493493668308?text=${encodeURIComponent(`¡Hola Mili! Vi tu proyecto "${lightboxData.titulo}" en tu web y me gustaría consultarte para realizar una propuesta similar.`)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex w-full items-center justify-center gap-1.5 rounded-full bg-terracota text-white py-2.5 text-xs font-semibold shadow-xs hover:bg-terracota/90 transition-all cursor-pointer"
-            >
-              <span>Cotizar Proyecto por WhatsApp</span>
-              <span>↗</span>
-            </a>
-          </div>
-        </div>
-      )}
+      {/* ─── Lightbox Modal con Zoom para Obras ─── */}
+      <ImageLightbox
+        images={lightboxImages}
+        initialIndex={lightboxIndex}
+        isOpen={lightboxOpen}
+        onClose={() => setLightboxOpen(false)}
+      />
     </div>
   );
 }

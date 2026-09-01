@@ -2,12 +2,20 @@
 
 import { useState } from "react";
 import { OptimizedImage } from "@/components/ui/optimized-image";
+import { ImageLightbox, type LightboxImage } from "@/components/ui/image-lightbox";
 import { cn } from "@/lib/utils/cn";
 import type { ProductoImagen } from "@/types";
 
-export function ProductGallery({ imagenes }: { imagenes: ProductoImagen[] }) {
+export function ProductGallery({
+  imagenes,
+  nombreProducto,
+}: {
+  imagenes: ProductoImagen[];
+  nombreProducto?: string;
+}) {
   const sorted = [...imagenes].sort((a, b) => a.orden - b.orden);
   const [active, setActive] = useState(0);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
   const current = sorted[active];
 
   if (!current) {
@@ -15,37 +23,53 @@ export function ProductGallery({ imagenes }: { imagenes: ProductoImagen[] }) {
       <OptimizedImage
         src="https://placehold.co/800x800"
         alt="Sin imagen"
-        className="w-full rounded-xl"
+        className="w-full rounded-2xl max-w-[420px] mx-auto"
       />
     );
   }
 
+  const lightboxImages: LightboxImage[] = sorted.map((img) => ({
+    url: img.url_imagen,
+    title: nombreProducto || "Fotografía de Autor",
+  }));
+
   return (
-    <div className="space-y-3">
-      {/* Main image — Full container coverage with rounded corners */}
-      <div className="relative overflow-hidden rounded-3xl bg-surface aspect-square w-full border border-border/60 shadow-md">
+    <div className="space-y-3 max-w-[440px] mx-auto lg:max-w-none">
+      {/* Main image — Proportioned container with rounded corners & click to zoom */}
+      <div
+        onClick={() => setLightboxOpen(true)}
+        className="group relative overflow-hidden rounded-2xl sm:rounded-3xl bg-surface aspect-square sm:aspect-[4/3] lg:aspect-square w-full max-h-[420px] border border-border/60 shadow-md cursor-zoom-in select-none"
+      >
         <OptimizedImage
           key={current.id}
           src={current.url_imagen}
           alt="Imagen del producto"
           aspectRatio="none"
           objectFit="cover"
-          className="animate-fade-in h-full w-full object-cover rounded-3xl"
+          className="animate-fade-in h-full w-full object-cover rounded-2xl sm:rounded-3xl transition-transform duration-500 group-hover:scale-[1.02]"
           priority
         />
+
+        {/* Hover hint */}
+        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/15 transition-all flex items-center justify-center pointer-events-none">
+          <span className="opacity-0 group-hover:opacity-100 transition-opacity rounded-full bg-black/75 text-white px-3.5 py-1.5 text-xs font-medium backdrop-blur-xs flex items-center gap-1.5 shadow-lg">
+            <span>🔍 Clic para ampliar</span>
+          </span>
+        </div>
       </div>
+
       {/* Thumbnails */}
       {sorted.length > 1 && (
-        <div className="flex gap-2.5 overflow-x-auto pb-1">
+        <div className="flex justify-center sm:justify-start gap-2.5 overflow-x-auto pb-1 scrollbar-none">
           {sorted.map((img, i) => (
             <button
               key={img.id}
               type="button"
               onClick={() => setActive(i)}
               className={cn(
-                "relative h-16 w-16 shrink-0 overflow-hidden rounded-lg border-2 transition-all duration-200",
+                "relative h-14 w-14 sm:h-16 sm:w-16 shrink-0 overflow-hidden rounded-xl border-2 transition-all duration-200 cursor-pointer",
                 i === active
-                  ? "border-foreground ring-1 ring-foreground/20"
+                  ? "border-terracota ring-2 ring-terracota/20 scale-105"
                   : "border-transparent opacity-60 hover:opacity-100",
               )}
             >
@@ -53,12 +77,20 @@ export function ProductGallery({ imagenes }: { imagenes: ProductoImagen[] }) {
                 src={img.url_imagen}
                 alt=""
                 sizes="64px"
-                className="h-full w-full"
+                className="h-full w-full object-cover"
               />
             </button>
           ))}
         </div>
       )}
+
+      {/* Lightbox / Popup con Zoom */}
+      <ImageLightbox
+        images={lightboxImages}
+        initialIndex={active}
+        isOpen={lightboxOpen}
+        onClose={() => setLightboxOpen(false)}
+      />
     </div>
   );
 }

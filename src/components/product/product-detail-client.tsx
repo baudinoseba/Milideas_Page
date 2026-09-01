@@ -177,13 +177,13 @@ export function ProductDetailClient({ producto, configEncargos }: ProductDetailP
 
       {/* Action Buttons */}
       {stockDisponible > 0 ? (
-        <div className="space-y-3">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="space-y-2.5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             {/* Comprar ahora -> Redirige directamente al flujo de pago seguro / checkout */}
             <Button
               type="button"
               onClick={handleBuyNow}
-              className="w-full py-4 text-base font-semibold rounded-full shadow-md bg-terracota text-white hover:bg-terracota/90 hover:-translate-y-0.5 transition-all cursor-pointer"
+              className="w-full py-3 text-sm font-semibold rounded-full shadow-sm bg-terracota text-white hover:bg-terracota/90 hover:-translate-y-0.5 transition-all cursor-pointer"
             >
               🛍️ Comprar ahora →
             </Button>
@@ -193,7 +193,7 @@ export function ProductDetailClient({ producto, configEncargos }: ProductDetailP
               type="button"
               onClick={handleAddToCart}
               variant="outline"
-              className={`w-full py-4 text-base font-semibold rounded-full border transition-all cursor-pointer ${
+              className={`w-full py-3 text-sm font-semibold rounded-full border transition-all cursor-pointer ${
                 added
                   ? "bg-verde-menta text-chocolate border-verde-menta font-bold"
                   : "border-terracota/40 text-terracota bg-terracota/10 hover:bg-terracota/20"
@@ -215,7 +215,7 @@ export function ProductDetailClient({ producto, configEncargos }: ProductDetailP
             type="button"
             variant="outline"
             onClick={() => setIsEncargoOpen(true)}
-            className="w-full py-3.5 text-sm font-semibold rounded-full border border-admin-accent/30 bg-admin-accent/5 text-chocolate hover:bg-admin-accent/15 transition-all flex items-center justify-center gap-2 cursor-pointer"
+            className="w-full py-2.5 text-xs font-semibold rounded-full border border-admin-accent/30 bg-admin-accent/5 text-chocolate hover:bg-admin-accent/15 transition-all flex items-center justify-center gap-2 cursor-pointer"
           >
             <span>✨</span>
             <span>Solicitar esta pieza por Encargo / Medida Especial</span>
@@ -225,7 +225,7 @@ export function ProductDetailClient({ producto, configEncargos }: ProductDetailP
         <Button
           type="button"
           onClick={() => setIsEncargoOpen(true)}
-          className="w-full py-4 text-base font-semibold rounded-full bg-chocolate text-crema-cruda hover:bg-chocolate/90 transition-all flex items-center justify-center gap-2 shadow-md cursor-pointer"
+          className="w-full py-3 text-sm font-semibold rounded-full bg-chocolate text-crema-cruda hover:bg-chocolate/90 transition-all flex items-center justify-center gap-2 shadow-sm cursor-pointer"
         >
           <span>✨</span>
           <span>Encargar esta pieza a Mili Ferrero</span>

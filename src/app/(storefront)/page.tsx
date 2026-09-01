@@ -2,88 +2,83 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ProductCard } from "@/components/product/product-card";
 import { FadeIn } from "@/components/ui/fade-in";
-import { getProductos, getObrasProyectos } from "@/lib/supabase/queries";
+import { ObrasCarousel } from "@/components/obras/obras-carousel";
+import { getProductos, getObrasProyectos, getConfiguracionSitio } from "@/lib/supabase/queries";
 
 export default async function HomePage() {
-  // 1. Obtener piezas disponibles en stock para el drop destacado
-  const productosStock = await getProductos({}).catch(() => []);
+  const [config, productosStock, obrasDestacadas] = await Promise.all([
+    getConfiguracionSitio().catch(() => null),
+    getProductos({}).catch(() => []),
+    getObrasProyectos({ soloDestacados: true }).catch(() => []),
+  ]);
+
   const piezasDisponibles = productosStock.filter((p) => (p.stock_disponible ?? 0) > 0).slice(0, 4);
 
-  // 2. Obtener proyectos y obras destacadas
-  const obrasDestacadas = await getObrasProyectos({ soloDestacados: true }).catch(() => []);
-
   return (
-    <div className="space-y-12 sm:space-y-16 pb-16 w-full max-w-full overflow-hidden">
+    <div className="space-y-10 sm:space-y-14 pb-16 w-full max-w-full overflow-hidden">
       
-      {/* ─── 1. HERO / BANNER DE MARCA (Según boceto de la artista) ─── */}
-      <section className="relative w-full overflow-hidden rounded-2xl sm:rounded-3xl border border-border/60 bg-gradient-to-b from-surface via-arena/30 to-crema-cruda p-6 sm:p-12 text-center shadow-xs transition-colors duration-300">
-        <div className="mx-auto max-w-2xl space-y-4">
-          
-          {/* Tag de autor artesanal */}
-          <div className="inline-flex items-center gap-2 rounded-full border border-terracota/25 bg-surface/90 px-3.5 py-1 text-xs font-semibold text-terracota shadow-xs backdrop-blur-md font-sans">
-            <span className="h-2 w-2 rounded-full bg-verde-menta animate-pulse" />
-            <span>Estudio de Arte & Cerámica · Sunchales 🇦🇷</span>
-          </div>
+      {/* ─── 1. HERO / BANNER DE MARCA ─── */}
+      {config?.hero_imagen_url ? (
+        <section className="relative w-full overflow-hidden rounded-2xl sm:rounded-3xl border border-border/60 shadow-md bg-stone-900 group min-h-[260px] sm:min-h-[380px] lg:min-h-[440px] flex flex-col justify-end p-6 sm:p-10 transition-all duration-300">
+          <img
+            src={config.hero_imagen_url}
+            alt="Portada Milideas"
+            className="absolute inset-0 h-full w-full object-cover object-center"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/15 to-transparent pointer-events-none" />
 
-          {/* Logotipo ilustrado amplio / Estilo Boceto */}
-          <div className="py-2">
-            <h1 className="text-4xl sm:text-6xl lg:text-7xl font-bold tracking-tight text-chocolate font-serif flex items-center justify-center gap-2 sm:gap-4 flex-wrap">
-              <span>MIL</span>
-              <span className="text-terracota font-handwritten text-5xl sm:text-7xl lg:text-8xl transform -rotate-2">
-                Ideas
-              </span>
-              <span className="inline-block text-2xl sm:text-4xl animate-bounce">💡</span>
-            </h1>
-            <p className="font-handwritten text-2xl sm:text-3xl text-terracota/90 mt-1">
-              ~ Objetos de diseño ~
-            </p>
-          </div>
-
-          <p className="mx-auto max-w-lg text-xs sm:text-sm text-barro leading-relaxed font-sans">
-            Piezas únicas moldeadas, esculpidas y pintadas a mano con amor y dedicación. Pequeñas producciones de autor que transforman tus momentos.
-          </p>
-
-          {/* Botones de acción rápida mobile-first */}
-          <div className="flex flex-wrap justify-center gap-2.5 pt-2">
+          {/* Botones de acción sobre el banner */}
+          <div className="relative z-10 flex flex-wrap justify-center sm:justify-start gap-3 pt-4">
             <Link href="/ceramica">
-              <Button className="rounded-full bg-terracota text-white hover:bg-terracota/90 px-5 py-2 text-xs sm:text-sm font-semibold shadow-sm transition-all hover:scale-105 active:scale-95">
+              <Button className="rounded-full bg-terracota text-white hover:bg-terracota/90 px-6 py-2.5 text-xs sm:text-sm font-bold shadow-lg transition-all hover:scale-105 active:scale-95 cursor-pointer">
                 🏺 Catálogo de Cerámica
               </Button>
             </Link>
             <Link href="/ilustracion">
-              <Button variant="outline" className="rounded-full border-border/80 bg-surface/80 text-chocolate hover:bg-arena px-5 py-2 text-xs sm:text-sm font-semibold shadow-xs transition-all hover:scale-105 active:scale-95">
-                🎨 Ilustraciones & Prints
+              <Button variant="outline" className="rounded-full border-white/50 bg-black/40 text-white hover:bg-white hover:text-stone-900 px-6 py-2.5 text-xs sm:text-sm font-bold shadow-lg transition-all hover:scale-105 active:scale-95 cursor-pointer backdrop-blur-md">
+                🎨 Obras & Ilustraciones
               </Button>
             </Link>
           </div>
+        </section>
+      ) : (
+        <section className="relative w-full overflow-hidden rounded-2xl sm:rounded-3xl border border-border/60 bg-gradient-to-b from-surface via-arena/30 to-crema-cruda p-8 sm:p-12 text-center shadow-xs">
+          <div className="mx-auto max-w-2xl space-y-4">
+            <div className="inline-flex items-center gap-2 rounded-full border border-terracota/25 bg-surface/90 px-3.5 py-1 text-xs font-semibold text-terracota shadow-xs backdrop-blur-md font-sans">
+              <span className="h-2 w-2 rounded-full bg-verde-menta animate-pulse" />
+              <span>Estudio de Arte & Cerámica · Sunchales 🇦🇷</span>
+            </div>
 
-        </div>
-      </section>
+            <div className="flex flex-wrap justify-center gap-3 pt-2">
+              <Link href="/ceramica">
+                <Button className="rounded-full bg-terracota text-white hover:bg-terracota/90 px-6 py-2.5 text-xs sm:text-sm font-bold shadow-sm transition-all hover:scale-105 active:scale-95 cursor-pointer">
+                  🏺 Catálogo de Cerámica
+                </Button>
+              </Link>
+              <Link href="/ilustracion">
+                <Button variant="outline" className="rounded-full border-border/80 bg-surface/80 text-chocolate hover:bg-arena px-6 py-2.5 text-xs sm:text-sm font-bold shadow-xs transition-all hover:scale-105 active:scale-95 cursor-pointer">
+                  🎨 Obras & Ilustraciones
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* ─── 2. DROP ACTIVO / PIEZAS EN STOCK PARA COMPRA INMEDIATA ─── */}
       {piezasDisponibles.length > 0 && (
         <FadeIn>
-          <section className="space-y-6">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between border-b border-border/60 pb-4">
-              <div>
-                <span className="text-xs font-semibold uppercase tracking-wider text-barro font-sans flex items-center gap-1.5">
-                  <span className="text-terracota">✨</span> Lanzamiento Actual
-                </span>
-                <h2 className="text-xl sm:text-3xl font-medium text-chocolate font-serif">
-                  Piezas listas en Stock
-                </h2>
-                <p className="text-xs text-barro font-sans mt-0.5">
-                  Producción en pequeños lotes con entrega inmediata.
-                </p>
-              </div>
-
-              <Link
-                href="/ceramica"
-                className="inline-flex items-center gap-1.5 text-xs font-semibold text-terracota hover:text-chocolate transition-colors font-sans"
-              >
-                <span>Ver todas las piezas disponibles</span>
-                <span>→</span>
-              </Link>
+          <section className="space-y-5">
+            <div className="flex flex-col items-center text-center gap-1 border-b border-border/60 pb-3">
+              <span className="text-xs font-semibold uppercase tracking-wider text-barro font-sans flex items-center justify-center gap-1.5">
+                <span className="text-terracota">✨</span> Lanzamiento Actual
+              </span>
+              <h2 className="text-xl sm:text-2xl font-medium text-chocolate font-serif">
+                Piezas listas en Stock
+              </h2>
+              <p className="text-xs text-barro font-sans">
+                Producción en pequeños lotes con entrega inmediata.
+              </p>
             </div>
 
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-5">
@@ -91,31 +86,44 @@ export default async function HomePage() {
                 <ProductCard key={producto.id} producto={producto} priority={idx === 0} />
               ))}
             </div>
+
+            {/* Botón horizontal llamativo para explorar todo el stock */}
+            <div className="pt-1 sm:pt-2 flex justify-center">
+              <Link href="/ceramica" className="w-full sm:w-auto">
+                <Button
+                  variant="outline"
+                  className="w-full sm:w-auto rounded-full border-terracota/35 bg-surface/90 text-chocolate hover:bg-terracota hover:text-white px-6 sm:px-8 py-2.5 sm:py-3 text-xs sm:text-sm font-semibold shadow-xs transition-all hover:scale-[1.02] active:scale-98 flex items-center justify-center gap-2 font-sans cursor-pointer group"
+                >
+                  <span>✨ Ver todo el Stock disponible</span>
+                  <span className="group-hover:translate-x-1 transition-transform font-bold">→</span>
+                </Button>
+              </Link>
+            </div>
           </section>
         </FadeIn>
       )}
 
-      {/* ─── 3. LOS 2 PILARES CREATIVOS (CERÁMICA & ILUSTRACIÓN) ─── */}
+      {/* ─── 3. LOS 2 PILARES CREATIVOS (CERÁMICA & ILUSTRACIÓN - EMOJIS EN LÍNEA) ─── */}
       <FadeIn delay={100}>
-        <section className="grid gap-4 sm:grid-cols-2 sm:gap-6">
+        <section className="grid gap-4 sm:grid-cols-2 sm:gap-5">
           {/* Pilar 1: Cerámica */}
-          <div className="group relative overflow-hidden rounded-2xl sm:rounded-3xl border border-border/60 bg-gradient-to-br from-surface to-arena/40 p-6 sm:p-8 transition-all hover:shadow-md hover:border-terracota/40 flex flex-col justify-between">
-            <div className="space-y-3">
-              <span className="text-3xl sm:text-4xl">🏺</span>
-              <h3 className="text-xl sm:text-2xl font-serif font-medium text-chocolate">
-                Cerámica de Autor
+          <div className="group relative overflow-hidden rounded-2xl sm:rounded-3xl border border-border/60 bg-gradient-to-br from-surface to-arena/40 p-5 sm:p-6 transition-all hover:shadow-md hover:border-terracota/40 flex flex-col justify-between space-y-4">
+            <div className="space-y-2.5">
+              <h3 className="text-lg sm:text-xl font-serif font-medium text-chocolate text-center flex items-center justify-center gap-2">
+                <span className="text-2xl">🏺</span>
+                <span>Cerámica de Autor</span>
               </h3>
               <p className="text-xs sm:text-sm text-barro font-sans leading-relaxed">
-                Mates, cuencos, tazas XXL, bandejas, floreros y vajilla a pedido. Elegí el formato que más te guste del catálogo y personalizalo con tu diseño favorito.
+                Mates, cuencos, tazas XXL, bandejas, floreros y vajilla. La pieza que más te guste, te la hago a pedido.
               </p>
-              <ul className="text-xs text-muted space-y-1 pt-1 font-sans">
-                <li>✦ 45 formatos físicos disponibles</li>
-                <li>✦ Diseños a elección de nuestro portfolio o Instagram</li>
+              <ul className="text-xs text-muted space-y-1 pt-0.5 font-sans">
+                <li>✦ Más de 40 formatos físicos disponibles</li>
+                <li>✦ Diseños a elección de mi portfolio o Instagram</li>
                 <li>✦ Tiempos de producción artesanal: ~30 días</li>
               </ul>
             </div>
-            <div className="pt-5">
-              <Link href="/ceramica">
+            <div className="pt-2">
+              <Link href="/ceramica?tab=catalogo">
                 <Button className="w-full sm:w-auto rounded-full bg-chocolate text-crema-cruda hover:bg-chocolate/90 text-xs font-semibold px-5 py-2 shadow-xs">
                   Ver Formatos & Encargar →
                 </Button>
@@ -124,22 +132,22 @@ export default async function HomePage() {
           </div>
 
           {/* Pilar 2: Ilustración */}
-          <div className="group relative overflow-hidden rounded-2xl sm:rounded-3xl border border-border/60 bg-gradient-to-br from-surface to-rosa-buho/15 p-6 sm:p-8 transition-all hover:shadow-md hover:border-rosa-buho/50 flex flex-col justify-between">
-            <div className="space-y-3">
-              <span className="text-3xl sm:text-4xl">🎨</span>
-              <h3 className="text-xl sm:text-2xl font-serif font-medium text-chocolate">
-                Ilustración & Prints
+          <div className="group relative overflow-hidden rounded-2xl sm:rounded-3xl border border-border/60 bg-gradient-to-br from-surface to-rosa-buho/15 p-5 sm:p-6 transition-all hover:shadow-md hover:border-rosa-buho/50 flex flex-col justify-between space-y-4">
+            <div className="space-y-2.5">
+              <h3 className="text-lg sm:text-xl font-serif font-medium text-chocolate text-center flex items-center justify-center gap-2">
+                <span className="text-2xl">🎨</span>
+                <span>Ilustración de Autor</span>
               </h3>
               <p className="text-xs sm:text-sm text-barro font-sans leading-relaxed">
-                Láminas sobre papel texturado de alta calidad, cuadros enmarcados artesanalmente y stickers coleccionables con el universo botánico y animal de Mili.
+                Pinturas y dibujos originales sobre papel acuarela de alta calidad, obras únicas enmarcadas listas para colgar.
               </p>
-              <ul className="text-xs text-muted space-y-1 pt-1 font-sans">
-                <li>✦ Tamaños A4, A3 y Gran Formato</li>
-                <li>✦ Opcional marco de madera listo para colgar</li>
-                <li>✦ Diseños originales impresos con pigmentos finos</li>
+              <ul className="text-xs text-muted space-y-1 pt-0.5 font-sans">
+                <li>✦ Diferentes tamaños y formatos</li>
+                <li>✦ Enmarcadas artesanalmente listas para colgar</li>
+                <li>✦ Diseños originales y personalizados pintados a mano</li>
               </ul>
             </div>
-            <div className="pt-5">
+            <div className="pt-2">
               <Link href="/ilustracion">
                 <Button className="w-full sm:w-auto rounded-full bg-chocolate text-crema-cruda hover:bg-chocolate/90 text-xs font-semibold px-5 py-2 shadow-xs">
                   Explorar Ilustraciones →
@@ -150,128 +158,9 @@ export default async function HomePage() {
         </section>
       </FadeIn>
 
-      {/* ─── 4. LA ARTISTA DETRÁS DE CADA CREACIÓN (Mili Ferrero) ─── */}
+      {/* ─── 4. OBRAS & PROYECTOS ESPECIALES (Un Solo Contenedor Destacado con Slider y Zoom) ─── */}
       <FadeIn delay={150}>
-        <section className="relative w-full overflow-hidden rounded-2xl sm:rounded-3xl border border-border/60 bg-gradient-to-r from-arena/50 via-surface to-arena/30 p-6 sm:p-10 shadow-xs">
-          <div className="grid gap-6 lg:grid-cols-12 lg:items-center">
-            
-            <div className="space-y-3 sm:space-y-4 lg:col-span-8">
-              <span className="text-xs font-semibold uppercase tracking-wider text-barro font-sans flex items-center gap-1.5">
-                <span className="text-terracota">♥</span> Identidad & Taller
-              </span>
-              
-              <h2 className="text-2xl sm:text-3xl font-serif font-medium text-chocolate leading-tight">
-                La artista detrás de cada creación
-              </h2>
-              
-              <blockquote className="font-handwritten text-xl sm:text-2xl text-terracota italic">
-                &quot;Cada pieza tiene alma propia y provoca una sonrisa.&quot;
-              </blockquote>
-
-              <p className="text-xs sm:text-sm text-barro font-sans leading-relaxed max-w-xl">
-                Hola, soy Mili Ferrero. Desde mi taller en Sunchales, Santa Fe, doy vida a objetos de diseño y piezas de arte únicas. Cada taza, mural o escultura nace de un proceso lento, respetuoso del material y lleno de calidez para acompañarte en tu día a día.
-              </p>
-
-              <div className="pt-2 flex items-center gap-3">
-                <a
-                  href="https://instagram.com/milideas_arte"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-terracota hover:text-chocolate transition-colors font-sans"
-                >
-                  <span>Seguir el proceso en Instagram @milideas_arte</span>
-                  <span className="text-xs">↗</span>
-                </a>
-              </div>
-            </div>
-
-            <div className="lg:col-span-4 flex justify-center">
-              <div className="relative rounded-2xl overflow-hidden shadow-md w-full max-w-[240px] sm:max-w-xs aspect-[3/4] border border-border/60">
-                <img
-                  src="/mili-ferrero.jpg"
-                  alt="Mili Ferrero en el taller"
-                  loading="eager"
-                  className="rounded-2xl object-cover w-full h-full object-center"
-                />
-                <span className="absolute bottom-2.5 right-2.5 rounded-full bg-chocolate/90 backdrop-blur-md px-3 py-1 text-[10px] sm:text-[11px] font-medium text-crema-cruda shadow-md font-sans">
-                  Mili Ferrero · Sunchales 🇦🇷
-                </span>
-              </div>
-            </div>
-
-          </div>
-        </section>
-      </FadeIn>
-
-      {/* ─── 5. OBRAS & PROYECTOS ESPECIALES (Murales, Esculturas Mascotas, B2B) ─── */}
-      <FadeIn delay={200}>
-        <section className="space-y-6">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between border-b border-border/60 pb-4">
-            <div>
-              <span className="text-xs font-semibold uppercase tracking-wider text-barro font-sans flex items-center gap-1.5">
-                <span className="text-terracota">🌟</span> Arte a Gran Escala & Pedidos Únicos
-              </span>
-              <h2 className="text-xl sm:text-3xl font-medium text-chocolate font-serif">
-                Obras & Proyectos Especiales
-              </h2>
-              <p className="text-xs text-barro font-sans mt-0.5">
-                Murales, vidrieras comerciales, esculturas de mascotas personalizadas y vajilla para restaurantes.
-              </p>
-            </div>
-
-            <Link
-              href="/obras"
-              className="inline-flex items-center gap-1.5 text-xs font-semibold text-terracota hover:text-chocolate transition-colors font-sans"
-            >
-              <span>Ver todas las obras</span>
-              <span>→</span>
-            </Link>
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-3">
-            {obrasDestacadas.map((obra) => (
-              <div
-                key={obra.id}
-                className="group rounded-2xl border border-border/60 bg-surface p-4 shadow-xs transition-all hover:shadow-md hover:border-terracota/40 flex flex-col justify-between space-y-3"
-              >
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-[11px] text-terracota font-semibold uppercase tracking-wider">
-                    <span>
-                      {obra.categoria === "murales" && "🖌️ Mural & Vidriera"}
-                      {obra.categoria === "esculturas" && "🐾 Escultura 3D"}
-                      {obra.categoria === "gran_dimension_b2b" && "🍽️ Gastronomía / B2B"}
-                      {obra.categoria === "ilustraciones" && "🎨 Ilustración"}
-                      {obra.categoria === "miniaturas" && "✨ Miniatura"}
-                    </span>
-                    {obra.cliente_lugar && (
-                      <span className="text-muted truncate max-w-[120px]">{obra.cliente_lugar}</span>
-                    )}
-                  </div>
-
-                  <h4 className="text-base font-serif font-medium text-chocolate group-hover:text-terracota transition-colors">
-                    {obra.titulo}
-                  </h4>
-
-                  {obra.subtitulo && (
-                    <p className="text-xs text-barro font-sans line-clamp-2">
-                      {obra.subtitulo}
-                    </p>
-                  )}
-                </div>
-
-                <a
-                  href={`https://wa.me/5493493668308?text=${encodeURIComponent(`¡Hola Mili! Vi el proyecto "${obra.titulo}" en tu web y me gustaría cotizar una propuesta similar.`)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center justify-center gap-1.5 rounded-full border border-border bg-secondary/30 px-3.5 py-1.5 text-xs font-medium text-chocolate hover:bg-terracota hover:text-white transition-all shadow-2xs w-full text-center"
-                >
-                  <span>Cotizar por WhatsApp</span>
-                  <span>↗</span>
-                </a>
-              </div>
-            ))}
-          </div>
-        </section>
+        <ObrasCarousel obras={obrasDestacadas} />
       </FadeIn>
 
     </div>

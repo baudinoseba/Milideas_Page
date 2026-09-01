@@ -46,6 +46,8 @@ export const metadata: Metadata = {
   robots: { index: true, follow: true },
 };
 
+import { ToastContainer } from "@/components/ui/toast";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -59,6 +61,7 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col antialiased bg-background text-foreground transition-colors duration-300">
         {children}
+        <ToastContainer />
       </body>
     </html>
   );

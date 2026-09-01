@@ -218,32 +218,60 @@ export function CheckoutForm({
   // Step validation
   const validateStep2 = () => {
     const newErrors: Record<string, string> = {};
-    if (!step2Data.nombreContacto.trim()) newErrors.nombreContacto = "Nombre requerido";
-    if (!step2Data.apellidoContacto.trim()) newErrors.apellidoContacto = "Apellido requerido";
     
-    const whatsappClean = step2Data.whatsappContacto.trim();
-    if (!whatsappClean) {
+    // Auto-fallback from perfilState if available
+    const nombre = (step2Data.nombreContacto || perfilState?.nombre_completo?.split(" ")[0] || "").trim();
+    const apellido = (step2Data.apellidoContacto || perfilState?.nombre_completo?.split(" ").slice(1).join(" ") || "").trim();
+    const whatsapp = (step2Data.whatsappContacto || perfilState?.whatsapp || "").trim();
+    const dni = (step2Data.dni || perfilState?.dni || "").trim();
+    const effectiveEmail = (
+      step2Data.emailContacto ||
+      userEmailState ||
+      (perfilState as any)?.email ||
+      ""
+    ).trim();
+
+    if (!nombre) newErrors.nombreContacto = "Nombre requerido";
+    if (!apellido) newErrors.apellidoContacto = "Apellido requerido";
+    
+    const whatsappDigits = whatsapp.replace(/\D/g, "");
+    if (!whatsapp) {
       newErrors.whatsappContacto = "WhatsApp requerido";
-    } else if (whatsappClean.length < 8) {
-      newErrors.whatsappContacto = "Mínimo 8 caracteres";
+    } else if (whatsappDigits.length < 6 && whatsapp.length < 6) {
+      newErrors.whatsappContacto = "Mínimo 6 dígitos";
     }
 
-    const emailClean = step2Data.emailContacto.trim();
-    if (!emailClean) {
+    if (!effectiveEmail) {
       newErrors.emailContacto = "Email requerido";
-    } else if (!/\S+@\S+\.\S+/.test(emailClean)) {
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(effectiveEmail)) {
       newErrors.emailContacto = "Email inválido";
     }
 
-    const dniClean = step2Data.dni.trim();
-    if (!dniClean) {
+    const dniDigits = dni.replace(/\D/g, "");
+    if (!dni) {
       newErrors.dni = "DNI requerido";
-    } else if (dniClean.length < 6) {
-      newErrors.dni = "Mínimo 6 caracteres";
+    } else if (dniDigits.length < 5 && dni.length < 5) {
+      newErrors.dni = "Mínimo 5 dígitos";
     }
 
+    // Sync back any auto-resolved fields to state
+    setStep2Data((prev) => ({
+      ...prev,
+      nombreContacto: prev.nombreContacto || nombre,
+      apellidoContacto: prev.apellidoContacto || apellido,
+      whatsappContacto: prev.whatsappContacto || whatsapp,
+      emailContacto: prev.emailContacto || effectiveEmail,
+      dni: prev.dni || dni,
+    }));
+
     setStep2Errors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    const isValid = Object.keys(newErrors).length === 0;
+    if (!isValid) {
+      const errorList = Object.values(newErrors).join(" · ");
+      setToastType("error");
+      setToastMessage(`Faltan datos obligatorios: ${errorList}`);
+    }
+    return isValid;
   };
 
   const validateStep3 = () => {
@@ -268,41 +296,63 @@ export function CheckoutForm({
     return Object.keys(newErrors).length === 0;
   };
 
-  // Step transition handlers
-  const handleGoToStep3 = async () => {
+  // Step transition handlers - Immediate navigation with non-blocking background sync
+  const handleGoToStep3 = (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     if (validateStep2()) {
-      // Proactively update user's profile with Step 2 data if authenticated
-      if (perfilState) {
-        const supabase = createBrowserClient();
-        await supabase.from("perfiles").update({
-          nombre_completo: `${step2Data.nombreContacto} ${step2Data.apellidoContacto}`.trim(),
-          whatsapp: step2Data.whatsappContacto,
-          dni: step2Data.dni,
-        }).eq("id", perfilState.id);
-      }
+      // 1. Advance step immediately
       setStep(3);
       window.scrollTo({ top: 0, behavior: "smooth" });
+
+      // 2. Sync to DB in background (never blocks the user)
+      if (perfilState?.id) {
+        (async () => {
+          try {
+            const supabase = createBrowserClient();
+            await supabase.from("perfiles").update({
+              nombre_completo: `${step2Data.nombreContacto} ${step2Data.apellidoContacto}`.trim(),
+              whatsapp: step2Data.whatsappContacto,
+              dni: step2Data.dni,
+            }).eq("id", perfilState.id);
+          } catch (err) {
+            console.warn("Background profile sync skipped:", err);
+          }
+        })();
+      }
     }
   };
 
-  const handleGoToStep4 = async () => {
+  const handleGoToStep4 = (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     if (validateStep3()) {
-      // Proactively update user's profile with Step 3 data if authenticated
-      if (perfilState) {
-        const supabase = createBrowserClient();
-        await supabase.from("perfiles").update({
-          direccion_calle: step3Data.calle,
-          direccion_numero: step3Data.numero,
-          direccion_piso: step3Data.piso,
-          direccion_depto: step3Data.depto,
-          direccion_ciudad: step3Data.ciudad,
-          direccion_provincia: step3Data.provincia,
-          direccion_codigo_postal: step3Data.codigoPostal,
-          direccion_referencia: step3Data.referencia,
-        }).eq("id", perfilState.id);
-      }
       setStep(4);
       window.scrollTo({ top: 0, behavior: "smooth" });
+
+      if (perfilState?.id) {
+        (async () => {
+          try {
+            const supabase = createBrowserClient();
+            await supabase.from("perfiles").update({
+              direccion_calle: step3Data.calle,
+              direccion_numero: step3Data.numero,
+              direccion_piso: step3Data.piso,
+              direccion_depto: step3Data.depto,
+              direccion_ciudad: step3Data.ciudad,
+              direccion_provincia: step3Data.provincia,
+              direccion_codigo_postal: step3Data.codigoPostal,
+              direccion_referencia: step3Data.referencia,
+            }).eq("id", perfilState.id);
+          } catch (err) {
+            console.warn("Background profile sync skipped:", err);
+          }
+        })();
+      }
     }
   };
 
@@ -463,9 +513,23 @@ export function CheckoutForm({
                         <p className="mt-1 text-xs text-red-500">{step2Errors.dni}</p>
                       )}
                     </div>
+                    <div className="sm:col-span-2">
+                      <Label htmlFor="emailContacto">Email</Label>
+                      <Input
+                        id="emailContacto"
+                        type="email"
+                        placeholder="tu@email.com"
+                        value={step2Data.emailContacto || userEmailState || ""}
+                        onChange={(e) => setStep2Data({ ...step2Data, emailContacto: e.target.value })}
+                        className={step2Errors.emailContacto ? "border-red-500" : ""}
+                      />
+                      {step2Errors.emailContacto && (
+                        <p className="mt-1 text-xs text-red-500">{step2Errors.emailContacto}</p>
+                      )}
+                    </div>
                   </div>
                   <div className="flex justify-end pt-2">
-                    <Button onClick={handleGoToStep3} className="w-full sm:w-auto">
+                    <Button type="button" onClick={handleGoToStep3} className="w-full sm:w-auto">
                       Continuar al envío →
                     </Button>
                   </div>
@@ -612,7 +676,7 @@ export function CheckoutForm({
                       </div>
                     </div>
 
-                    <Button onClick={handleGoToStep3} className="w-full">
+                    <Button type="button" onClick={handleGoToStep3} className="w-full">
                       Continuar al envío →
                     </Button>
                   </Card>
@@ -653,7 +717,7 @@ export function CheckoutForm({
                       perfilState.direccion_provincia?.toLowerCase().includes("sunchales")) && (
                       <div className="rounded-xl bg-emerald-50 dark:bg-emerald-950/40 p-3 text-xs text-emerald-950 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-700/60 flex flex-wrap items-center justify-between gap-2">
                         <span className="leading-snug">
-                          📍 Vemos que estás en <strong>Sunchales</strong>. Podés retirar <strong>GRATIS ($0)</strong> en nuestro taller en Ameghino 1576.
+                          📍 Si estás en <strong>Sunchales</strong>, podés retirar <strong>GRATIS ($0)</strong> en mi taller en Ameghino 1576.
                         </span>
                         <button
                           type="button"
@@ -1001,10 +1065,10 @@ export function CheckoutForm({
                 )}
 
                 <div className="flex gap-3 pt-2">
-                  <Button variant="outline" onClick={() => setStep(2)} className="flex-1 sm:flex-initial">
+                  <Button type="button" variant="outline" onClick={() => setStep(2)} className="flex-1 sm:flex-initial">
                     ← Volver
                   </Button>
-                  <Button onClick={handleGoToStep4} className="flex-1 sm:flex-initial">
+                  <Button type="button" onClick={handleGoToStep4} className="flex-1 sm:flex-initial">
                     Continuar al pago →
                   </Button>
                 </div>

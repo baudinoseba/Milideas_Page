@@ -120,6 +120,7 @@ export type Database = {
           whatsapp_contacto: string;
           email_contacto: string | null;
           fecha_limite_pago: string;
+          recordatorio_24h_enviado?: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -140,6 +141,7 @@ export type Database = {
           whatsapp_contacto: string;
           email_contacto?: string | null;
           fecha_limite_pago?: string;
+          recordatorio_24h_enviado?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -160,6 +162,7 @@ export type Database = {
           whatsapp_contacto?: string;
           email_contacto?: string | null;
           fecha_limite_pago?: string;
+          recordatorio_24h_enviado?: boolean;
           created_at?: string;
           updated_at?: string;
         };

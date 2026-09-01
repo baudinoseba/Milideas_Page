@@ -17,15 +17,15 @@ export const CATALOGO_LABELS: Record<string, { nombre: string; titulo: string; e
   ceramica: CATALOGO_DEFAULT_LABEL,
   ilustracion: {
     nombre: "Ilustración",
-    titulo: "Catálogo de Ilustración & Prints",
+    titulo: "Catálogo de Ilustración & Arte Original",
     emoji: "🎨",
-    desc: "Obras de arte e ilustraciones originales pintadas y diseñadas por Mili Ferrero en papel texturado de alta calidad.",
+    desc: "Obras de arte, acuarelas y dibujos originales pintados a mano por Mili Ferrero en papel de alta calidad.",
   },
   ilustraciones: {
     nombre: "Ilustraciones",
-    titulo: "Catálogo de Ilustración & Prints",
+    titulo: "Catálogo de Ilustración & Arte Original",
     emoji: "🎨",
-    desc: "Obras de arte e ilustraciones originales pintadas y diseñadas por Mili Ferrero en papel texturado de alta calidad.",
+    desc: "Obras de arte, acuarelas y dibujos originales pintados a mano por Mili Ferrero en papel de alta calidad.",
   },
   esculturas: {
     nombre: "Esculturas",
@@ -60,7 +60,7 @@ export type Produccion = {
   updated_at: string;
 };
 
-export type EstadoEncargo = "pendiente" | "aceptado" | "en_proceso" | "listo" | "rechazado" | "cancelado";
+export type EstadoEncargo = "pendiente" | "aceptado" | "en_proceso" | "listo" | "entregado" | "rechazado" | "cancelado";
 
 export type MedidaIlustracion = {
   id: string;
@@ -70,10 +70,11 @@ export type MedidaIlustracion = {
 
 export type ConfiguracionEncargos = {
   id: string;
-  medidas_ilustraciones: MedidaIlustracion[];
+  medidas_ilustraciones?: MedidaIlustracion[];
   precio_marco_madera: number;
   porcentaje_recargo_personalizado: number;
   demora_default_dias: number;
+  porcentaje_sena?: number;
   updated_at?: string;
 };
 
@@ -166,6 +167,14 @@ export type ConfiguracionSitio = {
   hero_subtitulo: string;
   hero_imagen_url: string | null;
   coleccion_destacada_id: string | null;
+  sobre_mi_foto_url?: string | null;
+  sobre_mi_titulo?: string | null;
+  sobre_mi_frase?: string | null;
+  sobre_mi_texto?: string | null;
+  sobre_mi_foto_pos_x?: number | null;
+  sobre_mi_foto_pos_y?: number | null;
+  sobre_mi_foto_zoom?: number | null;
+  sobre_mi_foto_fit?: string | null;
   banco_titular?: string | null;
   banco_cuit?: string | null;
   banco_nombre?: string | null;

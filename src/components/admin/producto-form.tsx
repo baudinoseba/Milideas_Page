@@ -485,7 +485,16 @@ export function ProductoForm({
                     placeholder="ej. 350"
                   />
                 </div>
-                <div className="flex gap-6 pt-1">
+                <div className="flex flex-wrap gap-4 pt-1">
+                  <label className="flex items-center gap-2 text-xs font-semibold text-chocolate cursor-pointer">
+                    <input
+                      type="checkbox"
+                      name="hechoEnTorno"
+                      defaultChecked={Boolean(((producto as Record<string, unknown>)?.material_tecnica as string)?.toLowerCase().includes("torno") || (attr.hecho_en_torno as boolean))}
+                      className="h-4 w-4 rounded border-border accent-admin-accent"
+                    />
+                    🏺 Hecho en torno alfarero
+                  </label>
                   <label className="flex items-center gap-2 text-xs font-medium text-chocolate cursor-pointer">
                     <input
                       type="checkbox"

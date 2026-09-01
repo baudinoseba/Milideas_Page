@@ -108,13 +108,36 @@ export default async function ProductoPage({
         <BackButton fallbackHref="/catalogo">Volver al catálogo</BackButton>
       </div>
 
-      <div className="grid gap-8 lg:grid-cols-12 lg:gap-12 pb-16">
-        <div className="lg:col-span-6">
-          <ProductGallery imagenes={producto.producto_imagenes} />
+      {/* Mobile Title & Badge (Shown above image on mobile) */}
+      <div className="block lg:hidden space-y-2 mb-4">
+        <div className="flex flex-wrap gap-2">
+          {producto.categorias && (
+            <span className="inline-block rounded-full bg-rosa-buho/20 px-3 py-0.5 text-xs font-semibold text-terracota font-sans">
+              {producto.categorias.nombre}
+            </span>
+          )}
+          {producto.producciones && (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-terracota/20 bg-surface/95 px-3 py-0.5 text-xs font-semibold font-sans tracking-wide text-chocolate shadow-xs">
+              <span className="h-2 w-2 rounded-full bg-verde-menta animate-pulse" />
+              {producto.producciones.nombre}
+            </span>
+          )}
+        </div>
+        <h1 className="text-2xl sm:text-3xl font-medium font-serif text-chocolate leading-tight">
+          {producto.nombre}
+        </h1>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-12 lg:gap-10 pb-16 items-start">
+        {/* Left Column: Gallery (Proportioned and compact) */}
+        <div className="lg:col-span-5 w-full">
+          <ProductGallery imagenes={producto.producto_imagenes} nombreProducto={producto.nombre} />
         </div>
 
-        <div className="lg:col-span-6 space-y-6">
-          <div className="space-y-2">
+        {/* Right Column: Details */}
+        <div className="lg:col-span-7 space-y-5">
+          {/* Desktop Title & Category (Shown on desktop) */}
+          <div className="hidden lg:block space-y-2">
             <div className="flex gap-2">
               {producto.categorias && (
                 <span className="inline-block rounded-full bg-rosa-buho/20 px-3.5 py-1 text-xs font-semibold text-terracota font-sans">
@@ -147,65 +170,25 @@ export default async function ProductoPage({
             )}
           </div>
 
-          {producto.descripcion && (
-            <div className="space-y-2 bg-arena/30 p-5 rounded-2xl border border-border/60">
-              <span className="text-xs font-semibold uppercase tracking-wider text-barro font-sans block">
-                Detalles del autor
-              </span>
-              <p className="text-sm leading-relaxed text-chocolate font-sans">
-                {producto.descripcion}
-              </p>
-            </div>
-          )}
-
-          {/* Medidas Aproximadas */}
-          {(producto.alto_cm != null || producto.ancho_cm != null || producto.dimensiones) && (
-            <div className="space-y-2.5 bg-surface p-4 rounded-2xl border border-border/60 shadow-sm">
-              <span className="text-xs font-semibold uppercase tracking-wider text-barro font-sans flex items-center gap-1.5">
-                <span className="text-terracota text-sm">📐</span>
-                <span>Medidas aproximadas</span>
-              </span>
-              <div className="flex flex-wrap items-center gap-2.5 text-xs text-chocolate font-sans">
-                {producto.alto_cm != null && (
-                  <div className="flex items-center gap-1.5 rounded-xl bg-arena/40 px-3 py-1.5 border border-border/40">
-                    <span className="text-barro font-medium">Alto:</span>
-                    <span className="font-semibold">{producto.alto_cm} cm</span>
-                  </div>
-                )}
-                {producto.ancho_cm != null && (
-                  <div className="flex items-center gap-1.5 rounded-xl bg-arena/40 px-3 py-1.5 border border-border/40">
-                    <span className="text-barro font-medium">Ancho / Diámetro:</span>
-                    <span className="font-semibold">{producto.ancho_cm} cm</span>
-                  </div>
-                )}
-                {producto.dimensiones && (
-                  <div className="w-full text-xs text-chocolate/80 font-sans pt-1">
-                    {producto.dimensiones}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
           {/* Discipline Craftsmanship & Technical Features */}
-          <div className="grid grid-cols-2 gap-3 p-4 rounded-2xl border border-border/50 bg-surface text-xs text-barro font-sans">
+          <div className="grid grid-cols-2 gap-2.5 p-3.5 sm:p-4 rounded-2xl border border-border/60 bg-surface text-xs text-barro font-sans shadow-2xs">
             {producto.tipo_catalogo === "ilustraciones" ? (
               <>
                 <div className="flex items-center gap-2">
                   <span className="text-terracota text-base">📜</span>
-                  <span>{producto.papel_soporte || "Papel Canson 300g"}</span>
+                  <span>{producto.papel_soporte || "Papel Acuarela 300g"}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-terracota text-base">🎨</span>
-                  <span>{producto.material_tecnica || "Ilustración original"}</span>
+                  <span>{producto.material_tecnica || "Pintura original"}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-terracota text-base">🖼️</span>
-                  <span>{producto.marco_incluido ? "Incluye marco artesanal" : "Opción de marco"}</span>
+                  <span>{producto.marco_incluido ? "Marco de madera incluido" : "Opción de marco"}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-terracota text-base">🇦🇷</span>
-                  <span>Ilustrada en Sunchales</span>
+                  <span>Hecho en Argentina</span>
                 </div>
               </>
             ) : producto.tipo_catalogo === "esculturas" ? (
@@ -219,35 +202,94 @@ export default async function ProductoPage({
                   <span>{producto.edicion_numerada || "Edición de Autor 1/1"}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-terracota text-base">⚖️</span>
-                  <span>{producto.pedestal_incluido ? "Incluye base / pedestal" : "Pieza independiente"}</span>
+                  <span className="text-terracota text-base">🖌️</span>
+                  <span>Pintado a mano</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-terracota text-base">🇦🇷</span>
-                  <span>Modelado en Sunchales</span>
+                  <span>Hecho en Argentina</span>
                 </div>
               </>
             ) : (
               <>
+                {(Boolean(producto.material_tecnica?.toLowerCase().includes("torno")) || Boolean((producto.atributos_especificos as any)?.hecho_en_torno)) && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-terracota text-base">🏺</span>
+                    <span className="font-semibold text-chocolate">Hecho en torno alfarero</span>
+                  </div>
+                )}
                 <div className="flex items-center gap-2">
                   <span className="text-terracota text-base">🔥</span>
-                  <span>Horneado a 1040°C</span>
+                  <span>Horneado a 1080°C</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-terracota text-base">✨</span>
-                  <span>Esmalte libre de plomo</span>
+                  <span className="text-terracota text-base">🍽️</span>
+                  <span>Apto vajilla y microondas</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-terracota text-base">🧽</span>
-                  <span>{producto.apto_lavavajillas ? "Apto lavavajillas" : "Lavado delicado a mano"}</span>
+                  <span className="text-terracota text-base">🖌️</span>
+                  <span>Pintado a mano</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-terracota text-base">🇦🇷</span>
-                  <span>Hecho en Sunchales</span>
+                  <span>Hecho en Argentina</span>
                 </div>
               </>
             )}
           </div>
+
+          {/* ─── Apartado: Sobre el producto (Medidas condicionales y Descripción) ─── */}
+          {(producto.alto_cm != null ||
+            producto.ancho_cm != null ||
+            producto.capacidad_ml != null ||
+            producto.dimensiones ||
+            producto.descripcion) && (
+            <div className="space-y-3 bg-arena/25 p-4 sm:p-5 rounded-2xl border border-border/60 shadow-2xs">
+              <span className="text-xs font-semibold uppercase tracking-wider text-chocolate font-sans flex items-center gap-1.5">
+                <span className="text-terracota">✨</span>
+                <span>Sobre el producto</span>
+              </span>
+
+              {/* Medidas condicionales (solo si existen valores) */}
+              {(producto.alto_cm != null ||
+                producto.ancho_cm != null ||
+                producto.capacidad_ml != null ||
+                producto.dimensiones) && (
+                <div className="flex flex-wrap items-center gap-2 text-xs text-chocolate font-sans">
+                  {producto.alto_cm != null && (
+                    <div className="flex items-center gap-1.5 rounded-xl bg-surface px-3 py-1.5 border border-border/50 shadow-2xs">
+                      <span className="text-barro font-medium">Alto:</span>
+                      <span className="font-semibold">{producto.alto_cm} cm</span>
+                    </div>
+                  )}
+                  {producto.ancho_cm != null && (
+                    <div className="flex items-center gap-1.5 rounded-xl bg-surface px-3 py-1.5 border border-border/50 shadow-2xs">
+                      <span className="text-barro font-medium">Ancho / Diámetro:</span>
+                      <span className="font-semibold">{producto.ancho_cm} cm</span>
+                    </div>
+                  )}
+                  {producto.capacidad_ml != null && (
+                    <div className="flex items-center gap-1.5 rounded-xl bg-surface px-3 py-1.5 border border-border/50 shadow-2xs">
+                      <span className="text-barro font-medium">Capacidad:</span>
+                      <span className="font-semibold">{producto.capacidad_ml} ml</span>
+                    </div>
+                  )}
+                  {producto.dimensiones && (
+                    <div className="w-full text-xs text-barro font-sans pt-0.5">
+                      {producto.dimensiones}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Descripción opcional */}
+              {producto.descripcion && (
+                <p className="text-xs sm:text-sm leading-relaxed text-barro font-sans border-t border-border/40 pt-2.5">
+                  {producto.descripcion}
+                </p>
+              )}
+            </div>
+          )}
 
           <ProductDetailClient
             producto={producto}

@@ -109,20 +109,10 @@ export function ProductosManager({
 
   return (
     <div className="space-y-6 pb-12">
-      <Link
-        href="/admin"
-        className="inline-flex items-center gap-1 text-xs font-semibold text-muted hover:text-chocolate font-sans"
-      >
-        <span>← Volver al Dashboard</span>
-      </Link>
-
       {/* Top Bar with actions */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold">🏺 Productos y Categorías</h1>
-          <p className="mt-1 text-sm text-muted">
-            Gestioná tus piezas artesanales y organizalas por categorías desde un solo lugar.
-          </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">

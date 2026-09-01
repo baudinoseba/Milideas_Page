@@ -16,19 +16,17 @@ export default async function ObrasPage({
 
   return (
     <div className="space-y-6 pb-16">
-      {/* ─── Encabezado de Sección ─── */}
-      <div className="border-b border-border/60 pb-5 space-y-2">
-        <div className="flex items-center gap-2">
+      {/* ─── Encabezado de Sección Centrado ─── */}
+      <div className="border-b border-border/60 pb-5 space-y-2 text-center flex flex-col items-center">
+        <div className="flex items-center justify-center gap-2">
           <span className="text-3xl">🌟</span>
-          <div>
-            <h1 className="text-2xl sm:text-4xl font-serif font-medium text-chocolate">
-              Obras & Proyectos Especiales
-            </h1>
-            <p className="text-xs sm:text-sm text-barro font-sans max-w-2xl">
-              Intervenciones artísticas a gran escala, murales comerciales y residenciales, esculturas personalizadas de mascotas y producciones a medida para marcas y gastronomía.
-            </p>
-          </div>
+          <h1 className="text-2xl sm:text-4xl font-serif font-medium text-chocolate">
+            Obras & Proyectos Especiales
+          </h1>
         </div>
+        <p className="text-xs sm:text-sm text-barro font-sans max-w-2xl mx-auto leading-relaxed">
+          Intervenciones artísticas a gran escala, murales comerciales y residenciales, esculturas personalizadas de mascotas y producciones a medida para marcas y gastronomía.
+        </p>
       </div>
 
       <ObrasGallery obras={obras} categoriaInicial={categoria} />

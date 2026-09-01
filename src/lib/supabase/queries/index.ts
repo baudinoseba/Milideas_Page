@@ -64,13 +64,17 @@ export async function getProductos(filters?: {
   tipoCatalogo?: TipoCatalogo;
   dropsOnly?: boolean;
   coleccionesFilter?: "actual" | "pasadas" | "todas";
+  includeInactive?: boolean;
 }): Promise<ProductoConImagenes[]> {
   const supabase = await createClient();
   let query = supabase
     .from("productos")
     .select("*, producto_imagenes(*), categorias(*), producciones(*)")
-    .eq("activo", true)
     .order("created_at", { ascending: false });
+
+  if (!filters?.includeInactive) {
+    query = query.eq("activo", true);
+  }
 
   if (filters?.tipoCatalogo) {
     query = query.eq("tipo_catalogo", filters.tipoCatalogo);

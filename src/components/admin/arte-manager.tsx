@@ -1,9 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import Link from "next/link";
+import { useState, useTransition, useMemo } from "react";
 import { formatPrecio } from "@/lib/pricing";
-import { cn } from "@/lib/utils/cn";
 import { FileImageUpload } from "@/components/admin/file-image-upload";
 import {
   updateFormatoPrecioAction,
@@ -13,10 +11,14 @@ import {
   savePortfolioColeccionAction,
   deletePortfolioColeccionAction,
   updateProductoStockInlineAction,
-  updateProductoColeccionInlineAction,
   saveStockPiezaDirectaAction,
   deleteStockPiezaDirectaAction,
   lanzarColeccionDropCompletaAction,
+  publicarColeccionAction,
+  publicarTodasLasColeccionesAction,
+  togglePublicarProductoAction,
+  saveCategoriaAction,
+  deleteCategoriaAction,
 } from "@/lib/actions";
 import type {
   FormatoCatalogo,
@@ -25,6 +27,10 @@ import type {
   TipoRubro,
   Categoria,
 } from "@/types";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { ImageLightbox } from "@/components/ui/image-lightbox";
+import { toast } from "@/stores/toast-store";
 
 interface ArteManagerProps {
   rubro: TipoRubro;
@@ -43,16 +49,37 @@ export function ArteManager({
   categorias: initialCategorias = [],
   producciones: initialProducciones = [],
 }: ArteManagerProps) {
-  const [activeTab, setActiveTab] = useState<"catalogo" | "stock" | "portfolio">("catalogo");
+  const [activeTab, setActiveTab] = useState<"stock" | "catalogo" | "portfolio">("stock");
   const [formatos, setFormatos] = useState<FormatoCatalogo[]>(initialFormatos);
   const [stockList, setStockList] = useState<ProductoConImagenes[]>(initialStock);
   const [portfolioList, setPortfolioList] = useState<PortfolioColeccion[]>(initialPortfolio);
+  const [categoriasList, setCategoriasList] = useState<Categoria[]>(initialCategorias);
   const [isPending, startTransition] = useTransition();
+
+  // Sub-filter inside Stock: Todos vs Publicados vs Borradores
+  const [subFiltroStock, setSubFiltroStock] = useState<"todos" | "publicados" | "borradores">("todos");
+  const [filtroColeccionStock, setFiltroColeccionStock] = useState<string>("todas");
+  const [busquedaStock, setBusquedaStock] = useState<string>("");
+  const [busquedaCatalogo, setBusquedaCatalogo] = useState<string>("");
+
+  // ─── GESTIÓN DE CATEGORÍAS (MODAL & EDICIÓN) ───
+  const [modalCategoriasAbierto, setModalCategoriasAbierto] = useState<boolean>(false);
+  const [nuevaCategoriaInput, setNuevaCategoriaInput] = useState<string>("");
+  const [categoriaEditandoId, setCategoriaEditandoId] = useState<string | null>(null);
+  const [categoriaEditandoNombre, setCategoriaEditandoNombre] = useState<string>("");
+  const [confirmDeleteCategoria, setConfirmDeleteCategoria] = useState<{ id: string; nombre: string } | null>(null);
 
   // ─── ESTADOS DE AUMENTO MASIVO EN CATÁLOGO ───
   const [porcentajeAumento, setPorcentajeAumento] = useState<string>("5");
   const [categoriaAumento, setCategoriaAumento] = useState<string>("todas");
   const [feedbackAumento, setFeedbackAumento] = useState<string | null>(null);
+
+  // Modal estético de confirmación de Aumento Masivo
+  const [confirmAumentoModal, setConfirmAumentoModal] = useState<{
+    porcentaje: number;
+    categoria: string;
+    catTexto: string;
+  } | null>(null);
 
   // ─── ESTADOS DE EDICIÓN INLINE CATÁLOGO ───
   const [preciosEditados, setPreciosEditados] = useState<Record<string, number>>({});
@@ -61,28 +88,35 @@ export function ArteManager({
   // ─── MODAL FORMATO (CATÁLOGO) ───
   const [modalFormato, setModalFormato] = useState<Partial<FormatoCatalogo> | null>(null);
   const [formatoFotoUrl, setFormatoFotoUrl] = useState<string>("");
+  const [formatoPrecioInput, setFormatoPrecioInput] = useState<string>("20000");
 
-  // ─── FILTRO POR COLECCIÓN EN STOCK ───
-  const [filtroColeccionStock, setFiltroColeccionStock] = useState<string>("todas");
-
-  // ─── MODAL ASIGNAR COLECCIÓN RÁPIDA A PIEZA ───
-  const [asignandoColeccionProd, setAsignandoColeccionProd] = useState<ProductoConImagenes | null>(null);
-  const [nuevaColeccionSelect, setNuevaColeccionSelect] = useState<string>("");
-  const [nuevaColeccionInputCustom, setNuevaColeccionInputCustom] = useState<string>("");
+  // ─── MODALES ESTÉTICOS DE ELIMINACIÓN ───
+  const [confirmDeleteFormato, setConfirmDeleteFormato] = useState<{ id: string; nombre: string } | null>(null);
+  const [confirmDeleteStock, setConfirmDeleteStock] = useState<{ id: string; nombre: string } | null>(null);
+  const [confirmDeletePortfolio, setConfirmDeletePortfolio] = useState<{ id: string; nombre: string } | null>(null);
 
   // ─── MODAL PIEZA INDIVIDUAL DE STOCK ───
   const [modalStockPieza, setModalStockPieza] = useState<Partial<ProductoConImagenes> | null>(null);
   const [stockFotos, setStockFotos] = useState<string[]>([]);
+  const [stockPublicarInmediato, setStockPublicarInmediato] = useState<boolean>(false);
+  const [stockHechoEnTorno, setStockHechoEnTorno] = useState<boolean>(false);
   
-  // Categoría física en modal (select o nuevo input)
+  // Inputs fluidos
+  const [stockPrecioInput, setStockPrecioInput] = useState<string>("20000");
+  const [stockStockInput, setStockStockInput] = useState<string>("1");
+  const [stockAltoInput, setStockAltoInput] = useState<string>("");
+  const [stockAnchoInput, setStockAnchoInput] = useState<string>("");
+  const [stockCapacidadInput, setStockCapacidadInput] = useState<string>("");
+
+  // Categoría física en modal
   const [stockCategoriaSelect, setStockCategoriaSelect] = useState<string>("");
   const [stockCategoriaCustom, setStockCategoriaCustom] = useState<string>("");
 
-  // Colección en modal (select o nuevo input)
+  // Colección en modal
   const [stockColeccionSelect, setStockColeccionSelect] = useState<string>("");
   const [stockColeccionCustom, setStockColeccionCustom] = useState<string>("");
 
-  // ─── MODAL LANZAR COLECCIÓN / DROP COMPLETO ───
+  // ─── MODAL NUEVA COLECCIÓN / DROP COMPLETO (SIEMPRE GUARDA EN BORRADOR) ───
   const [modalLanzarDrop, setModalLanzarDrop] = useState<boolean>(false);
   const [dropNombre, setDropNombre] = useState<string>("");
   const [dropDescripcion, setDropDescripcion] = useState<string>("");
@@ -90,35 +124,70 @@ export function ArteManager({
     Array<{
       id: string;
       nombre: string;
-      categoriaNombre: string;
-      precioBase: number;
-      stock: number;
-      altoCm?: number | null;
-      anchoCm?: number | null;
-      capacidadMl?: number | null;
+      categoriaSelect: string;
+      categoriaCustom: string;
+      precioStr: string;
+      stockStr: string;
+      altoStr: string;
+      anchoStr: string;
+      capacidadStr: string;
+      hechoEnTorno: boolean;
       fotos: string[];
+      descripcion: string;
     }>
   >([
     {
       id: "1",
       nombre: "",
-      categoriaNombre: "",
-      precioBase: 25000,
-      stock: 1,
-      altoCm: null,
-      anchoCm: null,
-      capacidadMl: null,
+      categoriaSelect: "",
+      categoriaCustom: "",
+      precioStr: "25000",
+      stockStr: "1",
+      altoStr: "",
+      anchoStr: "",
+      capacidadStr: "",
+      hechoEnTorno: false,
       fotos: [],
+      descripcion: "",
     },
   ]);
+
+  // Modal Confirmación Lanzar Colección Guardada
+  const [confirmLaunchColeccion, setConfirmLaunchColeccion] = useState<{ id: string; nombre: string; cant: number } | null>(null);
+  const [confirmLaunchAll, setConfirmLaunchAll] = useState<boolean>(false);
 
   // ─── MODAL PORTFOLIO ───
   const [modalPortfolio, setModalPortfolio] = useState<Partial<PortfolioColeccion> | null>(null);
   const [portfolioFotos, setPortfolioFotos] = useState<string[]>([]);
-  const [portfolioDisenosInput, setPortfolioDisenosInput] = useState<string>("");
 
-  // ─── LIGHTBOX PREVIEW ───
+  // ─── LIGHTBOX PREVIEW (ZOOM & ALTA RESOLUCIÓN) ───
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [galleryLightbox, setGalleryLightbox] = useState<{
+    isOpen: boolean;
+    images: { url: string; title?: string; tag?: string }[];
+    initialIndex: number;
+  }>({
+    isOpen: false,
+    images: [],
+    initialIndex: 0,
+  });
+
+  const isCeramica = rubro === "ceramica";
+  const tipoCatalogoDb = isCeramica ? "ceramica" : "ilustraciones";
+
+  // Counts for KPIs
+  const counts = useMemo(() => {
+    const publicados = stockList.filter((p) => p.activo).length;
+    const borradores = stockList.filter((p) => !p.activo).length;
+    const coleccionesUnicas = new Set(stockList.map((p) => p.producciones?.nombre).filter(Boolean));
+    return {
+      totalStock: stockList.length,
+      publicados,
+      borradores,
+      colecciones: coleccionesUnicas.size,
+      catalogo: formatos.length,
+    };
+  }, [stockList, formatos]);
 
   // Lista de Colecciones registradas
   const coleccionesStockUnicas = Array.from(
@@ -128,34 +197,189 @@ export function ArteManager({
     ]),
   ) as string[];
 
-  // Lista de Categorías físicas registradas (Taza, Bandeja, Mate, Cuenco...)
+  // Lista de Categorías físicas registradas
   const categoriasFisicasUnicas = Array.from(
     new Set([
-      ...initialCategorias.map((c) => c.nombre),
+      ...categoriasList.map((c) => c.nombre),
       ...stockList.map((p) => p.categorias?.nombre).filter(Boolean),
       ...formatos.map((f) => f.categoria).filter(Boolean),
     ]),
-  ) as string[];
+  ).filter(Boolean) as string[];
 
   const categoriasUnicasCatalogo = Array.from(
     new Set(formatos.map((f) => f.categoria).filter(Boolean)),
   ) as string[];
 
-  // Filtrado de stock por colección
-  const stockListFiltrado = stockList.filter((p) => {
-    if (filtroColeccionStock === "todas") return true;
-    if (filtroColeccionStock === "sin_coleccion") return !p.producciones?.nombre;
-    return p.producciones?.nombre === filtroColeccionStock;
-  });
+  const normalizeText = (text: string | null | undefined): string => {
+    if (!text) return "";
+    return text
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .trim();
+  };
+
+  // ─── FILTRADO DE FORMATOS (CATÁLOGO) ───
+  const formatosFiltrados = useMemo(() => {
+    const q = normalizeText(busquedaCatalogo);
+    if (!q) return formatos;
+    const words = q.split(/\s+/).filter(Boolean);
+    return formatos.filter((f) => {
+      const nombre = normalizeText(f.nombre);
+      const cat = normalizeText(f.categoria);
+      const med = normalizeText(f.medidas);
+      const haystack = `${nombre} ${cat} ${med}`;
+      return words.every((w) => haystack.includes(w));
+    });
+  }, [formatos, busquedaCatalogo]);
+
+  // ─── AGRUPACIÓN DE STOCK POR COLECCIÓN (ORDENADO Y SEPARADO) ───
+  const gruposStock = useMemo(() => {
+    const queryTerm = normalizeText(busquedaStock);
+    const queryWords = queryTerm ? queryTerm.split(/\s+/).filter(Boolean) : [];
+
+    const piezasFiltradas = stockList.filter((p) => {
+      // 1. Búsqueda por texto (nombre, descripción, categoría, colección, técnica, medidas, slug)
+      if (queryWords.length > 0) {
+        const nombreNorm = normalizeText(p.nombre);
+        const descNorm = normalizeText(p.descripcion);
+        const catNorm = normalizeText(p.categorias?.nombre);
+        const colNorm = normalizeText(p.producciones?.nombre);
+        const dimNorm = normalizeText(p.dimensiones);
+        const tecnicaNorm = normalizeText(p.material_tecnica);
+        const slugNorm = normalizeText(p.slug);
+
+        const haystack = `${nombreNorm} ${descNorm} ${catNorm} ${colNorm} ${dimNorm} ${tecnicaNorm} ${slugNorm}`;
+        const match = queryWords.every((word) => haystack.includes(word));
+        if (!match) return false;
+      }
+
+      // 2. Filtro de estado (Publicados vs Borradores)
+      if (subFiltroStock === "publicados" && !p.activo) return false;
+      if (subFiltroStock === "borradores" && p.activo) return false;
+
+      // 3. Filtro de colección
+      if (filtroColeccionStock === "sin_coleccion" && p.producciones?.nombre) return false;
+      if (filtroColeccionStock !== "todas" && filtroColeccionStock !== "sin_coleccion") {
+        if (p.producciones?.nombre !== filtroColeccionStock) return false;
+      }
+
+      return true;
+    });
+
+    const mapGrupos = new Map<
+      string,
+      {
+        id: string;
+        nombre: string;
+        esColeccion: boolean;
+        piezas: ProductoConImagenes[];
+        tieneBorradores: boolean;
+        cantBorradores: number;
+        cantPublicados: number;
+      }
+    >();
+
+    for (const p of piezasFiltradas) {
+      const colId = p.producciones?.id || (p.producciones?.nombre ? `col_${p.producciones.nombre}` : "__sin_coleccion__");
+      const colNombre = p.producciones?.nombre || "Piezas Sueltas (Sin Colección)";
+      const esColeccion = Boolean(p.producciones?.nombre);
+
+      const existing = mapGrupos.get(colId) || {
+        id: colId,
+        nombre: colNombre,
+        esColeccion,
+        piezas: [],
+        tieneBorradores: false,
+        cantBorradores: 0,
+        cantPublicados: 0,
+      };
+
+      existing.piezas.push(p);
+      if (!p.activo) {
+        existing.tieneBorradores = true;
+        existing.cantBorradores++;
+      } else {
+        existing.cantPublicados++;
+      }
+
+      mapGrupos.set(colId, existing);
+    }
+
+    return Array.from(mapGrupos.values()).sort((a, b) => {
+      if (a.id === "__sin_coleccion__") return 1;
+      if (b.id === "__sin_coleccion__") return -1;
+      if (a.tieneBorradores && !b.tieneBorradores) return -1;
+      if (!a.tieneBorradores && b.tieneBorradores) return 1;
+      return a.nombre.localeCompare(b.nombre);
+    });
+  }, [stockList, subFiltroStock, filtroColeccionStock, busquedaStock]);
+
+  // ─── HANDLERS DE CATEGORÍAS ───
+  const handleCrearCategoria = () => {
+    if (!nuevaCategoriaInput.trim()) return;
+    const nombre = nuevaCategoriaInput.trim();
+
+    startTransition(async () => {
+      const fd = new FormData();
+      fd.set("nombre", nombre);
+      fd.set("tipoCatalogo", tipoCatalogoDb);
+      const res = await saveCategoriaAction(fd);
+      if (res.success && res.categoria) {
+        setCategoriasList((prev) => [...prev, res.categoria]);
+        setNuevaCategoriaInput("");
+        toast.success(`Categoría "${nombre}" creada con éxito`);
+      } else if (!res.success) {
+        toast.error(res.error || "Error al crear categoría");
+      }
+    });
+  };
+
+  const handleGuardarEdicionCategoria = (id: string) => {
+    if (!categoriaEditandoNombre.trim()) return;
+    const nombre = categoriaEditandoNombre.trim();
+
+    startTransition(async () => {
+      const fd = new FormData();
+      fd.set("nombre", nombre);
+      fd.set("tipoCatalogo", tipoCatalogoDb);
+      const res = await saveCategoriaAction(fd, id);
+      if (res.success) {
+        setCategoriasList((prev) =>
+          prev.map((c) => (c.id === id ? { ...c, nombre } : c))
+        );
+        setCategoriaEditandoId(null);
+        setCategoriaEditandoNombre("");
+        toast.success(`Categoría renombrada a "${nombre}"`);
+      } else {
+        toast.error(res.error || "Error al actualizar categoría");
+      }
+    });
+  };
+
+  const handleEliminarCategoriaConfirmado = (id: string) => {
+    startTransition(async () => {
+      const res = await deleteCategoriaAction(id);
+      if (res.success) {
+        setCategoriasList((prev) => prev.filter((c) => c.id !== id));
+        setConfirmDeleteCategoria(null);
+        toast.success("Categoría eliminada con éxito");
+      } else {
+        toast.error(res.error || "Error al eliminar categoría");
+      }
+    });
+  };
 
   // ─── HANDLERS DE CATÁLOGO ───
   const abrirModalFormato = (formato?: FormatoCatalogo) => {
     if (formato) {
       setModalFormato(formato);
       setFormatoFotoUrl(formato.foto_url || "");
+      setFormatoPrecioInput(String(formato.precio_base || 20000));
     } else {
       setModalFormato({ rubro, activo: true });
       setFormatoFotoUrl("");
+      setFormatoPrecioInput("20000");
     }
   };
 
@@ -171,38 +395,43 @@ export function ArteManager({
         );
         setGuardadoId(formatoId);
         setTimeout(() => setGuardadoId(null), 2000);
+        toast.success("Precio actualizado correctamente");
       } else {
-        alert(res.error || "Error al actualizar precio");
+        toast.error(res.error || "Error al actualizar precio");
       }
     });
   };
 
-  const handleAplicarAumentoMasivo = () => {
+  const handleSolicitarAumentoMasivo = () => {
     const p = parseFloat(porcentajeAumento);
     if (isNaN(p) || p === 0) {
-      alert("Ingresá un porcentaje válido");
+      toast.error("Ingresá un porcentaje válido de aumento");
       return;
     }
-
     const catTexto = categoriaAumento === "todas" ? "TODAS las piezas" : `las piezas de "${categoriaAumento}"`;
-    if (!confirm(`¿Confirmás aumentar un ${p}% a ${catTexto} del catálogo de ${rubro}?`)) {
-      return;
-    }
+    setConfirmAumentoModal({ porcentaje: p, categoria: categoriaAumento, catTexto });
+  };
+
+  const handleConfirmarAumentoMasivo = () => {
+    if (!confirmAumentoModal) return;
+    const { porcentaje: p, categoria: cat } = confirmAumentoModal;
 
     startTransition(async () => {
-      const res = await aumentarPreciosMasivoAction(rubro, p, categoriaAumento);
+      const res = await aumentarPreciosMasivoAction(rubro, p, cat);
       if (res.success) {
         setFeedbackAumento(`✓ ¡Se actualizaron ${res.actualizados} piezas con +${p}%!`);
         const factor = 1 + p / 100;
         setFormatos((prev) =>
           prev.map((f) => {
-            if (categoriaAumento !== "todas" && f.categoria !== categoriaAumento) return f;
+            if (cat !== "todas" && f.categoria !== cat) return f;
             return { ...f, precio_base: Math.round(f.precio_base * factor) };
           }),
         );
+        setConfirmAumentoModal(null);
         setTimeout(() => setFeedbackAumento(null), 4000);
+        toast.success(`¡Se actualizaron los precios de ${res.actualizados} piezas (+${p}%)!`);
       } else {
-        alert(res.error || "Error al aplicar aumento");
+        toast.error(res.error || "Error al aplicar aumento");
       }
     });
   };
@@ -212,26 +441,29 @@ export function ArteManager({
     const fd = new FormData(e.currentTarget);
     fd.set("rubro", rubro);
     fd.set("fotoUrl", formatoFotoUrl);
+    fd.set("precioBase", formatoPrecioInput);
 
     startTransition(async () => {
       const res = await saveFormatoAction(fd);
       if (res.success) {
         setModalFormato(null);
+        toast.success("Modelo guardado en el catálogo con éxito");
         window.location.reload();
       } else {
-        alert(res.error || "Error al guardar");
+        toast.error(res.error || "Error al guardar el modelo");
       }
     });
   };
 
-  const handleEliminarFormato = (id: string, nombre: string) => {
-    if (!confirm(`¿Seguro que deseas eliminar "${nombre}" del catálogo?`)) return;
+  const handleEliminarFormatoConfirmado = (id: string) => {
     startTransition(async () => {
       const res = await deleteFormatoAction(id);
       if (res.success) {
         setFormatos((prev) => prev.filter((f) => f.id !== id));
+        setConfirmDeleteFormato(null);
+        toast.success("Modelo eliminado del catálogo");
       } else {
-        alert(res.error || "Error al eliminar");
+        toast.error(res.error || "Error al eliminar el modelo");
       }
     });
   };
@@ -249,84 +481,98 @@ export function ArteManager({
     startTransition(async () => {
       const res = await updateProductoStockInlineAction(id, nuevo);
       if (!res.success) {
-        alert(res.error || "Error al actualizar stock");
+        toast.error(res.error || "Error al actualizar stock");
         window.location.reload();
+      } else {
+        toast.success(`Stock actualizado: ${nuevo} u.`);
       }
     });
   };
 
-  const handleGuardarColeccionAsignada = () => {
-    if (!asignandoColeccionProd) return;
-    
-    const nombreColeccion =
-      nuevaColeccionSelect === "__nueva__"
-        ? nuevaColeccionInputCustom.trim()
-        : nuevaColeccionSelect.trim();
-
+  const handleTogglePublicarPieza = (productoId: string, actualActivo: boolean) => {
+    const nuevoActivo = !actualActivo;
     startTransition(async () => {
-      const res = await updateProductoColeccionInlineAction(
-        asignandoColeccionProd.id,
-        nombreColeccion,
-        rubro as "ceramica" | "ilustracion",
-      );
-
+      const res = await togglePublicarProductoAction(productoId, nuevoActivo);
       if (res.success) {
         setStockList((prev) =>
-          prev.map((p) =>
-            p.id === asignandoColeccionProd.id
-              ? {
-                  ...p,
-                  producciones:
-                    nombreColeccion && nombreColeccion !== "Sin colección"
-                      ? ({ id: res.produccionId || "", nombre: nombreColeccion } as any)
-                      : null,
-                }
-              : p,
-          ),
+          prev.map((p) => (p.id === productoId ? { ...p, activo: nuevoActivo } : p)),
         );
-        setAsignandoColeccionProd(null);
+        toast.success(nuevoActivo ? "Pieza publicada en la tienda" : "Pieza guardada en borrador");
       } else {
-        alert(res.error || "Error al asignar colección");
+        toast.error(res.error || "Error al cambiar estado");
       }
     });
   };
 
-  const abrirModalStockPieza = (prod?: ProductoConImagenes) => {
+  const handleLanzarColeccionGuardada = (produccionId: string, nombreColeccion?: string) => {
+    startTransition(async () => {
+      const res = await publicarColeccionAction(produccionId, nombreColeccion);
+      if (res.success) {
+        setStockList((prev) =>
+          prev.map((p) => {
+            const matchesId = produccionId && p.producciones?.id === produccionId;
+            const matchesNombre = nombreColeccion && p.producciones?.nombre === nombreColeccion;
+            return matchesId || matchesNombre ? { ...p, activo: true } : p;
+          }),
+        );
+        setConfirmLaunchColeccion(null);
+        toast.success(`¡Colección "${nombreColeccion || ""}" publicada en la tienda!`);
+      } else {
+        toast.error(res.error || "Error al publicar la colección");
+      }
+    });
+  };
+
+  const handleLanzarTodasLasColecciones = () => {
+    startTransition(async () => {
+      const res = await publicarTodasLasColeccionesAction(isCeramica ? "ceramica" : "ilustracion");
+      if (res.success) {
+        setStockList((prev) => prev.map((p) => ({ ...p, activo: true })));
+        setConfirmLaunchAll(false);
+        toast.success("¡Todas las piezas y colecciones publicadas con éxito!");
+      } else {
+        toast.error(res.error || "Error al publicar todas las colecciones");
+      }
+    });
+  };
+
+  const abrirModalPiezaStock = (prod?: ProductoConImagenes, coleccionDefault?: string) => {
     if (prod) {
       setModalStockPieza(prod);
-      const fotosArr = prod.producto_imagenes?.map((img) => img.url_imagen) || [];
-      setStockFotos(fotosArr);
-
-      const catNom = prod.categorias?.nombre || "";
-      if (categoriasFisicasUnicas.includes(catNom)) {
-        setStockCategoriaSelect(catNom);
-        setStockCategoriaCustom("");
-      } else if (catNom) {
-        setStockCategoriaSelect("__nueva__");
-        setStockCategoriaCustom(catNom);
-      } else {
-        setStockCategoriaSelect("");
-        setStockCategoriaCustom("");
-      }
-
-      const colNom = prod.producciones?.nombre || "";
-      if (coleccionesStockUnicas.includes(colNom)) {
-        setStockColeccionSelect(colNom);
-        setStockColeccionCustom("");
-      } else if (colNom) {
-        setStockColeccionSelect("__nueva__");
-        setStockColeccionCustom(colNom);
-      } else {
-        setStockColeccionSelect("");
-        setStockColeccionCustom("");
-      }
-    } else {
-      setModalStockPieza({ stock_disponible: 1, precio_base: 25000 });
-      setStockFotos([]);
-      setStockCategoriaSelect(categoriasFisicasUnicas[0] || "");
+      setStockFotos(prod.producto_imagenes?.map((img) => img.url_imagen) || []);
+      setStockCategoriaSelect(prod.categorias?.nombre || "");
       setStockCategoriaCustom("");
-      setStockColeccionSelect(coleccionesStockUnicas[0] || "");
+      setStockColeccionSelect(prod.producciones?.nombre || "");
       setStockColeccionCustom("");
+      setStockPublicarInmediato(prod.activo);
+      setStockHechoEnTorno(
+        Boolean(
+          prod.material_tecnica?.toLowerCase().includes("torno") ||
+          (prod.atributos_especificos as any)?.hecho_en_torno
+        )
+      );
+      setStockPrecioInput(String(prod.precio_base || 20000));
+      setStockStockInput(String(prod.stock_disponible ?? 1));
+      setStockAltoInput(prod.alto_cm ? String(prod.alto_cm) : "");
+      setStockAnchoInput(prod.ancho_cm ? String(prod.ancho_cm) : "");
+      setStockCapacidadInput(prod.capacidad_ml ? String(prod.capacidad_ml) : "");
+    } else {
+      setModalStockPieza({
+        tipo_catalogo: isCeramica ? "ceramica" : "ilustraciones",
+        activo: false,
+      });
+      setStockFotos([]);
+      setStockCategoriaSelect("");
+      setStockCategoriaCustom("");
+      setStockColeccionSelect(coleccionDefault || (filtroColeccionStock !== "todas" && filtroColeccionStock !== "sin_coleccion" ? filtroColeccionStock : ""));
+      setStockColeccionCustom("");
+      setStockPublicarInmediato(false);
+      setStockHechoEnTorno(false);
+      setStockPrecioInput("20000");
+      setStockStockInput("1");
+      setStockAltoInput("");
+      setStockAnchoInput("");
+      setStockCapacidadInput("");
     }
   };
 
@@ -335,857 +581,1408 @@ export function ArteManager({
     const fd = new FormData(e.currentTarget);
     fd.set("rubro", rubro);
     fd.set("fotos", JSON.stringify(stockFotos));
+    fd.set("activo", String(stockPublicarInmediato));
+    fd.set("hechoEnTorno", String(stockHechoEnTorno));
+    fd.set("precioBase", stockPrecioInput);
+    fd.set("stockDisponible", stockStockInput);
+    fd.set("altoCm", stockAltoInput);
+    fd.set("anchoCm", stockAnchoInput);
+    fd.set("capacidadMl", stockCapacidadInput);
 
-    const finalCat =
-      stockCategoriaSelect === "__nueva__"
-        ? stockCategoriaCustom.trim()
-        : stockCategoriaSelect.trim();
-    fd.set("categoriaNombre", finalCat);
+    const catFinal = stockCategoriaSelect === "__custom__" ? stockCategoriaCustom.trim() : stockCategoriaSelect;
+    fd.set("categoriaNombre", catFinal);
 
-    const finalCol =
-      stockColeccionSelect === "__nueva__"
-        ? stockColeccionCustom.trim()
-        : stockColeccionSelect.trim();
-    fd.set("coleccionNombre", finalCol);
+    const colFinal = stockColeccionSelect === "__custom__" ? stockColeccionCustom.trim() : stockColeccionSelect;
+    fd.set("coleccionNombre", colFinal);
+
+    if (modalStockPieza?.id) {
+      fd.set("id", modalStockPieza.id);
+    }
 
     startTransition(async () => {
       const res = await saveStockPiezaDirectaAction(fd);
       if (res.success) {
         setModalStockPieza(null);
+        toast.success("Pieza de stock guardada con éxito");
         window.location.reload();
       } else {
-        alert(res.error || "Error al guardar pieza");
+        toast.error(res.error || "Error al guardar la pieza");
       }
     });
   };
 
-  const handleEliminarStockPieza = (id: string, nombre: string) => {
-    if (!confirm(`¿Eliminar la pieza "${nombre}" del stock?`)) return;
+  const handleEliminarStockConfirmado = (id: string) => {
     startTransition(async () => {
       const res = await deleteStockPiezaDirectaAction(id);
       if (res.success) {
         setStockList((prev) => prev.filter((p) => p.id !== id));
+        setConfirmDeleteStock(null);
+        toast.success("Pieza eliminada del stock");
       } else {
-        alert(res.error || "Error al eliminar pieza");
+        toast.error(res.error || "Error al eliminar la pieza");
       }
     });
   };
 
-  // ─── HANDLER LANZAR DROP / COLECCIÓN COMPLETO ───
-  const handleGuardarDropCompleto = () => {
+  const handleGuardarDropEnBorrador = () => {
     if (!dropNombre.trim()) {
-      alert("Ingresá el nombre de la colección");
+      toast.error("Por favor ingresá el nombre de la colección");
       return;
     }
-    const piezasValidas = dropPiezas.filter((p) => p.nombre.trim());
-    if (piezasValidas.length === 0) {
-      alert("Cargá al menos una pieza con nombre");
-      return;
+
+    for (const p of dropPiezas) {
+      if (!p.nombre.trim()) {
+        toast.error("Todas las piezas deben tener un nombre");
+        return;
+      }
     }
 
     startTransition(async () => {
       const res = await lanzarColeccionDropCompletaAction({
-        rubro: rubro as "ceramica" | "ilustracion",
-        nombreColeccion: dropNombre.trim(),
-        descripcion: dropDescripcion.trim(),
-        piezas: piezasValidas,
+        rubro: isCeramica ? "ceramica" : "ilustracion",
+        nombreColeccion: dropNombre,
+        descripcion: dropDescripcion,
+        publicarInmediatamente: false,
+        piezas: dropPiezas.map((p) => {
+          const finalCat = p.categoriaSelect === "__custom__" ? p.categoriaCustom.trim() : p.categoriaSelect;
+          return {
+            nombre: p.nombre,
+            categoriaNombre: finalCat || undefined,
+            precioBase: Number(p.precioStr) || 20000,
+            stock: Number(p.stockStr) || 1,
+            altoCm: p.altoStr ? Number(p.altoStr) : null,
+            anchoCm: p.anchoStr ? Number(p.anchoStr) : null,
+            capacidadMl: p.capacidadStr ? Number(p.capacidadStr) : null,
+            hechoEnTorno: p.hechoEnTorno,
+            fotos: p.fotos,
+            descripcion: p.descripcion || undefined,
+          };
+        }),
       });
 
       if (res.success) {
-        alert("✓ Colección publicada en Stock y agregada al Portfolio");
         setModalLanzarDrop(false);
+        toast.success(`Colección "${dropNombre}" guardada en borrador`);
         window.location.reload();
       } else {
-        alert(res.error || "Error al lanzar colección");
+        toast.error(res.error || "Error al registrar la colección");
       }
     });
+  };
+
+  const handleAddDropPieza = () => {
+    setDropPiezas((prev) => [
+      ...prev,
+      {
+        id: String(Date.now()),
+        nombre: "",
+        categoriaSelect: "",
+        categoriaCustom: "",
+        precioStr: "25000",
+        stockStr: "1",
+        altoStr: "",
+        anchoStr: "",
+        capacidadStr: "",
+        hechoEnTorno: false,
+        fotos: [],
+        descripcion: "",
+      },
+    ]);
+  };
+
+  const handleRemoveDropPieza = (id: string) => {
+    if (dropPiezas.length === 1) return;
+    setDropPiezas((prev) => prev.filter((p) => p.id !== id));
+  };
+
+  const handleUpdateDropPieza = (id: string, fields: Partial<(typeof dropPiezas)[0]>) => {
+    setDropPiezas((prev) => prev.map((p) => (p.id === id ? { ...p, ...fields } : p)));
   };
 
   // ─── HANDLERS DE PORTFOLIO ───
   const abrirModalPortfolio = (item?: PortfolioColeccion) => {
     if (item) {
       setModalPortfolio(item);
-      setPortfolioFotos(Array.isArray(item.fotos) ? item.fotos : [item.portada_url || ""].filter(Boolean));
-      setPortfolioDisenosInput(
-        Array.isArray(item.disenos_disponibles) ? item.disenos_disponibles.join(", ") : "",
-      );
+      const initialFotos =
+        Array.isArray(item.fotos) && item.fotos.length > 0
+          ? (item.fotos.filter(Boolean) as string[])
+          : item.portada_url
+            ? [item.portada_url]
+            : [];
+      setPortfolioFotos(initialFotos);
     } else {
-      setModalPortfolio({});
+      setModalPortfolio({ rubro, activa: true });
       setPortfolioFotos([]);
-      setPortfolioDisenosInput("");
     }
   };
 
-  const handleGuardarPortfolioModal = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleGuardarPortfolio = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
     fd.set("rubro", rubro);
     fd.set("fotos", JSON.stringify(portfolioFotos));
-    fd.set("portadaUrl", portfolioFotos[0] || "");
+    fd.set("disenosDisponibles", JSON.stringify([]));
 
-    const disenosArr = portfolioDisenosInput
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
-    fd.set("disenosDisponibles", JSON.stringify(disenosArr));
+    if (modalPortfolio?.id) {
+      fd.set("id", modalPortfolio.id);
+    }
 
     startTransition(async () => {
       const res = await savePortfolioColeccionAction(fd);
       if (res.success) {
         setModalPortfolio(null);
+        toast.success("Colección guardada en Portfolio con éxito");
         window.location.reload();
       } else {
-        alert(res.error || "Error al guardar colección");
+        toast.error(res.error || "Error al guardar en portfolio");
       }
     });
   };
 
-  const handleEliminarPortfolio = (id: string, nombre: string) => {
-    if (!confirm(`¿Eliminar la colección "${nombre}" del portfolio?`)) return;
+  const handleEliminarPortfolioConfirmado = (id: string) => {
     startTransition(async () => {
       const res = await deletePortfolioColeccionAction(id);
       if (res.success) {
-        setPortfolioList((prev) => prev.filter((p) => p.id !== id));
+        setPortfolioList((prev) => prev.filter((item) => item.id !== id));
+        setConfirmDeletePortfolio(null);
+        toast.success("Colección eliminada del portfolio");
       } else {
-        alert(res.error || "Error al eliminar");
+        toast.error(res.error || "Error al eliminar");
       }
     });
   };
 
   return (
-    <div className="space-y-6 pb-12">
-      
-      {/* ─── Botón Volver & Header del Rubro ─── */}
-      <div className="border-b border-border/60 pb-4 space-y-3">
-        <Link
-          href="/admin"
-          className="inline-flex items-center gap-1 text-xs font-semibold text-muted hover:text-chocolate font-sans"
-        >
-          <span>← Volver al Dashboard</span>
-        </Link>
-
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <span className="text-3xl sm:text-4xl">{rubro === "ceramica" ? "🏺" : "🎨"}</span>
-            <div>
-              <h1 className="text-xl sm:text-2xl font-serif font-semibold text-chocolate">
-                Gestión de {rubro === "ceramica" ? "Cerámica" : "Ilustraciones"}
-              </h1>
-              <p className="text-xs text-muted font-sans">
-                Control de catálogo base, stock listo para entrega inmediata y portfolio de colecciones.
-              </p>
-            </div>
-          </div>
+    <div className="space-y-6">
+      {/* ─── Header Limpio (Con Botón de Configuración de Categorías) ─── */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-border/60 pb-4">
+        <div className="flex items-center gap-2">
+          <span className="text-2xl">{isCeramica ? "🏺" : "🎨"}</span>
+          <h1 className="text-2xl font-serif font-bold text-chocolate">
+            {isCeramica ? "Cerámica" : "Ilustración"}
+          </h1>
         </div>
 
-        {/* ─── 3 Sub-pestañas Claras ─── */}
-        <div className="flex gap-2 pt-1 overflow-x-auto scrollbar-none">
-          <button
-            type="button"
-            onClick={() => setActiveTab("catalogo")}
-            className={cn(
-              "flex items-center gap-2 rounded-xl px-4 py-2 text-xs sm:text-sm font-semibold font-sans transition-all cursor-pointer shadow-xs",
-              activeTab === "catalogo"
-                ? "bg-chocolate text-crema-cruda shadow-sm"
-                : "bg-surface text-chocolate border border-border/70 hover:bg-secondary/40",
-            )}
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Botón de Categorías a la izquierda de Cargar Pieza Suelta */}
+          <Button
+            variant="outline"
+            onClick={() => setModalCategoriasAbierto(true)}
+            className="bg-white border-stone-300 text-stone-800 hover:bg-stone-100 rounded-xl text-xs font-semibold min-h-9 py-1 px-3.5 shadow-xs gap-1.5 cursor-pointer"
           >
-            <span>📋 Catálogo ({formatos.length})</span>
-          </button>
+            <span>⚙️</span>
+            <span>Categorías</span>
+          </Button>
 
-          <button
-            type="button"
-            onClick={() => setActiveTab("stock")}
-            className={cn(
-              "flex items-center gap-2 rounded-xl px-4 py-2 text-xs sm:text-sm font-semibold font-sans transition-all cursor-pointer shadow-xs",
-              activeTab === "stock"
-                ? "bg-chocolate text-crema-cruda shadow-sm"
-                : "bg-surface text-chocolate border border-border/70 hover:bg-secondary/40",
-            )}
+          <Button
+            onClick={() => abrirModalPiezaStock()}
+            className="bg-chocolate text-crema-cruda hover:bg-chocolate/90 rounded-xl text-xs font-semibold min-h-9 py-1 px-3.5 shadow-xs gap-1.5 cursor-pointer"
           >
-            <span>📦 Stock / Drops ({stockList.length})</span>
-          </button>
+            <span>+ Cargar Pieza Suelta</span>
+          </Button>
 
-          <button
-            type="button"
-            onClick={() => setActiveTab("portfolio")}
-            className={cn(
-              "flex items-center gap-2 rounded-xl px-4 py-2 text-xs sm:text-sm font-semibold font-sans transition-all cursor-pointer shadow-xs",
-              activeTab === "portfolio"
-                ? "bg-chocolate text-crema-cruda shadow-sm"
-                : "bg-surface text-chocolate border border-border/70 hover:bg-secondary/40",
-            )}
+          <Button
+            onClick={() => {
+              setDropNombre("");
+              setDropDescripcion("");
+              setDropPiezas([
+                {
+                  id: "1",
+                  nombre: "",
+                  categoriaSelect: "",
+                  categoriaCustom: "",
+                  precioStr: "25000",
+                  stockStr: "1",
+                  altoStr: "",
+                  anchoStr: "",
+                  capacidadStr: "",
+                  hechoEnTorno: false,
+                  fotos: [],
+                  descripcion: "",
+                },
+              ]);
+              setModalLanzarDrop(true);
+            }}
+            className="bg-emerald-700 text-white hover:bg-emerald-800 rounded-xl text-xs font-bold min-h-9 py-1 px-3.5 shadow-xs gap-1.5 cursor-pointer"
           >
-            <span>🎨 Portfolio ({portfolioList.length})</span>
-          </button>
+            <span>✨ Nueva Colección / Lanzamiento</span>
+          </Button>
         </div>
       </div>
 
-      {/* ═══════════════════════════════════════════════════════════════════════
-          SUB-PESTAÑA 1: CATÁLOGO DE PIEZAS (Con Aumento Masivo de Precios %)
-      ═══════════════════════════════════════════════════════════════════════ */}
-      {activeTab === "catalogo" && (
-        <div className="space-y-5">
-          
-          {/* Barra de Ajuste Masivo % */}
-          <div className="rounded-2xl border border-terracota/30 bg-arena/30 p-4 sm:p-5 space-y-3">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-              <div>
-                <h3 className="text-xs sm:text-sm font-semibold text-chocolate flex items-center gap-1.5 font-sans">
-                  <span>⚡</span> Actualización Masiva de Precios por Porcentaje
-                </h3>
-                <p className="text-[11px] text-muted font-sans">
-                  Ajustá los precios de todo el catálogo en 1 solo clic.
-                </p>
-              </div>
+      {/* ─── KPI Summary Cards (Pastel High Contrast & Dark Text) ─── */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <button
+          onClick={() => {
+            setActiveTab("stock");
+            setSubFiltroStock("publicados");
+          }}
+          className={`p-4 rounded-2xl border-2 text-left transition-all cursor-pointer ${
+            activeTab === "stock" && subFiltroStock === "publicados"
+              ? "bg-[#D1FAE5] border-emerald-600 shadow-xs ring-2 ring-emerald-500"
+              : "bg-[#ECFDF5] border-emerald-300 hover:border-emerald-500"
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-black tracking-wide text-stone-900">
+              1. En Tienda (Publicadas)
+            </span>
+            <span className="text-sm">✓</span>
+          </div>
+          <p className="text-2xl font-black font-sans mt-1 text-chocolate">
+            {counts.publicados}
+          </p>
+          <p className="text-[11px] font-semibold text-stone-700">
+            Visibles en la web pública
+          </p>
+        </button>
 
+        <button
+          onClick={() => {
+            setActiveTab("stock");
+            setSubFiltroStock("borradores");
+          }}
+          className={`p-4 rounded-2xl border-2 text-left transition-all cursor-pointer ${
+            activeTab === "stock" && subFiltroStock === "borradores"
+              ? "bg-[#FEF3C7] border-amber-600 shadow-xs ring-2 ring-amber-500"
+              : "bg-[#FFFBEB] border-amber-300 hover:border-amber-500"
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-black tracking-wide text-stone-900">
+              2. Borradores / Por Lanzar
+            </span>
+            <span className="text-sm">⏳</span>
+          </div>
+          <p className="text-2xl font-black font-sans mt-1 text-chocolate">
+            {counts.borradores}
+          </p>
+          <p className="text-[11px] font-semibold text-stone-700">
+            Guardadas para el estreno
+          </p>
+        </button>
+
+        <button
+          onClick={() => {
+            setActiveTab("stock");
+            setSubFiltroStock("todos");
+          }}
+          className={`p-4 rounded-2xl border-2 text-left transition-all cursor-pointer ${
+            activeTab === "stock" && subFiltroStock === "todos"
+              ? "bg-[#EDE9FE] border-violet-600 shadow-xs ring-2 ring-violet-500"
+              : "bg-[#F5F3FF] border-violet-300 hover:border-violet-500"
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-black tracking-wide text-stone-900">
+              3. Colecciones Activas
+            </span>
+            <span className="text-sm">✨</span>
+          </div>
+          <p className="text-2xl font-black font-sans mt-1 text-chocolate">
+            {counts.colecciones}
+          </p>
+          <p className="text-[11px] font-semibold text-stone-700">
+            Lanzamientos temáticos
+          </p>
+        </button>
+
+        <button
+          onClick={() => setActiveTab("catalogo")}
+          className={`p-4 rounded-2xl border-2 text-left transition-all cursor-pointer ${
+            activeTab === "catalogo"
+              ? "bg-[#E0F2FE] border-sky-600 shadow-xs ring-2 ring-sky-500"
+              : "bg-[#F0F9FF] border-sky-300 hover:border-sky-500"
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-black tracking-wide text-stone-900">
+              {isCeramica ? "4. Catálogo de Cerámica" : "4. Catálogo de Ilustración"}
+            </span>
+            <span className="text-sm">📜</span>
+          </div>
+          <p className="text-2xl font-black font-sans mt-1 text-chocolate">
+            {counts.catalogo}
+          </p>
+          <p className="text-[11px] font-semibold text-stone-700">
+            Tarifas base y medidas
+          </p>
+        </button>
+      </div>
+
+      {/* ─── Main Tabs Navigation ─── */}
+      <div className="flex items-center gap-2 border-b border-border/60 pb-2 overflow-x-auto scrollbar-none">
+        <button
+          onClick={() => setActiveTab("stock")}
+          className={`px-4 py-2 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
+            activeTab === "stock"
+              ? "bg-chocolate text-crema-cruda shadow-xs"
+              : "bg-surface text-stone-700 hover:bg-stone-100 border border-border/60"
+          }`}
+        >
+          📦 Stock Inmediato & Colecciones ({counts.totalStock})
+        </button>
+        <button
+          onClick={() => setActiveTab("catalogo")}
+          className={`px-4 py-2 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
+            activeTab === "catalogo"
+              ? "bg-chocolate text-crema-cruda shadow-xs"
+              : "bg-surface text-stone-700 hover:bg-stone-100 border border-border/60"
+          }`}
+        >
+          📜 {isCeramica ? "Catálogo de Cerámica" : "Catálogo de Ilustración"} ({counts.catalogo})
+        </button>
+        <button
+          onClick={() => setActiveTab("portfolio")}
+          className={`px-4 py-2 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
+            activeTab === "portfolio"
+              ? "bg-chocolate text-crema-cruda shadow-xs"
+              : "bg-surface text-stone-700 hover:bg-stone-100 border border-border/60"
+          }`}
+        >
+          🌟 Portfolio & Archivo ({portfolioList.length})
+        </button>
+      </div>
+
+      {/* ═══════════════════════════════════════════════════════════════════════ */}
+      {/* ─── TAB 1: STOCK INMEDIATO ORGANIZADO POR COLECCIÓN ─── */}
+      {/* ═══════════════════════════════════════════════════════════════════════ */}
+      {activeTab === "stock" && (
+        <div className="space-y-6">
+          {/* Sub-filtros de Stock (Todos, Publicados, Borradores) + Selector de Colección */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-2xl bg-[#FAF7F2] border border-[#E5E0D8]">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs font-bold text-chocolate font-serif mr-1">Filtrar Estado:</span>
               <button
-                type="button"
-                onClick={() => abrirModalFormato()}
-                className="rounded-full bg-chocolate text-crema-cruda hover:bg-chocolate/90 px-4 py-1.5 text-xs font-semibold shadow-xs cursor-pointer self-start sm:self-auto"
+                onClick={() => setSubFiltroStock("todos")}
+                className={`px-3 py-1 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                  subFiltroStock === "todos"
+                    ? "bg-chocolate text-crema-cruda shadow-xs"
+                    : "bg-white text-stone-700 hover:bg-stone-100 border border-stone-200"
+                }`}
               >
-                + Nueva Pieza en Catálogo
+                Todos ({counts.totalStock})
               </button>
+              <button
+                onClick={() => setSubFiltroStock("publicados")}
+                className={`px-3 py-1 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                  subFiltroStock === "publicados"
+                    ? "bg-emerald-700 text-white shadow-xs"
+                    : "bg-white text-emerald-800 hover:bg-emerald-50 border border-emerald-200"
+                }`}
+              >
+                ✓ Publicados ({counts.publicados})
+              </button>
+              <button
+                onClick={() => setSubFiltroStock("borradores")}
+                className={`px-3 py-1 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                  subFiltroStock === "borradores"
+                    ? "bg-amber-600 text-white shadow-xs"
+                    : "bg-white text-amber-900 hover:bg-amber-50 border border-amber-200"
+                }`}
+              >
+                ⏳ Borradores ({counts.borradores})
+              </button>
+
+              {counts.borradores > 0 && (
+                <Button
+                  onClick={() => setConfirmLaunchAll(true)}
+                  className="bg-emerald-700 text-white hover:bg-emerald-800 text-xs font-bold rounded-xl min-h-8 py-1 px-3 shadow-xs gap-1.5 cursor-pointer animate-in fade-in"
+                >
+                  <span>🚀 Publicar Todos los Borradores ({counts.borradores})</span>
+                </Button>
+              )}
             </div>
 
-            <div className="flex flex-wrap items-center gap-2.5 pt-1">
-              <div className="flex items-center gap-1.5 bg-surface border border-border/80 rounded-xl px-3 py-1.5 shadow-2xs">
-                <span className="text-xs font-semibold text-chocolate">Aumento:</span>
-                <input
-                  type="number"
-                  step="0.5"
-                  value={porcentajeAumento}
-                  onChange={(e) => setPorcentajeAumento(e.target.value)}
-                  className="w-14 text-xs font-mono font-bold text-terracota focus:outline-hidden"
-                />
-                <span className="text-xs font-bold text-chocolate">%</span>
-              </div>
-
+            <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+              {/* Dropdown Colección */}
               <select
-                value={categoriaAumento}
-                onChange={(e) => setCategoriaAumento(e.target.value)}
-                className="rounded-xl border border-border/80 bg-surface px-3 py-1.5 text-xs text-foreground shadow-2xs focus:ring-2 focus:ring-terracota/40 cursor-pointer"
+                value={filtroColeccionStock}
+                onChange={(e) => setFiltroColeccionStock(e.target.value)}
+                className="rounded-xl border border-stone-300 bg-white px-3 py-1.5 text-xs font-semibold text-stone-800 focus:outline-none focus:ring-1 focus:ring-chocolate"
               >
-                <option value="todas">Aplicar a TODAS las categorías</option>
-                {categoriasUnicasCatalogo.map((cat) => (
-                  <option key={cat} value={cat}>
-                    Solo en &quot;{cat}&quot;
+                <option value="todas">✨ Todas las Colecciones</option>
+                <option value="sin_coleccion">Piezas Sueltas (Sin colección)</option>
+                {coleccionesStockUnicas.map((col) => (
+                  <option key={col} value={col}>
+                    📁 {col}
                   </option>
                 ))}
               </select>
 
-              <button
-                type="button"
-                disabled={isPending}
-                onClick={handleAplicarAumentoMasivo}
-                className="rounded-xl bg-terracota text-white hover:bg-terracota/90 px-4 py-1.5 text-xs font-semibold shadow-xs cursor-pointer transition-all disabled:opacity-50"
-              >
-                {isPending ? "Actualizando..." : "Aplicar Aumento %"}
-              </button>
-
-              {feedbackAumento && (
-                <span className="text-xs font-semibold text-emerald-700 font-sans animate-in fade-in">
-                  {feedbackAumento}
-                </span>
-              )}
+              {/* Búsqueda por texto */}
+              <div className="relative w-full sm:w-48">
+                <Input
+                  value={busquedaStock}
+                  onChange={(e) => setBusquedaStock(e.target.value)}
+                  placeholder="Buscar pieza..."
+                  className="text-xs rounded-xl bg-white pl-7 h-8"
+                />
+                <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-stone-400 text-xs">🔍</span>
+                {busquedaStock && (
+                  <button
+                    onClick={() => setBusquedaStock("")}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700 text-xs cursor-pointer"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
-          {/* Lista de Piezas del Catálogo */}
-          <div className="rounded-2xl border border-border/60 bg-surface shadow-xs overflow-hidden">
-            <div className="p-3 bg-arena/20 border-b border-border/40 flex items-center justify-between text-xs text-muted font-sans">
-              <span>{formatos.length} formatos registrados</span>
-              <span>Podés editar el precio directamente en cada fila</span>
+          {/* Secciones Agrupadas por Colección */}
+          {gruposStock.length === 0 ? (
+            <div className="rounded-3xl border border-dashed border-[#E5E0D8] bg-[#FAF7F2] p-12 text-center text-muted space-y-2">
+              <span className="text-4xl block mb-2">{isCeramica ? "🏺" : "🎨"}</span>
+              <p className="text-sm font-semibold text-stone-800">
+                {busquedaStock.trim()
+                  ? `No se encontraron piezas que coincidan con "${busquedaStock}"`
+                  : "No se encontraron piezas en esta sección"}
+              </p>
+              <p className="text-xs text-stone-600">
+                {busquedaStock.trim()
+                  ? "Probá con otro término o limpiá el buscador para ver todo el inventario."
+                  : "Podés crear una nueva pieza suelta o cargar una colección completa con los botones superiores."}
+              </p>
+              {busquedaStock.trim() && (
+                <div className="pt-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => setBusquedaStock("")}
+                    className="rounded-xl text-xs min-h-8 py-1 px-3 cursor-pointer"
+                  >
+                    ✕ Limpiar búsqueda
+                  </Button>
+                </div>
+              )}
             </div>
-
-            <div className="divide-y divide-border/40 overflow-x-auto">
-              {formatos.map((formato) => {
-                const precioLocal = preciosEditados[formato.id] ?? formato.precio_base;
-                const cambioPendiente =
-                  preciosEditados[formato.id] !== undefined &&
-                  preciosEditados[formato.id] !== formato.precio_base;
+          ) : (
+            <div className="space-y-8">
+              {gruposStock.map((grupo) => {
+                const esColBorrador = grupo.esColeccion && grupo.tieneBorradores;
 
                 return (
                   <div
-                    key={formato.id}
-                    className="flex items-center justify-between gap-3 p-3 sm:p-4 hover:bg-arena/10 transition-colors"
+                    key={grupo.id}
+                    className={`rounded-3xl border p-5 space-y-4 transition-all shadow-xs ${
+                      esColBorrador
+                        ? "bg-[#FFFDF9] border-amber-300 ring-2 ring-amber-400/20"
+                        : "bg-[#FAF7F2]/60 border-[#E5E0D8]"
+                    }`}
                   >
-                    {/* Foto e Info */}
-                    <div className="flex items-center gap-3 min-w-0 flex-1">
-                      <button
-                        type="button"
-                        onClick={() => formato.foto_url && setPreviewImage(formato.foto_url)}
-                        className="h-12 w-12 shrink-0 rounded-xl bg-arena/40 border border-border/50 overflow-hidden flex items-center justify-center text-lg cursor-zoom-in"
-                      >
-                        {formato.foto_url ? (
-                          <img src={formato.foto_url} alt="" className="h-full w-full object-cover" />
-                        ) : (
-                          <span>{rubro === "ceramica" ? "🏺" : "🎨"}</span>
-                        )}
-                      </button>
+                    {/* Header de la Colección */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#E5E0D8] pb-3">
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <span className="text-2xl">{grupo.esColeccion ? "📁" : "✨"}</span>
+                        <div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h3 className="text-base font-bold text-chocolate font-serif">
+                              {grupo.esColeccion ? `Colección: "${grupo.nombre}"` : grupo.nombre}
+                            </h3>
 
-                      <div className="min-w-0 space-y-0.5">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <p className="text-xs sm:text-sm font-semibold text-chocolate truncate">
-                            {formato.nombre}
-                          </p>
-                          {formato.categoria && (
-                            <span className="rounded-full bg-secondary/60 px-2 py-0.2 text-[10px] font-medium text-barro">
-                              {formato.categoria}
-                            </span>
-                          )}
+                            {esColBorrador && (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                                ⏳ {grupo.cantBorradores} piezas en borrador
+                              </span>
+                            )}
+
+                            {grupo.cantPublicados > 0 && (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                ✓ {grupo.cantPublicados} en tienda
+                              </span>
+                            )}
+                          </div>
                         </div>
-                        <p className="text-[11px] text-muted">
-                          Medidas: <span className="text-foreground">{formato.medidas || "A elección"}</span>
-                        </p>
+                      </div>
+
+                      {/* Botones de acción del grupo de colección */}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {esColBorrador && (
+                          <Button
+                            onClick={() =>
+                              setConfirmLaunchColeccion({
+                                id: grupo.piezas[0]?.producciones?.id || grupo.id,
+                                nombre: grupo.nombre,
+                                cant: grupo.cantBorradores,
+                              })
+                            }
+                            className="bg-emerald-700 text-white hover:bg-emerald-800 text-xs font-bold rounded-xl min-h-8 py-1 px-3.5 shadow-xs gap-1.5 cursor-pointer"
+                          >
+                            <span>🚀 Lanzar Colección a la Tienda</span>
+                          </Button>
+                        )}
+
+                        {grupo.esColeccion && (
+                          <Button
+                            variant="outline"
+                            onClick={() => abrirModalPiezaStock(undefined, grupo.nombre)}
+                            className="text-xs rounded-xl h-8 py-1 px-3 font-semibold text-stone-800 border-stone-300 hover:bg-white"
+                          >
+                            + Agregar pieza a esta colección
+                          </Button>
+                        )}
                       </div>
                     </div>
 
-                    {/* Editor de Precio Inline & Acciones */}
-                    <div className="flex items-center gap-2 shrink-0">
-                      <div className="flex items-center gap-1 bg-surface border border-border/80 rounded-xl px-2.5 py-1 shadow-2xs">
-                        <span className="text-xs text-muted font-mono">$</span>
-                        <input
-                          type="number"
-                          value={precioLocal}
-                          onChange={(e) =>
-                            setPreciosEditados((prev) => ({
-                              ...prev,
-                              [formato.id]: parseFloat(e.target.value) || 0,
-                            }))
-                          }
-                          className="w-20 text-xs font-mono font-bold text-chocolate focus:outline-hidden"
-                        />
-                      </div>
+                    {/* Grid de Piezas de esta Colección */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {grupo.piezas.map((prod) => {
+                        const fotoPrincipal = prod.producto_imagenes?.[0]?.url_imagen || null;
+                        const esTorneado = Boolean(
+                          prod.material_tecnica?.toLowerCase().includes("torno") ||
+                          (prod.atributos_especificos as any)?.hecho_en_torno
+                        );
 
-                      {cambioPendiente && (
-                        <button
-                          type="button"
-                          disabled={isPending}
-                          onClick={() => handleGuardarPrecioInline(formato.id)}
-                          className="rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1 text-xs font-semibold shadow-xs cursor-pointer animate-in fade-in"
-                        >
-                          Guardar
-                        </button>
-                      )}
+                        return (
+                          <div
+                            key={prod.id}
+                            className={`rounded-3xl border p-4 transition-all shadow-xs flex flex-col justify-between space-y-3 ${
+                              prod.activo
+                                ? "bg-white border-[#E5E0D8] hover:border-emerald-500/50"
+                                : "bg-[#FFFDF9] border-amber-300 ring-1 ring-amber-400/30"
+                            }`}
+                          >
+                            {/* Header de la tarjeta */}
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                {prod.activo ? (
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                    ✓ Publicado
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                                    ⏳ Borrador
+                                  </span>
+                                )}
 
-                      {guardadoId === formato.id && (
-                        <span className="text-xs text-emerald-600 font-bold animate-in fade-in">✓</span>
-                      )}
+                                {isCeramica && esTorneado && (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#FAF0DC] text-[#785418] border border-[#ECD7B2]">
+                                    🏺 Torno
+                                  </span>
+                                )}
 
-                      <button
-                        type="button"
-                        onClick={() => abrirModalFormato(formato)}
-                        className="rounded-xl border border-border/80 bg-surface px-2.5 py-1 text-xs font-medium text-chocolate hover:bg-secondary/40 cursor-pointer shadow-2xs"
-                      >
-                        ✏️ Editar
-                      </button>
+                                {prod.marco_incluido && (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-stone-100 text-stone-800 border border-stone-300">
+                                    🖼️ Marco
+                                  </span>
+                                )}
+                              </div>
 
-                      <button
-                        type="button"
-                        onClick={() => handleEliminarFormato(formato.id, formato.nombre)}
-                        className="text-red-500 hover:text-red-700 p-1 text-xs cursor-pointer"
-                        title="Eliminar formato"
-                      >
-                        🗑️
-                      </button>
+                              <span className="text-base font-bold text-stone-900 font-sans tracking-tight whitespace-nowrap">
+                                {formatPrecio(prod.precio_base)}
+                              </span>
+                            </div>
+
+                            {/* Foto e información */}
+                            <div className="flex gap-3.5 items-start">
+                              {fotoPrincipal ? (
+                                <div
+                                  onClick={() => setPreviewImage(fotoPrincipal)}
+                                  className="h-20 w-20 rounded-2xl bg-stone-50 border border-[#E5E0D8] shrink-0 overflow-hidden flex items-center justify-center cursor-pointer hover:opacity-85 transition-opacity p-1 group"
+                                  title="Clic para ampliar imagen"
+                                >
+                                  <img
+                                    src={fotoPrincipal}
+                                    alt={prod.nombre}
+                                    className="max-h-full max-w-full object-contain rounded-xl"
+                                  />
+                                </div>
+                              ) : (
+                                <div className="h-20 w-20 rounded-2xl bg-arena/30 border border-dashed border-[#E5E0D8] flex items-center justify-center text-xl shrink-0 text-muted">
+                                  {isCeramica ? "🏺" : "🎨"}
+                                </div>
+                              )}
+
+                              <div className="space-y-1 flex-1 min-w-0">
+                                <h4 className="font-bold text-stone-900 text-sm leading-tight truncate">
+                                  {prod.nombre}
+                                </h4>
+
+                                {prod.categorias?.nombre && (
+                                  <p className="text-[11px] font-semibold text-stone-600">
+                                    🏷️ {prod.categorias.nombre}
+                                  </p>
+                                )}
+
+                                {prod.dimensiones && (
+                                  <p className="text-[11px] text-stone-600">📐 {prod.dimensiones}</p>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Control de Stock */}
+                            <div className="p-2.5 rounded-2xl bg-[#FAF7F2] border border-[#E5E0D8] flex items-center justify-between text-xs">
+                              <div>
+                                <span className="text-[10px] text-stone-600 uppercase font-semibold block">Stock Disponible</span>
+                                <span className={`text-sm font-bold font-sans ${prod.stock_disponible > 0 ? "text-emerald-800" : "text-red-600 font-bold"}`}>
+                                  {prod.stock_disponible > 0 ? `${prod.stock_disponible} unid.` : "Sin stock"}
+                                </span>
+                              </div>
+
+                              <div className="flex items-center gap-1.5">
+                                <Button
+                                  variant="outline"
+                                  disabled={isPending || prod.stock_disponible <= 0}
+                                  onClick={() => handleModificarStockRapido(prod.id, -1)}
+                                  className="h-7 w-7 rounded-xl p-0 text-xs font-bold text-stone-700"
+                                  title="Restar 1 al stock"
+                                >
+                                  -
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  disabled={isPending}
+                                  onClick={() => handleModificarStockRapido(prod.id, 1)}
+                                  className="h-7 w-7 rounded-xl p-0 text-xs font-bold text-stone-700"
+                                  title="Sumar 1 al stock"
+                                >
+                                  +
+                                </Button>
+                              </div>
+                            </div>
+
+                            {/* Footer de Acciones */}
+                            <div className="flex items-center justify-between gap-1.5 pt-2 border-t border-[#F0EDE8]">
+                              <button
+                                type="button"
+                                onClick={() => handleTogglePublicarPieza(prod.id, prod.activo)}
+                                disabled={isPending}
+                                className={`text-[11px] px-2.5 py-1 rounded-xl font-bold transition-all cursor-pointer border ${
+                                  prod.activo
+                                    ? "bg-white text-stone-700 hover:bg-stone-100 border-stone-300"
+                                    : "bg-emerald-700 text-white hover:bg-emerald-800 border-emerald-800 shadow-xs"
+                                }`}
+                              >
+                                {prod.activo ? "⏸️ Ocultar" : "🚀 Publicar"}
+                              </button>
+
+                              <div className="flex items-center gap-1">
+                                <Button
+                                  variant="outline"
+                                  onClick={() => abrirModalPiezaStock(prod)}
+                                  className="text-[11px] rounded-xl h-7 py-0.5 px-2.5 font-semibold text-stone-800 hover:bg-stone-100 border-stone-300"
+                                  title="Editar pieza"
+                                >
+                                  ✏️ Editar
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  onClick={() => setConfirmDeleteStock({ id: prod.id, nombre: prod.nombre })}
+                                  className="text-[11px] rounded-xl h-7 py-0.5 px-2 text-red-600 hover:bg-red-50 border-red-200"
+                                  title="Eliminar pieza"
+                                >
+                                  🗑️
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 );
               })}
             </div>
-          </div>
+          )}
         </div>
       )}
 
-      {/* ═══════════════════════════════════════════════════════════════════════
-          SUB-PESTAÑA 2: STOCK / DROPS DE COLECCIÓN (UNIFICADO EN LISTA LIMPIA)
-      ═══════════════════════════════════════════════════════════════════════ */}
-      {activeTab === "stock" && (
-        <div className="space-y-5">
-          
-          {/* Barra Superior de Acciones de Stock */}
-          <div className="rounded-2xl border border-border/60 bg-arena/25 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div>
-              <h3 className="text-sm font-semibold text-chocolate flex items-center gap-1.5">
-                <span>📦</span> Inventario de Stock Disponible ({stockList.length} piezas)
-              </h3>
-              <p className="text-xs text-muted font-sans mt-0.5">
-                Control de piezas para entrega inmediata. Asigná colecciones o lanzá drops completos.
+      {/* ═══════════════════════════════════════════════════════════════════════ */}
+      {/* ─── TAB 2: CATÁLOGO DE TARIFAS (CERÁMICA / ILUSTRACIÓN) ─── */}
+      {/* ═══════════════════════════════════════════════════════════════════════ */}
+      {activeTab === "catalogo" && (
+        <div className="space-y-6">
+          {/* Header Catálogo, Buscador y Botón Nueva Tarifa */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-3xl bg-[#FAF7F2] border border-[#E5E0D8]">
+            <h3 className="text-base font-bold text-chocolate font-serif">
+              Tarifario Base de {isCeramica ? "Cerámica" : "Ilustración"}
+            </h3>
+
+            <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+              {/* Buscador de catálogo */}
+              <div className="relative w-full sm:w-56">
+                <Input
+                  value={busquedaCatalogo}
+                  onChange={(e) => setBusquedaCatalogo(e.target.value)}
+                  placeholder="Buscar modelo o medida..."
+                  className="text-xs rounded-xl bg-white pl-7 h-8"
+                />
+                <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-stone-400 text-xs">🔍</span>
+                {busquedaCatalogo && (
+                  <button
+                    onClick={() => setBusquedaCatalogo("")}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700 text-xs cursor-pointer"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+
+              <Button
+                onClick={() => abrirModalFormato()}
+                className="bg-chocolate text-crema-cruda hover:bg-chocolate/90 text-xs font-semibold rounded-xl min-h-8 py-1 px-3.5 shadow-xs shrink-0 cursor-pointer"
+              >
+                + Agregar al Catálogo
+              </Button>
+            </div>
+          </div>
+
+          {/* Panel de Aumento Masivo de Precios */}
+          <div className="p-4 rounded-3xl bg-arena/20 border border-border/60 space-y-3">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">📈</span>
+              <h4 className="text-xs font-bold text-chocolate uppercase tracking-wider">
+                Ajuste Masivo de Precios en Catálogo
+              </h4>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-center gap-3">
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <span className="text-xs font-medium text-stone-700 whitespace-nowrap">Aumentar un</span>
+                <input
+                  type="number"
+                  value={porcentajeAumento}
+                  onChange={(e) => setPorcentajeAumento(e.target.value)}
+                  className="w-20 rounded-xl text-xs bg-white text-center font-bold border border-stone-300 h-9 outline-none focus:ring-1 focus:ring-chocolate"
+                />
+                <span className="text-xs font-medium text-stone-700">% a</span>
+              </div>
+
+              <select
+                value={categoriaAumento}
+                onChange={(e) => setCategoriaAumento(e.target.value)}
+                className="rounded-xl border border-stone-300 bg-white px-3 py-2 text-xs font-semibold text-stone-800 w-full sm:w-auto"
+              >
+                <option value="todas">Todas las categorías del catálogo</option>
+                {categoriasUnicasCatalogo.map((cat) => (
+                  <option key={cat} value={cat}>
+                    Solo categoría &ldquo;{cat}&rdquo;
+                  </option>
+                ))}
+              </select>
+
+              <Button
+                disabled={isPending}
+                onClick={handleSolicitarAumentoMasivo}
+                className="bg-chocolate text-crema-cruda hover:bg-chocolate/90 rounded-xl text-xs font-bold min-h-9 py-1 px-4 shadow-xs shrink-0 w-full sm:w-auto cursor-pointer"
+              >
+                Aplicar Aumento
+              </Button>
+            </div>
+
+            {feedbackAumento && (
+              <p className="text-xs font-bold text-emerald-800 animate-in fade-in">
+                {feedbackAumento}
               </p>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setModalLanzarDrop(true)}
-                className="rounded-full bg-terracota text-white hover:bg-terracota/90 px-4 py-2 text-xs font-semibold shadow-xs cursor-pointer flex items-center gap-1.5"
-              >
-                <span>🚀 Lanzar Colección de Stock</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => abrirModalStockPieza()}
-                className="rounded-full bg-chocolate text-crema-cruda hover:bg-chocolate/90 px-4 py-2 text-xs font-semibold shadow-xs cursor-pointer"
-              >
-                + Cargar Pieza Suelta
-              </button>
-            </div>
-          </div>
-
-          {/* Filtro por Colección / Drop */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-            <span className="text-xs font-semibold text-muted shrink-0">Filtrar por colección:</span>
-            
-            <button
-              type="button"
-              onClick={() => setFiltroColeccionStock("todas")}
-              className={cn(
-                "rounded-full px-3 py-1 text-xs font-medium font-sans transition-colors shrink-0 cursor-pointer shadow-2xs",
-                filtroColeccionStock === "todas"
-                  ? "bg-chocolate text-crema-cruda font-semibold"
-                  : "bg-surface text-muted border border-border/60 hover:bg-secondary/40",
-              )}
-            >
-              Todas ({stockList.length})
-            </button>
-
-            {coleccionesStockUnicas.map((col) => {
-              const count = stockList.filter((p) => p.producciones?.nombre === col).length;
-              return (
-                <button
-                  key={col}
-                  type="button"
-                  onClick={() => setFiltroColeccionStock(col)}
-                  className={cn(
-                    "rounded-full px-3 py-1 text-xs font-medium font-sans transition-colors shrink-0 cursor-pointer shadow-2xs",
-                    filtroColeccionStock === col
-                      ? "bg-chocolate text-crema-cruda font-semibold"
-                      : "bg-surface text-muted border border-border/60 hover:bg-secondary/40",
-                  )}
-                >
-                  ✨ {col} ({count})
-                </button>
-              );
-            })}
-
-            <button
-              type="button"
-              onClick={() => setFiltroColeccionStock("sin_coleccion")}
-              className={cn(
-                "rounded-full px-3 py-1 text-xs font-medium font-sans transition-colors shrink-0 cursor-pointer shadow-2xs",
-                filtroColeccionStock === "sin_coleccion"
-                  ? "bg-chocolate text-crema-cruda font-semibold"
-                  : "bg-surface text-muted border border-border/60 hover:bg-secondary/40",
-              )}
-            >
-              Piezas Sueltas ({stockList.filter((p) => !p.producciones?.nombre).length})
-            </button>
-          </div>
-
-          {/* LISTA UNIFICADA DE PIEZAS DE STOCK */}
-          <div className="rounded-2xl border border-border/60 bg-surface shadow-xs overflow-hidden">
-            <div className="p-3 bg-arena/20 border-b border-border/40 flex items-center justify-between text-xs text-muted font-sans">
-              <span>{stockListFiltrado.length} piezas en esta vista</span>
-              <span>Categoría física y Colección artística claramente diferenciadas</span>
-            </div>
-
-            {stockListFiltrado.length === 0 ? (
-              <div className="p-8 text-center text-xs text-muted space-y-2">
-                <p className="text-2xl">📦</p>
-                <p className="font-semibold text-chocolate">No hay piezas para el filtro seleccionado.</p>
-              </div>
-            ) : (
-              <div className="divide-y divide-border/40 overflow-x-auto">
-                {stockListFiltrado.map((prod) => {
-                  const fotoPrincipal = prod.producto_imagenes?.[0]?.url_imagen;
-                  const categoriaNombre = prod.categorias?.nombre;
-                  const coleccionNombre = prod.producciones?.nombre;
-                  const tieneStock = (prod.stock_disponible ?? 0) > 0;
-                  
-                  // Generar texto de medidas/capacidad si existen
-                  const partesMedidas: string[] = [];
-                  if (prod.alto_cm && prod.ancho_cm) {
-                    partesMedidas.push(`${prod.alto_cm}x${prod.ancho_cm} cm`);
-                  } else if (prod.alto_cm) {
-                    partesMedidas.push(`${prod.alto_cm} cm alto`);
-                  } else if (prod.ancho_cm) {
-                    partesMedidas.push(`${prod.ancho_cm} cm ancho`);
-                  } else if (prod.dimensiones) {
-                    partesMedidas.push(prod.dimensiones);
-                  }
-
-                  if (prod.capacidad_ml) {
-                    partesMedidas.push(`${prod.capacidad_ml} ml`);
-                  }
-
-                  const medidasTexto = partesMedidas.join(" · ");
-
-                  return (
-                    <div
-                      key={prod.id}
-                      className={`flex items-center justify-between gap-3 p-3.5 sm:p-4 transition-colors ${
-                        !tieneStock ? "bg-muted/10 opacity-75" : "hover:bg-arena/10"
-                      }`}
-                    >
-                      {/* Foto e Info de la Pieza */}
-                      <div className="flex items-center gap-3.5 min-w-0 flex-1">
-                        <button
-                          type="button"
-                          onClick={() => fotoPrincipal && setPreviewImage(fotoPrincipal)}
-                          className="h-14 w-14 shrink-0 rounded-2xl bg-arena/40 border border-border/60 overflow-hidden flex items-center justify-center text-xl cursor-zoom-in"
-                        >
-                          {fotoPrincipal ? (
-                            <img src={fotoPrincipal} alt="" className="h-full w-full object-cover" />
-                          ) : (
-                            <span>🏺</span>
-                          )}
-                        </button>
-
-                        <div className="min-w-0 space-y-1">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <p className="text-xs sm:text-sm font-semibold text-chocolate truncate">
-                              {prod.nombre}
-                            </p>
-
-                            {/* Badge de Categoría física (Taza, Bandeja, Mate...) */}
-                            {categoriaNombre && (
-                              <span className="rounded-full bg-secondary/80 border border-border/60 px-2 py-0.5 text-[10px] font-semibold text-barro">
-                                🏷️ {categoriaNombre}
-                              </span>
-                            )}
-
-                            {/* Botón Badge para Colección / Drop */}
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setAsignandoColeccionProd(prod);
-                                const curCol = prod.producciones?.nombre || "";
-                                if (coleccionesStockUnicas.includes(curCol)) {
-                                  setNuevaColeccionSelect(curCol);
-                                  setNuevaColeccionInputCustom("");
-                                } else if (curCol) {
-                                  setNuevaColeccionSelect("__nueva__");
-                                  setNuevaColeccionInputCustom(curCol);
-                                } else {
-                                  setNuevaColeccionSelect("");
-                                  setNuevaColeccionInputCustom("");
-                                }
-                              }}
-                              className="rounded-full bg-arena/60 border border-terracota/40 px-2.5 py-0.5 text-[10px] font-semibold text-terracota hover:bg-terracota hover:text-white transition-colors cursor-pointer flex items-center gap-1"
-                              title="Cambiar colección"
-                            >
-                              <span>✨ {coleccionNombre || "Asignar Colección"}</span>
-                              <span className="text-[9px]">✎</span>
-                            </button>
-                          </div>
-
-                          <div className="flex items-center gap-2 text-xs flex-wrap">
-                            <span className="font-mono font-bold text-chocolate">
-                              {formatPrecio(prod.precio_base)}
-                            </span>
-                            
-                            {medidasTexto && (
-                              <>
-                                <span className="text-muted text-[11px]">·</span>
-                                <span className="text-[11px] text-barro font-medium">
-                                  📐 {medidasTexto}
-                                </span>
-                              </>
-                            )}
-
-                            <span className="text-muted text-[11px]">·</span>
-                            <span
-                              className={`text-[11px] font-semibold ${
-                                tieneStock ? "text-emerald-700" : "text-amber-700"
-                              }`}
-                            >
-                              {tieneStock
-                                ? `🟢 En stock (${prod.stock_disponible} u.)`
-                                : "⚪ Agotado"}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Control de Stock Rápido Inline & Acciones */}
-                      <div className="flex items-center gap-2.5 sm:gap-4 shrink-0">
-                        {/* Selector - / + */}
-                        <div className="flex items-center gap-1.5 bg-arena/20 border border-border/80 rounded-xl p-1 shadow-2xs">
-                          <button
-                            type="button"
-                            disabled={isPending}
-                            onClick={() => handleModificarStockRapido(prod.id, -1)}
-                            className="h-7 w-7 flex items-center justify-center rounded-lg bg-surface border border-border font-bold text-xs text-chocolate hover:bg-secondary/40 cursor-pointer disabled:opacity-40"
-                            title="Disminuir stock"
-                          >
-                            -
-                          </button>
-                          <span className="w-8 text-center text-xs font-mono font-bold text-chocolate">
-                            {prod.stock_disponible}
-                          </span>
-                          <button
-                            type="button"
-                            disabled={isPending}
-                            onClick={() => handleModificarStockRapido(prod.id, 1)}
-                            className="h-7 w-7 flex items-center justify-center rounded-lg bg-surface border border-border font-bold text-xs text-chocolate hover:bg-secondary/40 cursor-pointer disabled:opacity-40"
-                            title="Aumentar stock"
-                          >
-                            +
-                          </button>
-                        </div>
-
-                        <button
-                          type="button"
-                          onClick={() => abrirModalStockPieza(prod)}
-                          className="rounded-xl border border-border/80 bg-surface px-3 py-1.5 text-xs font-medium text-chocolate hover:bg-secondary/40 cursor-pointer shadow-2xs"
-                        >
-                          ✏️ Editar
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => handleEliminarStockPieza(prod.id, prod.nombre)}
-                          className="text-red-500 hover:text-red-700 p-1 text-xs cursor-pointer"
-                          title="Eliminar del stock"
-                        >
-                          🗑️
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
             )}
           </div>
 
+          {/* Tabla de Tarifas de Catálogo */}
+          <div className="rounded-3xl border border-[#E5E0D8] bg-white overflow-hidden shadow-xs">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr className="border-b border-[#E5E0D8] bg-[#FAF7F2] text-[11px] font-bold text-stone-700">
+                  <th className="py-3 px-4">Pieza / Modelo</th>
+                  <th className="py-3 px-3">Categoría</th>
+                  <th className="py-3 px-3">Medidas Sugeridas</th>
+                  <th className="py-3 px-4 text-center">Precio Base (ARS)</th>
+                  <th className="py-3 px-4 text-right">Acciones</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#F0EDE8]">
+                {formatosFiltrados.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="py-8 text-center text-xs text-stone-500 italic">
+                      No se encontraron modelos que coincidan con la búsqueda.
+                    </td>
+                  </tr>
+                ) : (
+                  formatosFiltrados.map((f) => {
+                  const editado = preciosEditados[f.id];
+                  const valorActual = editado !== undefined ? editado : f.precio_base;
+                  const hayCambio = editado !== undefined && editado !== f.precio_base;
+
+                  return (
+                    <tr key={f.id} className="hover:bg-[#FAF7F2] transition-colors">
+                      <td className="py-3 px-4 font-bold text-stone-950">
+                        <div className="flex items-center gap-3">
+                          {f.foto_url ? (
+                            <div
+                              onClick={() => setPreviewImage(f.foto_url!)}
+                              className="h-12 w-12 rounded-xl bg-stone-50 border border-[#E5E0D8] shrink-0 overflow-hidden flex items-center justify-center cursor-pointer hover:opacity-85 transition-opacity p-0.5 shadow-2xs"
+                              title="Clic para ampliar foto"
+                            >
+                              <img
+                                src={f.foto_url}
+                                alt={f.nombre}
+                                className="max-h-full max-w-full object-contain rounded-lg"
+                              />
+                            </div>
+                          ) : (
+                            <div className="h-12 w-12 rounded-xl bg-arena/30 border border-dashed border-[#E5E0D8] flex items-center justify-center text-lg shrink-0 text-muted">
+                              {isCeramica ? "🏺" : "🎨"}
+                            </div>
+                          )}
+                          <span className="truncate text-stone-900 text-sm font-semibold">{f.nombre}</span>
+                        </div>
+                      </td>
+                      <td className="py-3 px-3">
+                        <span className="rounded-full bg-stone-100 px-2.5 py-0.5 text-[10px] font-semibold text-stone-700 border border-stone-200">
+                          {f.categoria || "General"}
+                        </span>
+                      </td>
+                      <td className="py-3 px-3 text-stone-600">
+                        {f.medidas || "-"}
+                      </td>
+                      <td className="py-3 px-4 text-center whitespace-nowrap">
+                        <div className="inline-flex items-center gap-1.5 justify-center">
+                          <span className="text-stone-500 font-bold text-xs">$</span>
+                          <input
+                            type="number"
+                            value={valorActual}
+                            onChange={(e) =>
+                              setPreciosEditados((prev) => ({
+                                ...prev,
+                                [f.id]: Number(e.target.value),
+                              }))
+                            }
+                            className="w-28 text-center rounded-xl text-sm font-bold text-stone-900 bg-[#FAF7F2] hover:bg-white focus:bg-white border border-[#E5E0D8] focus:border-chocolate focus:ring-1 focus:ring-chocolate h-8 px-2 outline-none transition-all"
+                          />
+                          {hayCambio && (
+                            <Button
+                              onClick={() => handleGuardarPrecioInline(f.id)}
+                              className="h-8 px-3 rounded-xl text-xs font-bold bg-emerald-700 hover:bg-emerald-800 text-white shadow-xs cursor-pointer"
+                            >
+                              Guardar
+                            </Button>
+                          )}
+                          {guardadoId === f.id && (
+                            <span className="text-emerald-700 text-sm font-bold">✓</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="py-3 px-4 text-right space-x-1 whitespace-nowrap">
+                        <Button
+                          variant="outline"
+                          onClick={() => abrirModalFormato(f)}
+                          className="text-[11px] rounded-xl h-7 py-0.5 px-2 text-stone-800 border-stone-300"
+                        >
+                          ✏️
+                        </Button>
+                        <Button
+                          variant="outline"
+                          onClick={() => setConfirmDeleteFormato({ id: f.id, nombre: f.nombre })}
+                          className="text-[11px] rounded-xl h-7 py-0.5 px-2 text-red-600 border-red-200 hover:bg-red-50"
+                        >
+                          🗑️
+                        </Button>
+                      </td>
+                    </tr>
+                  );
+                }))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
-      {/* ═══════════════════════════════════════════════════════════════════════
-          SUB-PESTAÑA 3: PORTFOLIO DE DISEÑOS (Álbumes Visuales)
-      ═══════════════════════════════════════════════════════════════════════ */}
+      {/* ═══════════════════════════════════════════════════════════════════════ */}
+      {/* ─── TAB 3: PORTFOLIO & ARCHIVO (SIN PIEZAS INCLUIDAS) ─── */}
+      {/* ═══════════════════════════════════════════════════════════════════════ */}
       {activeTab === "portfolio" && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-sm font-semibold text-chocolate">
-                Colecciones del Portfolio ({portfolioList.length})
-              </h3>
-              <p className="text-xs text-muted font-sans">
-                Álbumes visuales históricos e inspiracionales para los clientes.
+        <div className="space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-3xl bg-[#FAF7F2] border border-[#E5E0D8]">
+            <h3 className="text-base font-bold text-chocolate font-serif">
+              Portfolio & Archivo Histórico
+            </h3>
+
+            <Button
+              onClick={() => abrirModalPortfolio()}
+              className="bg-chocolate text-crema-cruda hover:bg-chocolate/90 text-xs font-semibold rounded-xl min-h-9 py-1 px-3.5 shadow-xs"
+            >
+              + Agregar Colección al Portfolio
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {portfolioList.map((item) => (
+              <AdminPortfolioCard
+                key={item.id}
+                item={item}
+                onEdit={() => abrirModalPortfolio(item)}
+                onDelete={() => setConfirmDeletePortfolio({ id: item.id, nombre: item.nombre })}
+                onOpenLightbox={(fotos, idx, title) => {
+                  setGalleryLightbox({
+                    isOpen: true,
+                    images: fotos.map((url, i) => ({
+                      url,
+                      title,
+                      tag: `Foto ${i + 1} de ${fotos.length}`,
+                    })),
+                    initialIndex: idx,
+                  });
+                }}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ─── MODAL ESTÉTICO: CONFIGURACIÓN Y GESTIÓN DE CATEGORÍAS ─── */}
+      {modalCategoriasAbierto && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-lg rounded-3xl border border-border bg-white p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150 max-h-[85vh] overflow-y-auto">
+            <div className="flex items-start justify-between border-b border-border/50 pb-3">
+              <div>
+                <h3 className="text-base font-serif font-bold text-chocolate flex items-center gap-2">
+                  <span>⚙️</span>
+                  <span>Categorías de {isCeramica ? "Cerámica" : "Ilustración"}</span>
+                </h3>
+                <p className="text-xs text-stone-600 mt-0.5">
+                  Creá, editá o eliminá las categorías físicas de este rubro.
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setModalCategoriasAbierto(false);
+                  setCategoriaEditandoId(null);
+                }}
+                className="text-stone-400 hover:text-stone-900 text-base font-bold cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Formulario rápido para agregar categoría */}
+            <div className="p-3.5 rounded-2xl bg-[#FAF7F2] border border-[#E5E0D8] space-y-2">
+              <label className="text-xs font-bold text-stone-900 block">
+                + Nueva Categoría
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={nuevaCategoriaInput}
+                  onChange={(e) => setNuevaCategoriaInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleCrearCategoria();
+                    }
+                  }}
+                  placeholder="ej. Tazas, Cuencos, Platos, Mates..."
+                  className="flex-1 rounded-xl border border-stone-300 bg-white px-3 py-2 text-xs font-medium text-stone-900 outline-none focus:ring-1 focus:ring-chocolate"
+                />
+                <Button
+                  type="button"
+                  disabled={isPending || !nuevaCategoriaInput.trim()}
+                  onClick={handleCrearCategoria}
+                  className="bg-chocolate text-crema-cruda hover:bg-chocolate/90 text-xs font-bold rounded-xl h-8 px-3.5 shadow-xs cursor-pointer shrink-0"
+                >
+                  {isPending ? "Guardando..." : "Agregar"}
+                </Button>
+              </div>
+            </div>
+
+            {/* Listado de Categorías Existentes */}
+            <div className="space-y-2 pt-2">
+              <span className="text-xs font-bold text-stone-900 block font-serif">
+                Categorías Registradas ({categoriasList.length})
+              </span>
+
+              {categoriasList.length === 0 ? (
+                <p className="text-xs text-stone-500 italic p-4 text-center bg-stone-50 rounded-2xl border border-dashed border-stone-200">
+                  No hay categorías registradas en {isCeramica ? "cerámica" : "ilustración"}.
+                </p>
+              ) : (
+                <div className="divide-y divide-stone-100 border border-stone-200 rounded-2xl overflow-hidden bg-white shadow-2xs">
+                  {categoriasList.map((cat) => {
+                    const cantPiezas = stockList.filter(
+                      (p) => p.categorias?.nombre?.toLowerCase() === cat.nombre.toLowerCase()
+                    ).length;
+
+                    const estaEditando = categoriaEditandoId === cat.id;
+
+                    return (
+                      <div
+                        key={cat.id}
+                        className="flex items-center justify-between gap-3 p-3 hover:bg-[#FAF7F2]/50 transition-colors"
+                      >
+                        {estaEditando ? (
+                          <div className="flex items-center gap-2 flex-1">
+                            <input
+                              type="text"
+                              value={categoriaEditandoNombre}
+                              onChange={(e) => setCategoriaEditandoNombre(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  e.preventDefault();
+                                  handleGuardarEdicionCategoria(cat.id);
+                                }
+                              }}
+                              className="flex-1 rounded-xl border border-stone-300 bg-white px-2.5 py-1.5 text-xs font-medium text-stone-900 outline-none focus:ring-1 focus:ring-chocolate"
+                              autoFocus
+                            />
+                            <Button
+                              type="button"
+                              onClick={() => handleGuardarEdicionCategoria(cat.id)}
+                              disabled={isPending || !categoriaEditandoNombre.trim()}
+                              className="bg-emerald-700 text-white hover:bg-emerald-800 text-xs rounded-xl h-7 px-2.5 font-bold"
+                            >
+                              ✓
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => {
+                                setCategoriaEditandoId(null);
+                                setCategoriaEditandoNombre("");
+                              }}
+                              className="text-xs rounded-xl h-7 px-2"
+                            >
+                              ✕
+                            </Button>
+                          </div>
+                        ) : (
+                          <>
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="text-base">🏷️</span>
+                              <span className="text-xs font-bold text-stone-900 truncate">
+                                {cat.nombre}
+                              </span>
+                              <span className="text-[10px] text-stone-500 font-semibold px-2 py-0.5 rounded-full bg-stone-100 border border-stone-200">
+                                {cantPiezas} {cantPiezas === 1 ? "pieza" : "piezas"}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => {
+                                  setCategoriaEditandoId(cat.id);
+                                  setCategoriaEditandoNombre(cat.nombre);
+                                }}
+                                className="text-[11px] rounded-xl h-7 py-0.5 px-2 text-stone-800 border-stone-300 hover:bg-stone-100"
+                                title="Renombrar categoría"
+                              >
+                                ✏️ Renombrar
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() =>
+                                  setConfirmDeleteCategoria({ id: cat.id, nombre: cat.nombre })
+                                }
+                                className="text-[11px] rounded-xl h-7 py-0.5 px-2 text-red-600 border-red-200 hover:bg-red-50"
+                                title="Eliminar categoría"
+                              >
+                                🗑️
+                              </Button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end pt-3 border-t border-border/50">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setModalCategoriasAbierto(false);
+                  setCategoriaEditandoId(null);
+                }}
+                className="rounded-xl text-xs min-h-9 py-1 px-4"
+              >
+                Cerrar
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── MODAL CONFIRMACIÓN: ELIMINAR CATEGORÍA ─── */}
+      {confirmDeleteCategoria && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-3xl border border-red-200 bg-white p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150">
+            <h3 className="text-base font-serif font-bold text-stone-950 flex items-center gap-2">
+              <span className="text-red-600">🗑️</span>
+              <span>Eliminar Categoría</span>
+            </h3>
+            <p className="text-xs text-stone-700">
+              ¿Seguro que deseás eliminar la categoría <strong>&ldquo;{confirmDeleteCategoria.nombre}&rdquo;</strong>?
+            </p>
+            <p className="text-[11px] text-stone-500 italic">
+              Las piezas existentes no se borrarán, pero dejarán de tener esta categoría asignada.
+            </p>
+
+            <div className="flex justify-end gap-2 pt-3 border-t border-border/40">
+              <Button
+                variant="outline"
+                onClick={() => setConfirmDeleteCategoria(null)}
+                className="rounded-xl text-xs min-h-9 py-1 px-3"
+              >
+                Cancelar
+              </Button>
+              <Button
+                disabled={isPending}
+                onClick={() => handleEliminarCategoriaConfirmado(confirmDeleteCategoria.id)}
+                className="bg-red-600 text-white hover:bg-red-700 rounded-xl text-xs font-bold min-h-9 py-1 px-4 shadow-xs"
+              >
+                {isPending ? "Eliminando..." : "Eliminar Definitivamente"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── MODAL ESTÉTICO: CONFIRMACIÓN DE AUMENTO MASIVO ─── */}
+      {confirmAumentoModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-3xl border border-stone-200 bg-white p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150">
+            <h3 className="text-lg font-serif font-bold text-stone-950 flex items-center gap-2">
+              <span>📈</span>
+              <span>Confirmar Aumento de Precios</span>
+            </h3>
+            <div className="space-y-2 text-xs text-stone-700">
+              <p>
+                ¿Confirmás aplicar un <strong>+{confirmAumentoModal.porcentaje}%</strong> a <strong>{confirmAumentoModal.catTexto}</strong> del catálogo de {rubro}?
+              </p>
+              <p className="p-3 rounded-2xl bg-[#FFF9F0] border border-[#8B5A2B]/20 text-stone-800">
+                Los precios de referencia se recalcularán y redondearán automáticamente.
               </p>
             </div>
 
-            <button
-              type="button"
-              onClick={() => abrirModalPortfolio()}
-              className="rounded-full bg-chocolate text-crema-cruda hover:bg-chocolate/90 px-4 py-1.5 text-xs font-semibold shadow-xs cursor-pointer"
-            >
-              + Nueva Colección
-            </button>
-          </div>
-
-          <div className="space-y-3">
-            {portfolioList.map((col) => {
-              const fotos = Array.isArray(col.fotos) ? col.fotos : [];
-              return (
-                <div
-                  key={col.id}
-                  className="rounded-2xl border border-border/60 bg-surface p-4 shadow-xs flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
-                >
-                  <div className="space-y-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <h4 className="text-sm font-serif font-semibold text-chocolate">✨ {col.nombre}</h4>
-                      <span className="text-[10px] text-muted font-sans">({fotos.length} fotos)</span>
-                    </div>
-                    {col.descripcion && <p className="text-xs text-barro line-clamp-1">{col.descripcion}</p>}
-                    
-                    {fotos.length > 0 && (
-                      <div className="flex gap-2 pt-1 overflow-x-auto pb-1 scrollbar-none">
-                        {fotos.map((url, i) => (
-                          <img
-                            key={i}
-                            src={url}
-                            alt=""
-                            onClick={() => setPreviewImage(url)}
-                            className="h-12 w-12 rounded-xl object-cover border border-border/50 cursor-zoom-in"
-                          />
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-2 shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => abrirModalPortfolio(col)}
-                      className="rounded-xl border border-border bg-surface px-3 py-1 text-xs text-chocolate hover:bg-secondary/40 font-medium cursor-pointer"
-                    >
-                      ✏️ Editar Álbum
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleEliminarPortfolio(col.id, col.nombre)}
-                      className="text-red-500 hover:text-red-700 p-1 text-xs cursor-pointer"
-                    >
-                      🗑️
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* ═══════════════════════════════════════════════════════════════════════
-          MODAL 1: CREAR/EDITAR FORMATO DE CATÁLOGO (ESTRUCTURA Y SCROLL LIMPIO)
-      ═══════════════════════════════════════════════════════════════════════ */}
-      {modalFormato && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
-          <div className="w-full max-w-lg rounded-3xl border border-border/80 bg-surface shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150">
-            {/* Header Fijo */}
-            <div className="flex items-center justify-between border-b border-border/60 px-6 py-4 bg-surface">
-              <h3 className="text-base font-serif font-semibold text-chocolate">
-                {modalFormato.id ? "Editar Pieza del Catálogo" : "Nueva Pieza en Catálogo"}
-              </h3>
-              <button
-                type="button"
-                onClick={() => setModalFormato(null)}
-                className="h-8 w-8 rounded-full bg-arena/50 text-muted hover:text-foreground cursor-pointer flex items-center justify-center"
+            <div className="flex justify-end gap-2 pt-3 border-t border-border/40">
+              <Button
+                variant="outline"
+                onClick={() => setConfirmAumentoModal(null)}
+                className="rounded-xl text-xs min-h-9 py-1 px-3"
               >
-                ✕
-              </button>
+                Cancelar
+              </Button>
+              <Button
+                disabled={isPending}
+                onClick={handleConfirmarAumentoMasivo}
+                className="bg-emerald-700 text-white hover:bg-emerald-800 rounded-xl text-xs font-bold min-h-9 py-1 px-4 shadow-xs"
+              >
+                {isPending ? "Actualizando..." : `✓ Confirmar +${confirmAumentoModal.porcentaje}%`}
+              </Button>
             </div>
-
-            {/* Formulario con Scroll Interno protegido */}
-            <form onSubmit={handleGuardarFormatoModal} className="p-6 max-h-[75vh] overflow-y-auto space-y-4 text-xs">
-              {modalFormato.id && <input type="hidden" name="id" value={modalFormato.id} />}
-
-              <div>
-                <label className="font-semibold text-chocolate block mb-1">Nombre de la pieza *</label>
-                <input
-                  type="text"
-                  name="nombre"
-                  required
-                  defaultValue={modalFormato.nombre || ""}
-                  placeholder="ej. Mate Clásico, Taza XXL, Cuenco..."
-                  className="w-full rounded-xl border border-border/80 bg-surface px-3 py-2 text-foreground"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="font-semibold text-chocolate block mb-1">Categoría</label>
-                  <input
-                    type="text"
-                    name="categoria"
-                    defaultValue={modalFormato.categoria || ""}
-                    placeholder="ej. Mates, Tazas, Cuencos..."
-                    className="w-full rounded-xl border border-border/80 bg-surface px-3 py-2 text-foreground"
-                  />
-                </div>
-
-                <div>
-                  <label className="font-semibold text-chocolate block mb-1">Medidas / Capacidad</label>
-                  <input
-                    type="text"
-                    name="medidas"
-                    defaultValue={modalFormato.medidas || ""}
-                    placeholder="ej. 30x16 cm, 400ml..."
-                    className="w-full rounded-xl border border-border/80 bg-surface px-3 py-2 text-foreground"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="font-semibold text-chocolate block mb-1">Precio Base ($) *</label>
-                <input
-                  type="number"
-                  name="precioBase"
-                  required
-                  defaultValue={modalFormato.precio_base || 0}
-                  className="w-full rounded-xl border border-border/80 bg-surface px-3 py-2 font-mono font-bold text-chocolate"
-                />
-              </div>
-
-              {/* Subida Directa de Foto */}
-              <FileImageUpload
-                value={formatoFotoUrl}
-                onChange={setFormatoFotoUrl}
-                folder="catalogo"
-                label="Foto de la pieza"
-              />
-
-              <div className="pt-2 flex gap-2">
-                <button
-                  type="submit"
-                  disabled={isPending}
-                  className="flex-1 rounded-full bg-chocolate text-crema-cruda py-2.5 font-semibold hover:bg-chocolate/90 cursor-pointer"
-                >
-                  {isPending ? "Guardando..." : "Guardar Pieza"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setModalFormato(null)}
-                  className="rounded-full border border-border bg-surface px-4 py-2.5 font-medium text-muted cursor-pointer"
-                >
-                  Cancelar
-                </button>
-              </div>
-            </form>
           </div>
         </div>
       )}
 
-      {/* ═══════════════════════════════════════════════════════════════════════
-          MODAL 2: CREAR / EDITAR PIEZA EN STOCK (SELECTORES Y GRID 5 COLUMNAS)
-      ═══════════════════════════════════════════════════════════════════════ */}
+      {/* ─── MODAL ESTÉTICO: CONFIRMACIÓN ELIMINAR FORMATO CATÁLOGO ─── */}
+      {confirmDeleteFormato && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-3xl border border-red-200 bg-white p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150">
+            <h3 className="text-base font-serif font-bold text-stone-950 flex items-center gap-2">
+              <span className="text-red-600">🗑️</span>
+              <span>Eliminar del Catálogo</span>
+            </h3>
+            <p className="text-xs text-stone-700">
+              ¿Seguro que deseas eliminar el modelo <strong>&ldquo;{confirmDeleteFormato.nombre}&rdquo;</strong> del tarifario base?
+            </p>
+
+            <div className="flex justify-end gap-2 pt-3 border-t border-border/40">
+              <Button
+                variant="outline"
+                onClick={() => setConfirmDeleteFormato(null)}
+                className="rounded-xl text-xs min-h-9 py-1 px-3"
+              >
+                Cancelar
+              </Button>
+              <Button
+                disabled={isPending}
+                onClick={() => handleEliminarFormatoConfirmado(confirmDeleteFormato.id)}
+                className="bg-red-600 text-white hover:bg-red-700 rounded-xl text-xs font-bold min-h-9 py-1 px-4 shadow-xs"
+              >
+                {isPending ? "Eliminando..." : "Eliminar Definitivamente"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── MODAL ESTÉTICO: CONFIRMACIÓN ELIMINAR PIEZA STOCK ─── */}
+      {confirmDeleteStock && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-3xl border border-red-200 bg-white p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150">
+            <h3 className="text-base font-serif font-bold text-stone-950 flex items-center gap-2">
+              <span className="text-red-600">🗑️</span>
+              <span>Eliminar Pieza de Stock</span>
+            </h3>
+            <p className="text-xs text-stone-700">
+              ¿Eliminar definitivamente la pieza <strong>&ldquo;{confirmDeleteStock.nombre}&rdquo;</strong> del stock de la tienda?
+            </p>
+
+            <div className="flex justify-end gap-2 pt-3 border-t border-border/40">
+              <Button
+                variant="outline"
+                onClick={() => setConfirmDeleteStock(null)}
+                className="rounded-xl text-xs min-h-9 py-1 px-3"
+              >
+                Cancelar
+              </Button>
+              <Button
+                disabled={isPending}
+                onClick={() => handleEliminarStockConfirmado(confirmDeleteStock.id)}
+                className="bg-red-600 text-white hover:bg-red-700 rounded-xl text-xs font-bold min-h-9 py-1 px-4 shadow-xs"
+              >
+                {isPending ? "Eliminando..." : "Eliminar Definitivamente"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── MODAL ESTÉTICO: CONFIRMACIÓN ELIMINAR PORTFOLIO ─── */}
+      {confirmDeletePortfolio && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-3xl border border-red-200 bg-white p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150">
+            <h3 className="text-base font-serif font-bold text-stone-950 flex items-center gap-2">
+              <span className="text-red-600">🗑️</span>
+              <span>Eliminar del Portfolio</span>
+            </h3>
+            <p className="text-xs text-stone-700">
+              ¿Eliminar la colección <strong>&ldquo;{confirmDeletePortfolio.nombre}&rdquo;</strong> del portfolio de obras?
+            </p>
+
+            <div className="flex justify-end gap-2 pt-3 border-t border-border/40">
+              <Button
+                variant="outline"
+                onClick={() => setConfirmDeletePortfolio(null)}
+                className="rounded-xl text-xs min-h-9 py-1 px-3"
+              >
+                Cancelar
+              </Button>
+              <Button
+                disabled={isPending}
+                onClick={() => handleEliminarPortfolioConfirmado(confirmDeletePortfolio.id)}
+                className="bg-red-600 text-white hover:bg-red-700 rounded-xl text-xs font-bold min-h-9 py-1 px-4 shadow-xs"
+              >
+                {isPending ? "Eliminando..." : "Eliminar Definitivamente"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════════════════ */}
+      {/* ─── MODAL: CARGAR / EDITAR PIEZA SUELTA DE STOCK ─── */}
+      {/* ═══════════════════════════════════════════════════════════════════════ */}
       {modalStockPieza && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
-          <div className="w-full max-w-xl rounded-3xl border border-border/80 bg-surface shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150">
-            {/* Header Fijo */}
-            <div className="flex items-center justify-between border-b border-border/60 px-6 py-4 bg-surface">
-              <h3 className="text-base font-serif font-semibold text-chocolate">
-                {modalStockPieza.id ? "Editar Pieza en Stock" : "Nueva Pieza en Stock"}
-              </h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-xl rounded-3xl border border-border bg-white p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-start justify-between border-b border-border/50 pb-3">
+              <div>
+                <h3 className="text-base font-serif font-bold text-chocolate">
+                  {modalStockPieza.id ? "Editar Pieza de Stock" : "Cargar Nueva Pieza de Stock"}
+                </h3>
+              </div>
               <button
-                type="button"
                 onClick={() => setModalStockPieza(null)}
-                className="h-8 w-8 rounded-full bg-arena/50 text-muted hover:text-foreground cursor-pointer flex items-center justify-center"
+                className="text-stone-400 hover:text-stone-900 text-base font-bold cursor-pointer"
               >
                 ✕
               </button>
             </div>
 
-            {/* Formulario con Scroll Interno protegido */}
-            <form onSubmit={handleGuardarStockPiezaModal} className="p-6 max-h-[78vh] overflow-y-auto space-y-4 text-xs">
-              {modalStockPieza.id && <input type="hidden" name="id" value={modalStockPieza.id} />}
+            <form onSubmit={handleGuardarStockPiezaModal} className="space-y-4 text-xs">
+              {/* Selector de Estado de Publicación: Inmediato vs Borrador */}
+              <div className="p-3.5 rounded-2xl bg-[#FFF9F0] border border-[#8B5A2B]/30 space-y-2">
+                <span className="font-bold text-stone-900 block">Visibilidad de la pieza:</span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <label
+                    onClick={() => setStockPublicarInmediato(true)}
+                    className={`flex items-center gap-2 p-2.5 rounded-xl border-2 cursor-pointer transition-all ${
+                      stockPublicarInmediato
+                        ? "bg-emerald-50 border-emerald-600 text-emerald-950 font-bold"
+                        : "bg-white border-stone-200 text-stone-700"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="visibilidad"
+                      checked={stockPublicarInmediato}
+                      onChange={() => setStockPublicarInmediato(true)}
+                      className="accent-emerald-700"
+                    />
+                    <span>🚀 Publicar en Tienda</span>
+                  </label>
 
+                  <label
+                    onClick={() => setStockPublicarInmediato(false)}
+                    className={`flex items-center gap-2 p-2.5 rounded-xl border-2 cursor-pointer transition-all ${
+                      !stockPublicarInmediato
+                        ? "bg-amber-50 border-amber-600 text-amber-950 font-bold"
+                        : "bg-white border-stone-200 text-stone-700"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="visibilidad"
+                      checked={!stockPublicarInmediato}
+                      onChange={() => setStockPublicarInmediato(false)}
+                      className="accent-amber-700"
+                    />
+                    <span>⏳ Guardar en Borrador</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Botón seleccionable: Hecho en torno alfarero (Para Cerámica) */}
+              {isCeramica && (
+                <div className="p-3 rounded-2xl bg-[#FAF7F2] border border-[#E5E0D8]">
+                  <label className="flex items-center gap-2.5 cursor-pointer font-bold text-chocolate text-xs">
+                    <input
+                      type="checkbox"
+                      checked={stockHechoEnTorno}
+                      onChange={(e) => setStockHechoEnTorno(e.target.checked)}
+                      className="h-4 w-4 rounded border-stone-300 text-chocolate focus:ring-chocolate"
+                    />
+                    <span>🏺 Hecho en torno alfarero (Pieza torneada a mano)</span>
+                  </label>
+                </div>
+              )}
+
+              {/* Fotos */}
               <div>
-                <label className="font-semibold text-chocolate block mb-1">Nombre de la pieza *</label>
-                <input
-                  type="text"
-                  name="nombre"
-                  required
-                  defaultValue={modalStockPieza.nombre || ""}
-                  placeholder="ej. Taza Perro Salchicha, Bandeja Sol..."
-                  className="w-full rounded-xl border border-border/80 bg-surface px-3 py-2 text-foreground"
+                <label className="font-bold text-stone-900 block mb-1">Fotos de la pieza</label>
+                <FileImageUpload
+                  value={stockFotos}
+                  onChange={(val: string[]) => setStockFotos(val)}
+                  multiple
+                  folder={rubro}
                 />
               </div>
 
-              {/* ─── Selectores Desplegables Limpios para Categoría y Colección ─── */}
-              <div className="grid sm:grid-cols-2 gap-3.5">
-                
-                {/* Selector Desplegable de Categoría */}
-                <div className="space-y-1">
-                  <label className="font-semibold text-chocolate block">Categoría (Formato)</label>
+              {/* Nombre de la pieza */}
+              <div>
+                <label className="font-bold text-stone-900 block mb-1">Nombre de la pieza *</label>
+                <Input
+                  name="nombre"
+                  defaultValue={modalStockPieza.nombre || ""}
+                  placeholder="ej. Taza Luna Llena / Mate Algarrobo"
+                  required
+                  className="rounded-xl text-xs"
+                />
+              </div>
+
+              {/* Categoría física y Colección */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="font-bold text-stone-900 block mb-1">Categoría Física</label>
                   <select
                     value={stockCategoriaSelect}
                     onChange={(e) => setStockCategoriaSelect(e.target.value)}
-                    className="w-full rounded-xl border border-border/80 bg-surface px-3 py-2 text-foreground shadow-2xs focus:ring-2 focus:ring-terracota/40 cursor-pointer"
+                    className="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-xs font-medium text-stone-800"
                   >
                     <option value="">Seleccionar categoría...</option>
                     {categoriasFisicasUnicas.map((cat) => (
@@ -1193,580 +1990,806 @@ export function ArteManager({
                         {cat}
                       </option>
                     ))}
-                    <option value="__nueva__" className="font-semibold text-terracota">
-                      + Crear nueva categoría...
-                    </option>
+                    <option value="__custom__">+ Crear nueva categoría...</option>
                   </select>
 
-                  {stockCategoriaSelect === "__nueva__" && (
-                    <input
-                      type="text"
+                  {stockCategoriaSelect === "__custom__" && (
+                    <Input
                       value={stockCategoriaCustom}
                       onChange={(e) => setStockCategoriaCustom(e.target.value)}
-                      placeholder="Escribí el nombre de la categoría (ej. Jarra, Florero)..."
-                      className="w-full rounded-xl border border-terracota/60 bg-surface px-3 py-1.5 text-foreground mt-1 animate-in fade-in"
-                      autoFocus
+                      placeholder="Nombre de la nueva categoría"
+                      className="rounded-xl text-xs mt-1.5"
                     />
                   )}
                 </div>
 
-                {/* Selector Desplegable de Colección */}
-                <div className="space-y-1">
-                  <label className="font-semibold text-chocolate block">Colección / Drop</label>
+                <div>
+                  <label className="font-bold text-stone-900 block mb-1">Colección / Lanzamiento</label>
                   <select
                     value={stockColeccionSelect}
                     onChange={(e) => setStockColeccionSelect(e.target.value)}
-                    className="w-full rounded-xl border border-border/80 bg-surface px-3 py-2 text-foreground shadow-2xs focus:ring-2 focus:ring-terracota/40 cursor-pointer"
+                    className="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-xs font-medium text-stone-800"
                   >
                     <option value="">Sin colección (Pieza suelta)</option>
                     {coleccionesStockUnicas.map((col) => (
                       <option key={col} value={col}>
-                        ✨ {col}
+                        📁 {col}
                       </option>
                     ))}
-                    <option value="__nueva__" className="font-semibold text-terracota">
-                      + Crear nueva colección...
-                    </option>
+                    <option value="__custom__">+ Crear nueva colección...</option>
                   </select>
 
-                  {stockColeccionSelect === "__nueva__" && (
-                    <input
-                      type="text"
+                  {stockColeccionSelect === "__custom__" && (
+                    <Input
                       value={stockColeccionCustom}
                       onChange={(e) => setStockColeccionCustom(e.target.value)}
-                      placeholder="Escribí el nombre de la colección (ej. Colección Botánica)..."
-                      className="w-full rounded-xl border border-terracota/60 bg-surface px-3 py-1.5 text-foreground mt-1 animate-in fade-in"
-                      autoFocus
+                      placeholder="Nombre de la nueva colección"
+                      className="rounded-xl text-xs mt-1.5"
                     />
                   )}
                 </div>
-
               </div>
 
-              {/* ─── Fila Numérica Perfectamente Alineada en 5 Columnas Iguales ─── */}
-              <div>
-                <label className="font-semibold text-chocolate block mb-1">Precios, Stock y Medidas</label>
-                <div className="grid grid-cols-5 gap-2 pt-0.5">
-                  <div>
-                    <span className="text-[11px] text-muted block mb-1">Precio ($) *</span>
-                    <input
-                      type="number"
-                      name="precioBase"
-                      required
-                      defaultValue={modalStockPieza.precio_base || 25000}
-                      className="w-full rounded-xl border border-border/80 bg-surface px-2.5 py-1.5 font-mono font-bold text-chocolate text-xs"
-                    />
-                  </div>
+              {/* Precio y Stock */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="font-bold text-stone-900 block mb-1">Precio Base (ARS) *</label>
+                  <input
+                    type="number"
+                    value={stockPrecioInput}
+                    onChange={(e) => setStockPrecioInput(e.target.value)}
+                    placeholder="ej. 20000"
+                    required
+                    className="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-xs font-bold text-stone-900 outline-none focus:ring-1 focus:ring-chocolate"
+                  />
+                </div>
 
-                  <div>
-                    <span className="text-[11px] text-muted block mb-1">Stock *</span>
-                    <input
-                      type="number"
-                      name="stockDisponible"
-                      required
-                      min="0"
-                      defaultValue={modalStockPieza.stock_disponible ?? 1}
-                      className="w-full rounded-xl border border-border/80 bg-surface px-2.5 py-1.5 font-mono font-bold text-chocolate text-xs"
-                    />
-                  </div>
-
-                  <div>
-                    <span className="text-[11px] text-muted block mb-1">Alto (cm)</span>
-                    <input
-                      type="number"
-                      step="0.5"
-                      name="altoCm"
-                      defaultValue={modalStockPieza.alto_cm || ""}
-                      placeholder="12"
-                      className="w-full rounded-xl border border-border/80 bg-surface px-2.5 py-1.5 text-foreground font-mono text-xs"
-                    />
-                  </div>
-
-                  <div>
-                    <span className="text-[11px] text-muted block mb-1">Ancho (cm)</span>
-                    <input
-                      type="number"
-                      step="0.5"
-                      name="anchoCm"
-                      defaultValue={modalStockPieza.ancho_cm || ""}
-                      placeholder="8.5"
-                      className="w-full rounded-xl border border-border/80 bg-surface px-2.5 py-1.5 text-foreground font-mono text-xs"
-                    />
-                  </div>
-
-                  <div>
-                    <span className="text-[11px] text-muted block mb-1">Capacidad (ml)</span>
-                    <input
-                      type="number"
-                      step="10"
-                      name="capacidadMl"
-                      defaultValue={modalStockPieza.capacidad_ml || ""}
-                      placeholder="350"
-                      className="w-full rounded-xl border border-border/80 bg-surface px-2.5 py-1.5 text-foreground font-mono text-xs"
-                    />
-                  </div>
+                <div>
+                  <label className="font-bold text-stone-900 block mb-1">Stock Disponible *</label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={stockStockInput}
+                    onChange={(e) => setStockStockInput(e.target.value)}
+                    placeholder="1"
+                    required
+                    className="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-xs font-bold text-stone-900 outline-none focus:ring-1 focus:ring-chocolate"
+                  />
                 </div>
               </div>
 
+              {/* Medidas (Alto, Ancho, Capacidad) */}
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <label className="font-semibold text-stone-700 block mb-1">Alto (cm)</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={stockAltoInput}
+                    onChange={(e) => setStockAltoInput(e.target.value)}
+                    placeholder="ej. 10"
+                    className="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-xs text-stone-900 outline-none focus:ring-1 focus:ring-chocolate"
+                  />
+                </div>
+
+                <div>
+                  <label className="font-semibold text-stone-700 block mb-1">Ancho (cm)</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={stockAnchoInput}
+                    onChange={(e) => setStockAnchoInput(e.target.value)}
+                    placeholder="ej. 8.5"
+                    className="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-xs text-stone-900 outline-none focus:ring-1 focus:ring-chocolate"
+                  />
+                </div>
+
+                <div>
+                  <label className="font-semibold text-stone-700 block mb-1">Capacidad (ml)</label>
+                  <input
+                    type="number"
+                    value={stockCapacidadInput}
+                    onChange={(e) => setStockCapacidadInput(e.target.value)}
+                    placeholder="ej. 300"
+                    className="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-xs text-stone-900 outline-none focus:ring-1 focus:ring-chocolate"
+                  />
+                </div>
+              </div>
+
+              {/* Descripción */}
               <div>
-                <label className="font-semibold text-chocolate block mb-1">Descripción</label>
+                <label className="font-bold text-stone-900 block mb-1">Descripción artesanal</label>
                 <textarea
                   name="descripcion"
-                  rows={2}
                   defaultValue={modalStockPieza.descripcion || ""}
-                  placeholder="Detalles sobre el diseño y elaboración..."
-                  className="w-full rounded-xl border border-border/80 bg-surface p-2.5 text-foreground"
+                  placeholder="Detalles sobre el esmaltado, técnica o inspiración..."
+                  rows={2}
+                  className="w-full rounded-xl border border-stone-300 p-2.5 text-xs text-stone-900 focus:outline-none focus:ring-1 focus:ring-chocolate"
                 />
               </div>
 
-              {/* Subida Múltiple de Fotos de la Pieza */}
-              <FileImageUpload
-                value={stockFotos}
-                onChange={setStockFotos}
-                multiple
-                folder="stock"
-                label="Fotos"
-              />
-
-              <div className="pt-2 flex gap-2">
-                <button
-                  type="submit"
-                  disabled={isPending}
-                  className="flex-1 rounded-full bg-chocolate text-crema-cruda py-2.5 font-semibold hover:bg-chocolate/90 cursor-pointer shadow-xs"
-                >
-                  {isPending ? "Guardando..." : "Guardar en Stock"}
-                </button>
-                <button
+              <div className="flex justify-end gap-2 pt-3 border-t border-border/50">
+                <Button
                   type="button"
+                  variant="outline"
                   onClick={() => setModalStockPieza(null)}
-                  className="rounded-full border border-border bg-surface px-5 py-2.5 font-medium text-muted cursor-pointer"
+                  className="rounded-xl text-xs min-h-9 py-1 px-3"
                 >
                   Cancelar
-                </button>
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={isPending}
+                  className="bg-chocolate text-crema-cruda hover:bg-chocolate/90 rounded-xl text-xs font-bold min-h-9 py-1 px-4 shadow-xs"
+                >
+                  {isPending ? "Guardando..." : "Guardar Pieza"}
+                </Button>
               </div>
             </form>
           </div>
         </div>
       )}
 
-      {/* ═══════════════════════════════════════════════════════════════════════
-          MODAL 3: ASIGNAR / CAMBIAR COLECCIÓN CON SELECTOR DESPLEGABLE
-      ═══════════════════════════════════════════════════════════════════════ */}
-      {asignandoColeccionProd && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
-          <div className="w-full max-w-sm rounded-3xl border border-border/80 bg-surface shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between border-b border-border/60 px-5 py-3.5 bg-surface">
-              <h3 className="text-sm font-serif font-semibold text-chocolate truncate">
-                Colección de &quot;{asignandoColeccionProd.nombre}&quot;
-              </h3>
-              <button
-                type="button"
-                onClick={() => setAsignandoColeccionProd(null)}
-                className="h-7 w-7 rounded-full bg-arena/50 text-muted hover:text-foreground cursor-pointer flex items-center justify-center text-xs"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="p-5 space-y-4 text-xs">
-              <div className="space-y-1.5">
-                <label className="font-semibold text-chocolate block">Seleccionar Colección:</label>
-                <select
-                  value={nuevaColeccionSelect}
-                  onChange={(e) => setNuevaColeccionSelect(e.target.value)}
-                  className="w-full rounded-xl border border-border/80 bg-surface px-3 py-2 text-foreground shadow-2xs focus:ring-2 focus:ring-terracota/40 cursor-pointer"
-                >
-                  <option value="">Sin colección</option>
-                  {coleccionesStockUnicas.map((c) => (
-                    <option key={c} value={c}>
-                      ✨ {c}
-                    </option>
-                  ))}
-                  <option value="__nueva__" className="font-semibold text-terracota">
-                    + Crear nueva colección...
-                  </option>
-                </select>
-
-                {nuevaColeccionSelect === "__nueva__" && (
-                  <input
-                    type="text"
-                    value={nuevaColeccionInputCustom}
-                    onChange={(e) => setNuevaColeccionInputCustom(e.target.value)}
-                    placeholder="Escribí el nombre de la colección..."
-                    className="w-full rounded-xl border border-terracota/60 bg-surface px-3 py-2 text-foreground mt-1.5 animate-in fade-in"
-                    autoFocus
-                  />
-                )}
-              </div>
-
-              <div className="pt-2 flex gap-2">
-                <button
-                  type="submit"
-                  disabled={isPending}
-                  onClick={handleGuardarColeccionAsignada}
-                  className="flex-1 rounded-full bg-terracota text-white py-2 font-semibold hover:bg-terracota/90 cursor-pointer shadow-2xs"
-                >
-                  {isPending ? "Guardando..." : "Guardar"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setAsignandoColeccionProd(null)}
-                  className="rounded-full border border-border bg-surface px-3.5 py-2 font-medium text-muted cursor-pointer"
-                >
-                  Cancelar
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ═══════════════════════════════════════════════════════════════════════
-          MODAL 4: LANZAMIENTO DE COLECCIÓN / DROP COMPLETO
-      ═══════════════════════════════════════════════════════════════════════ */}
+      {/* ═══════════════════════════════════════════════════════════════════════ */}
+      {/* ─── MODAL: NUEVA COLECCIÓN / DROP (CON MEDIDAS, FOTOS & CATEGORÍAS) ─── */}
+      {/* ═══════════════════════════════════════════════════════════════════════ */}
       {modalLanzarDrop && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
-          <div className="w-full max-w-3xl rounded-3xl border border-border/80 bg-surface shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150">
-            
-            {/* Header Fijo */}
-            <div className="flex items-center justify-between border-b border-border/60 px-6 py-4 bg-surface">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-3xl rounded-3xl border border-border bg-white p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-start justify-between border-b border-border/50 pb-3">
               <div>
-                <span className="text-[11px] font-semibold text-terracota uppercase tracking-wider">Lanzamiento</span>
-                <h3 className="text-lg sm:text-xl font-serif font-semibold text-chocolate">
-                  Lanzar Nueva Colección
+                <h3 className="text-base font-serif font-bold text-chocolate">
+                  ✨ Nueva Colección / Lanzamiento
                 </h3>
+                <p className="text-xs text-amber-900 font-semibold mt-0.5">
+                  ⏳ La colección se guardará automáticamente en borrador para que puedas revisarla y lanzarla a la tienda cuando publiques tu historia en Instagram.
+                </p>
               </div>
               <button
-                type="button"
                 onClick={() => setModalLanzarDrop(false)}
-                className="h-8 w-8 rounded-full bg-arena/50 text-muted hover:text-foreground cursor-pointer flex items-center justify-center"
+                className="text-stone-400 hover:text-stone-900 text-base font-bold cursor-pointer"
               >
                 ✕
               </button>
             </div>
 
-            {/* Body con Scroll Interno protegido */}
-            <div className="p-6 max-h-[78vh] overflow-y-auto space-y-4 text-xs">
-              <div className="grid sm:grid-cols-2 gap-4">
+            <div className="space-y-4 text-xs">
+              {/* Datos de la Colección */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="font-semibold text-chocolate block mb-1">Nombre de la Colección *</label>
-                  <input
-                    type="text"
+                  <label className="font-bold text-stone-900 block mb-1">Nombre de la Colección *</label>
+                  <Input
                     value={dropNombre}
                     onChange={(e) => setDropNombre(e.target.value)}
-                    placeholder="ej. Colección Patagonia, Drops de Primavera..."
-                    className="w-full rounded-xl border border-border/80 bg-surface px-3.5 py-2 text-foreground font-medium"
+                    placeholder="ej. Colección Botánica Primavera 2026"
+                    className="rounded-xl text-xs font-bold"
                   />
                 </div>
-
                 <div>
-                  <label className="font-semibold text-chocolate block mb-1">Descripción</label>
-                  <input
-                    type="text"
+                  <label className="font-bold text-stone-900 block mb-1">Descripción Conceptual</label>
+                  <Input
                     value={dropDescripcion}
                     onChange={(e) => setDropDescripcion(e.target.value)}
-                    placeholder="ej. Inspirada en los colores y flores de la estación..."
-                    className="w-full rounded-xl border border-border/80 bg-surface px-3.5 py-2 text-foreground"
+                    placeholder="ej. Esmaltes verde bosque y detalles dorados"
+                    className="rounded-xl text-xs"
                   />
                 </div>
               </div>
 
-              {/* Lista de Piezas */}
-              <div className="space-y-4 pt-2">
-                <div className="flex items-center justify-between border-b border-border/40 pb-2">
-                  <p className="font-semibold text-chocolate text-sm">Piezas de la Colección ({dropPiezas.length}):</p>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setDropPiezas((prev) => [
-                        ...prev,
-                        {
-                          id: Date.now().toString(),
-                          nombre: "",
-                          categoriaNombre: "",
-                          precioBase: 25000,
-                          stock: 1,
-                          altoCm: null,
-                          anchoCm: null,
-                          capacidadMl: null,
-                          fotos: [],
-                        },
-                      ])
-                    }
-                    className="text-xs font-semibold text-terracota hover:underline cursor-pointer flex items-center gap-1"
-                  >
-                    <span>+ Agregar otra pieza</span>
-                  </button>
+              {/* Lista Dinámica de Piezas */}
+              <div className="space-y-3 pt-2 border-t border-border/40">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-stone-900 font-serif text-sm">
+                    Piezas del Lanzamiento ({dropPiezas.length})
+                  </span>
                 </div>
 
                 <div className="space-y-4">
-                  {dropPiezas.map((pieza, pIdx) => (
+                  {dropPiezas.map((p, idx) => (
                     <div
-                      key={pieza.id}
-                      className="rounded-2xl border border-border/80 bg-arena/20 p-4 space-y-3 shadow-2xs"
+                      key={p.id}
+                      className="p-4 rounded-3xl bg-[#FAF7F2] border border-[#E5E0D8] space-y-3 shadow-xs"
                     >
                       <div className="flex items-center justify-between">
-                        <span className="font-semibold text-chocolate text-xs">Pieza #{pIdx + 1}</span>
+                        <span className="font-bold text-chocolate text-xs">
+                          Pieza #{idx + 1}
+                        </span>
                         {dropPiezas.length > 1 && (
                           <button
                             type="button"
-                            onClick={() => setDropPiezas((prev) => prev.filter((_, i) => i !== pIdx))}
-                            className="text-red-500 hover:text-red-700 text-xs cursor-pointer font-medium"
+                            onClick={() => handleRemoveDropPieza(p.id)}
+                            className="text-red-600 hover:text-red-800 text-xs font-semibold cursor-pointer"
                           >
-                            Quitar pieza ✕
+                            ✕ Quitar
                           </button>
                         )}
                       </div>
 
-                      <div className="grid grid-cols-2 gap-2">
+                      {/* Nombre y Categoría */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
-                          <label className="font-medium text-muted block text-[11px] mb-0.5">Nombre *</label>
-                          <input
-                            type="text"
-                            value={pieza.nombre}
-                            onChange={(e) =>
-                              setDropPiezas((prev) =>
-                                prev.map((p, i) => (i === pIdx ? { ...p, nombre: e.target.value } : p)),
-                              )
-                            }
-                            placeholder="ej. Taza Glaciar"
-                            className="w-full rounded-xl border border-border bg-surface px-2.5 py-1.5 text-xs text-foreground"
+                          <label className="text-[11px] font-semibold text-stone-700 block mb-0.5">
+                            Nombre de la pieza *
+                          </label>
+                          <Input
+                            value={p.nombre}
+                            onChange={(e) => handleUpdateDropPieza(p.id, { nombre: e.target.value })}
+                            placeholder="ej. Taza Botánica #1"
+                            className="rounded-xl text-xs bg-white font-medium"
                           />
                         </div>
 
                         <div>
-                          <label className="font-medium text-muted block text-[11px] mb-0.5">Categoría (Formato)</label>
-                          <input
-                            type="text"
-                            value={pieza.categoriaNombre}
-                            onChange={(e) =>
-                              setDropPiezas((prev) =>
-                                prev.map((p, i) => (i === pIdx ? { ...p, categoriaNombre: e.target.value } : p)),
-                              )
-                            }
-                            placeholder="Taza, Mate, Cuenco..."
-                            className="w-full rounded-xl border border-border bg-surface px-2.5 py-1.5 text-xs text-foreground"
-                          />
+                          <label className="text-[11px] font-semibold text-stone-700 block mb-0.5">
+                            Categoría física
+                          </label>
+                          <select
+                            value={p.categoriaSelect}
+                            onChange={(e) => handleUpdateDropPieza(p.id, { categoriaSelect: e.target.value })}
+                            className="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-xs font-medium text-stone-800"
+                          >
+                            <option value="">Seleccionar categoría...</option>
+                            {categoriasFisicasUnicas.map((cat) => (
+                              <option key={cat} value={cat}>
+                                {cat}
+                              </option>
+                            ))}
+                            <option value="__custom__">+ Crear nueva categoría...</option>
+                          </select>
+
+                          {p.categoriaSelect === "__custom__" && (
+                            <Input
+                              value={p.categoriaCustom}
+                              onChange={(e) => handleUpdateDropPieza(p.id, { categoriaCustom: e.target.value })}
+                              placeholder="Nombre de la nueva categoría"
+                              className="rounded-xl text-xs bg-white mt-1.5"
+                            />
+                          )}
                         </div>
                       </div>
 
-                      {/* 5 Columnas numéricas */}
-                      <div className="grid grid-cols-5 gap-2">
+                      {/* Precio, Stock y Torno */}
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                         <div>
-                          <label className="font-medium text-muted block text-[11px] mb-0.5">Precio ($)</label>
+                          <label className="text-[11px] font-semibold text-stone-700 block mb-0.5">
+                            Precio Base (ARS) *
+                          </label>
                           <input
                             type="number"
-                            value={pieza.precioBase}
-                            onChange={(e) =>
-                              setDropPiezas((prev) =>
-                                prev.map((p, i) =>
-                                  i === pIdx ? { ...p, precioBase: parseFloat(e.target.value) || 0 } : p,
-                                ),
-                              )
-                            }
-                            className="w-full rounded-xl border border-border bg-surface px-2.5 py-1.5 text-xs font-mono font-bold text-chocolate"
+                            value={p.precioStr}
+                            onChange={(e) => handleUpdateDropPieza(p.id, { precioStr: e.target.value })}
+                            placeholder="ej. 25000"
+                            className="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-xs font-bold text-stone-900 outline-none focus:ring-1 focus:ring-chocolate"
                           />
                         </div>
 
                         <div>
-                          <label className="font-medium text-muted block text-[11px] mb-0.5">Stock</label>
+                          <label className="text-[11px] font-semibold text-stone-700 block mb-0.5">
+                            Stock *
+                          </label>
                           <input
                             type="number"
-                            min="1"
-                            value={pieza.stock}
-                            onChange={(e) =>
-                              setDropPiezas((prev) =>
-                                prev.map((p, i) =>
-                                  i === pIdx ? { ...p, stock: parseInt(e.target.value) || 1 } : p,
-                                ),
-                              )
-                            }
-                            className="w-full rounded-xl border border-border bg-surface px-2.5 py-1.5 text-xs font-mono font-bold text-chocolate"
+                            min={1}
+                            value={p.stockStr}
+                            onChange={(e) => handleUpdateDropPieza(p.id, { stockStr: e.target.value })}
+                            placeholder="1"
+                            className="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-xs font-bold text-stone-900 outline-none focus:ring-1 focus:ring-chocolate"
+                          />
+                        </div>
+
+                        {isCeramica && (
+                          <div className="flex items-center pt-3 sm:pt-4">
+                            <label className="flex items-center gap-2 cursor-pointer font-bold text-chocolate text-[11px]">
+                              <input
+                                type="checkbox"
+                                checked={p.hechoEnTorno}
+                                onChange={(e) => handleUpdateDropPieza(p.id, { hechoEnTorno: e.target.checked })}
+                                className="h-4 w-4 rounded border-stone-300 text-chocolate focus:ring-chocolate"
+                              />
+                              <span>🏺 Hecho en torno</span>
+                            </label>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Medidas (Alto, Ancho, Capacidad) */}
+                      <div className="grid grid-cols-3 gap-2">
+                        <div>
+                          <label className="text-[11px] font-semibold text-stone-700 block mb-0.5">
+                            Alto (cm)
+                          </label>
+                          <input
+                            type="number"
+                            step="0.1"
+                            value={p.altoStr}
+                            onChange={(e) => handleUpdateDropPieza(p.id, { altoStr: e.target.value })}
+                            placeholder="ej. 10"
+                            className="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-xs text-stone-900 outline-none focus:ring-1 focus:ring-chocolate"
                           />
                         </div>
 
                         <div>
-                          <label className="font-medium text-muted block text-[11px] mb-0.5">Alto (cm)</label>
+                          <label className="text-[11px] font-semibold text-stone-700 block mb-0.5">
+                            Ancho (cm)
+                          </label>
                           <input
                             type="number"
-                            step="0.5"
-                            value={pieza.altoCm ?? ""}
-                            onChange={(e) =>
-                              setDropPiezas((prev) =>
-                                prev.map((p, i) =>
-                                  i === pIdx ? { ...p, altoCm: parseFloat(e.target.value) || null } : p,
-                                ),
-                              )
-                            }
-                            placeholder="12"
-                            className="w-full rounded-xl border border-border bg-surface px-2.5 py-1.5 text-xs text-foreground font-mono"
+                            step="0.1"
+                            value={p.anchoStr}
+                            onChange={(e) => handleUpdateDropPieza(p.id, { anchoStr: e.target.value })}
+                            placeholder="ej. 8.5"
+                            className="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-xs text-stone-900 outline-none focus:ring-1 focus:ring-chocolate"
                           />
                         </div>
 
                         <div>
-                          <label className="font-medium text-muted block text-[11px] mb-0.5">Ancho (cm)</label>
+                          <label className="text-[11px] font-semibold text-stone-700 block mb-0.5">
+                            Capacidad (ml)
+                          </label>
                           <input
                             type="number"
-                            step="0.5"
-                            value={pieza.anchoCm ?? ""}
-                            onChange={(e) =>
-                              setDropPiezas((prev) =>
-                                prev.map((p, i) =>
-                                  i === pIdx ? { ...p, anchoCm: parseFloat(e.target.value) || null } : p,
-                                ),
-                              )
-                            }
-                            placeholder="8"
-                            className="w-full rounded-xl border border-border bg-surface px-2.5 py-1.5 text-xs text-foreground font-mono"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="font-medium text-muted block text-[11px] mb-0.5">Cap. (ml)</label>
-                          <input
-                            type="number"
-                            step="10"
-                            value={pieza.capacidadMl ?? ""}
-                            onChange={(e) =>
-                              setDropPiezas((prev) =>
-                                prev.map((p, i) =>
-                                  i === pIdx ? { ...p, capacidadMl: parseFloat(e.target.value) || null } : p,
-                                ),
-                              )
-                            }
-                            placeholder="350"
-                            className="w-full rounded-xl border border-border bg-surface px-2.5 py-1.5 text-xs text-foreground font-mono"
+                            value={p.capacidadStr}
+                            onChange={(e) => handleUpdateDropPieza(p.id, { capacidadStr: e.target.value })}
+                            placeholder="ej. 300"
+                            className="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-xs text-stone-900 outline-none focus:ring-1 focus:ring-chocolate"
                           />
                         </div>
                       </div>
 
                       {/* Fotos de la pieza */}
-                      <FileImageUpload
-                        value={pieza.fotos}
-                        onChange={(newFotos) =>
-                          setDropPiezas((prev) =>
-                            prev.map((p, i) => (i === pIdx ? { ...p, fotos: newFotos } : p)),
-                          )
-                        }
-                        multiple
-                        folder="drops"
-                        label="Fotos"
-                      />
+                      <div>
+                        <label className="text-[11px] font-semibold text-stone-700 block mb-1">
+                          Fotos de esta pieza
+                        </label>
+                        <FileImageUpload
+                          value={p.fotos}
+                          onChange={(urls: string[]) => handleUpdateDropPieza(p.id, { fotos: urls })}
+                          multiple
+                          folder={rubro}
+                        />
+                      </div>
+
+                      {/* Descripción artesanal */}
+                      <div>
+                        <label className="text-[11px] font-semibold text-stone-700 block mb-0.5">
+                          Descripción opcional
+                        </label>
+                        <textarea
+                          value={p.descripcion}
+                          onChange={(e) => handleUpdateDropPieza(p.id, { descripcion: e.target.value })}
+                          placeholder="Detalles sobre el esmaltado, técnica..."
+                          rows={2}
+                          className="w-full rounded-xl border border-stone-300 bg-white p-2.5 text-xs text-stone-900 focus:outline-none focus:ring-1 focus:ring-chocolate"
+                        />
+                      </div>
                     </div>
                   ))}
                 </div>
+
+                {/* Botón para agregar otra pieza al final del listado */}
+                <div className="pt-2 flex justify-center">
+                  <Button
+                    type="button"
+                    onClick={handleAddDropPieza}
+                    className="w-full bg-[#FAF7F2] hover:bg-[#F3EFEA] border-2 border-dashed border-chocolate/40 text-chocolate hover:border-chocolate rounded-2xl py-3 px-6 text-xs font-bold shadow-2xs gap-2 cursor-pointer transition-all hover:scale-[1.005]"
+                  >
+                    <span>➕</span>
+                    <span>+ Agregar otra pieza a esta colección</span>
+                  </Button>
+                </div>
               </div>
 
-              <div className="pt-4 border-t border-border/60 flex gap-2">
-                <button
-                  type="button"
-                  disabled={isPending}
-                  onClick={handleGuardarDropCompleto}
-                  className="flex-1 rounded-full bg-terracota text-white py-3 font-semibold text-xs hover:bg-terracota/90 cursor-pointer shadow-xs"
-                >
-                  {isPending ? "Publicando..." : "Publicar Colección"}
-                </button>
-                <button
-                  type="button"
+              {/* Botón Guardar en Borrador */}
+              <div className="flex justify-end gap-2 pt-3 border-t border-border/50">
+                <Button
+                  variant="outline"
                   onClick={() => setModalLanzarDrop(false)}
-                  className="rounded-full border border-border bg-surface px-5 py-3 font-medium text-muted cursor-pointer"
+                  className="rounded-xl text-xs min-h-9 py-1 px-3"
                 >
                   Cancelar
-                </button>
+                </Button>
+                <Button
+                  disabled={isPending}
+                  onClick={handleGuardarDropEnBorrador}
+                  className="bg-chocolate text-crema-cruda hover:bg-chocolate/90 rounded-xl text-xs font-bold min-h-9 py-1 px-4 shadow-xs"
+                >
+                  {isPending ? "Guardando..." : "💾 Guardar Colección en Borrador"}
+                </Button>
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* ═══════════════════════════════════════════════════════════════════════
-          MODAL 5: CREAR/EDITAR PORTFOLIO MANUAL
-      ═══════════════════════════════════════════════════════════════════════ */}
-      {modalPortfolio && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
-          <div className="w-full max-w-lg rounded-3xl border border-border/80 bg-surface shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150">
-            {/* Header Fijo */}
-            <div className="flex items-center justify-between border-b border-border/60 px-6 py-4 bg-surface">
-              <h3 className="text-base font-serif font-semibold text-chocolate">
-                {modalPortfolio.id ? "Editar Colección del Portfolio" : "Nueva Colección"}
+      {/* ─── MODAL CONFIRMACIÓN: LANZAR COLECCIÓN GUARDADA ─── */}
+      {confirmLaunchColeccion && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-3xl border border-emerald-300 bg-white p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150">
+            <h3 className="text-lg font-serif font-bold text-emerald-950 flex items-center gap-2">
+              <span>🚀</span>
+              <span>Lanzar Colección a la Tienda</span>
+            </h3>
+            <p className="text-xs text-stone-700 leading-relaxed">
+              ¿Confirmás publicar la colección <strong>&ldquo;{confirmLaunchColeccion.nombre}&rdquo;</strong> con sus <strong>{confirmLaunchColeccion.cant} piezas</strong>?
+            </p>
+            <p className="text-[11px] text-stone-500 italic">
+              Todas las piezas pasarán a estar visibles y disponibles para compra inmediata en la tienda pública.
+            </p>
+
+            <div className="flex justify-end gap-2 pt-3 border-t border-border/40">
+              <Button
+                variant="outline"
+                onClick={() => setConfirmLaunchColeccion(null)}
+                className="rounded-xl text-xs min-h-9 py-1 px-3"
+              >
+                Cancelar
+              </Button>
+              <Button
+                disabled={isPending}
+                onClick={() => handleLanzarColeccionGuardada(confirmLaunchColeccion.id, confirmLaunchColeccion.nombre)}
+                className="bg-emerald-700 text-white hover:bg-emerald-800 rounded-xl text-xs font-bold min-h-9 py-1 px-4 shadow-xs"
+              >
+                {isPending ? "Publicando..." : "Confirmar y Publicar en Tienda"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── MODAL CONFIRMACIÓN: LANZAR TODAS LAS COLECCIONES Y BORRADORES ─── */}
+      {confirmLaunchAll && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-3xl border border-emerald-300 bg-white p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150">
+            <h3 className="text-lg font-serif font-bold text-emerald-950 flex items-center gap-2">
+              <span>🚀</span>
+              <span>Lanzar Todas las Colecciones y Piezas</span>
+            </h3>
+            <p className="text-xs text-stone-700 leading-relaxed">
+              ¿Confirmás publicar <strong>TODAS las colecciones y piezas en borrador ({counts.borradores} piezas)</strong> de {isCeramica ? "cerámica" : "ilustración"} a la tienda pública?
+            </p>
+            <p className="text-[11px] text-stone-500 italic">
+              Pasarán a estar disponibles para compra inmediata en la web.
+            </p>
+
+            <div className="flex justify-end gap-2 pt-3 border-t border-border/40">
+              <Button
+                variant="outline"
+                onClick={() => setConfirmLaunchAll(false)}
+                className="rounded-xl text-xs min-h-9 py-1 px-3"
+              >
+                Cancelar
+              </Button>
+              <Button
+                disabled={isPending}
+                onClick={handleLanzarTodasLasColecciones}
+                className="bg-emerald-700 text-white hover:bg-emerald-800 rounded-xl text-xs font-bold min-h-9 py-1 px-4 shadow-xs"
+              >
+                {isPending ? "Publicando..." : `✓ Publicar Todo (${counts.borradores} piezas)`}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── MODAL FORMATO CATÁLOGO (CON FOTOS Y MEDIDAS) ─── */}
+      {modalFormato && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-3xl border border-border bg-white p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-start justify-between border-b border-border/50 pb-3">
+              <h3 className="text-base font-serif font-bold text-chocolate">
+                {modalFormato.id ? "Editar Pieza del Catálogo" : "Nueva Pieza para el Catálogo"}
               </h3>
               <button
-                type="button"
-                onClick={() => setModalPortfolio(null)}
-                className="h-8 w-8 rounded-full bg-arena/50 text-muted hover:text-foreground cursor-pointer flex items-center justify-center"
+                onClick={() => setModalFormato(null)}
+                className="text-stone-400 hover:text-stone-900 text-base font-bold cursor-pointer"
               >
                 ✕
               </button>
             </div>
 
-            <form onSubmit={handleGuardarPortfolioModal} className="p-6 max-h-[75vh] overflow-y-auto space-y-4 text-xs">
-              {modalPortfolio.id && <input type="hidden" name="id" value={modalPortfolio.id} />}
+            <form onSubmit={handleGuardarFormatoModal} className="space-y-3 text-xs">
+              {modalFormato.id && <input type="hidden" name="id" value={modalFormato.id} />}
+
+              {/* Subida de Foto del Modelo de Catálogo */}
+              <div>
+                <label className="font-bold text-stone-900 block mb-1">Foto del Modelo de Catálogo</label>
+                <FileImageUpload
+                  value={formatoFotoUrl ? [formatoFotoUrl] : []}
+                  onChange={(urls: string[]) => setFormatoFotoUrl(urls[0] || "")}
+                  multiple={false}
+                  folder="catalogo"
+                  label="Foto del modelo de referencia"
+                />
+              </div>
 
               <div>
-                <label className="font-semibold text-chocolate block mb-1">Nombre de la Colección *</label>
-                <input
-                  type="text"
+                <label className="font-bold text-stone-900 block mb-1">Nombre del Modelo / Pieza *</label>
+                <Input
                   name="nombre"
+                  defaultValue={modalFormato.nombre || ""}
+                  placeholder="ej. Taza Cónica / Cuenco Ramen"
                   required
-                  defaultValue={modalPortfolio.nombre || ""}
-                  placeholder="ej. Colección Botánica & Jardín"
-                  className="w-full rounded-xl border border-border/80 bg-surface px-3 py-2 text-foreground"
+                  className="rounded-xl text-xs"
                 />
               </div>
 
               <div>
-                <label className="font-semibold text-chocolate block mb-1">Descripción</label>
-                <input
-                  type="text"
-                  name="descripcion"
-                  defaultValue={modalPortfolio.descripcion || ""}
-                  placeholder="ej. Inspirada en la flora autóctona..."
-                  className="w-full rounded-xl border border-border/80 bg-surface px-3 py-2 text-foreground"
+                <label className="font-bold text-stone-900 block mb-1">Categoría</label>
+                <Input
+                  name="categoria"
+                  defaultValue={modalFormato.categoria || ""}
+                  placeholder="ej. Tazas, Cuencos, Mates"
+                  className="rounded-xl text-xs"
                 />
               </div>
 
-              {/* Subida Múltiple de Fotos del Álbum */}
-              <FileImageUpload
-                value={portfolioFotos}
-                onChange={setPortfolioFotos}
-                multiple
-                folder="portfolio"
-                label="Fotos"
-              />
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="font-bold text-stone-900 block mb-1">Precio Base (ARS) *</label>
+                  <input
+                    type="number"
+                    value={formatoPrecioInput}
+                    onChange={(e) => setFormatoPrecioInput(e.target.value)}
+                    placeholder="ej. 20000"
+                    required
+                    className="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-xs font-bold text-stone-900 outline-none focus:ring-1 focus:ring-chocolate"
+                  />
+                </div>
+                <div>
+                  <label className="font-semibold text-stone-700 block mb-1">Medidas Sugeridas</label>
+                  <Input
+                    name="medidas"
+                    defaultValue={modalFormato.medidas || ""}
+                    placeholder="ej. 10x8 cm (350 ml)"
+                    className="rounded-xl text-xs"
+                  />
+                </div>
+              </div>
 
-              <div className="pt-2 flex gap-2">
-                <button
-                  type="submit"
-                  disabled={isPending}
-                  className="flex-1 rounded-full bg-chocolate text-crema-cruda py-2.5 font-semibold hover:bg-chocolate/90 cursor-pointer"
-                >
-                  {isPending ? "Guardando..." : "Guardar Colección"}
-                </button>
-                <button
+              <div className="flex justify-end gap-2 pt-3 border-t border-border/50">
+                <Button
                   type="button"
-                  onClick={() => setModalPortfolio(null)}
-                  className="rounded-full border border-border bg-surface px-4 py-2.5 font-medium text-muted cursor-pointer"
+                  variant="outline"
+                  onClick={() => setModalFormato(null)}
+                  className="rounded-xl text-xs min-h-9 py-1 px-3"
                 >
                   Cancelar
-                </button>
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={isPending}
+                  className="bg-chocolate text-crema-cruda hover:bg-chocolate/90 rounded-xl text-xs font-bold min-h-9 py-1 px-4 shadow-xs"
+                >
+                  Guardar en Catálogo
+                </Button>
               </div>
             </form>
           </div>
         </div>
       )}
 
-      {/* ─── Preview Zoom Lightbox ─── */}
-      {previewImage && (
-        <div
-          onClick={() => setPreviewImage(null)}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-xs p-4 cursor-zoom-out animate-in fade-in duration-150"
-        >
-          <div className="relative max-w-lg w-full rounded-3xl overflow-hidden bg-surface p-2 shadow-2xl">
-            <img src={previewImage} alt="" className="h-full w-full object-contain rounded-2xl max-h-[80vh]" />
+      {/* ─── MODAL PORTFOLIO (SIN PIEZAS INCLUIDAS) ─── */}
+      {modalPortfolio && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-3xl border border-border bg-white p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-start justify-between border-b border-border/50 pb-3">
+              <h3 className="text-base font-serif font-bold text-chocolate">
+                {modalPortfolio.id ? "Editar Colección de Portfolio" : "Nueva Colección para Portfolio"}
+              </h3>
+              <button
+                onClick={() => setModalPortfolio(null)}
+                className="text-stone-400 hover:text-stone-900 text-base font-bold cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleGuardarPortfolio} className="space-y-3 text-xs">
+              <div>
+                <label className="font-bold text-stone-900 block mb-1">Nombre de la Colección *</label>
+                <Input
+                  name="nombre"
+                  defaultValue={modalPortfolio.nombre || ""}
+                  placeholder="ej. Colección Luna Llena"
+                  required
+                  className="rounded-xl text-xs"
+                />
+              </div>
+
+              <div>
+                <label className="font-bold text-stone-900 block mb-1">Descripción</label>
+                <textarea
+                  name="descripcion"
+                  defaultValue={modalPortfolio.descripcion || ""}
+                  placeholder="Concepto de la colección..."
+                  rows={3}
+                  className="w-full rounded-xl border border-stone-300 p-2.5 text-xs text-stone-900 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="font-bold text-stone-900 block mb-1">Fotos</label>
+                <FileImageUpload
+                  value={portfolioFotos}
+                  onChange={(urls: string[]) => setPortfolioFotos(urls)}
+                  multiple
+                  folder="portfolio"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-border/50">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setModalPortfolio(null)}
+                  className="rounded-xl text-xs min-h-9 py-1 px-3"
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={isPending}
+                  className="bg-chocolate text-crema-cruda hover:bg-chocolate/90 rounded-xl text-xs font-bold min-h-9 py-1 px-4 shadow-xs"
+                >
+                  Guardar en Portfolio
+                </Button>
+              </div>
+            </form>
           </div>
         </div>
       )}
 
+      {/* ─── LIGHTBOX PREVIEW: ALTA DEFINICIÓN & ASPECTO ORIGINAL INTACTO ─── */}
+      {previewImage && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-md transition-all animate-in fade-in duration-200"
+          onClick={() => setPreviewImage(null)}
+        >
+          <div
+            className="relative max-w-4xl max-h-[90vh] flex flex-col items-center justify-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setPreviewImage(null)}
+              className="absolute -top-3 -right-3 z-10 bg-stone-900/90 text-white hover:bg-black rounded-full h-9 w-9 flex items-center justify-center text-sm font-bold shadow-lg border border-white/20 transition-transform hover:scale-105 cursor-pointer"
+              title="Cerrar vista previa"
+            >
+              ✕
+            </button>
+            <div className="overflow-hidden rounded-2xl bg-stone-950/70 p-2 border border-white/10 shadow-2xl flex items-center justify-center">
+              <img
+                src={previewImage}
+                alt="Vista ampliada"
+                className="max-h-[82vh] max-w-[85vw] object-contain rounded-xl select-none"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── LIGHTBOX DE GALERÍA DE PORTFOLIO MULTI-FOTOS ─── */}
+      <ImageLightbox
+        isOpen={galleryLightbox.isOpen}
+        images={galleryLightbox.images}
+        initialIndex={galleryLightbox.initialIndex}
+        onClose={() => setGalleryLightbox((prev) => ({ ...prev, isOpen: false }))}
+      />
+    </div>
+  );
+}
+
+// ─── TARJETA DE PORTFOLIO PARA ADMIN CON NAVEGACIÓN Y CAROUSEL INTERNO ───
+function AdminPortfolioCard({
+  item,
+  onEdit,
+  onDelete,
+  onOpenLightbox,
+}: {
+  item: PortfolioColeccion;
+  onEdit: () => void;
+  onDelete: () => void;
+  onOpenLightbox: (fotos: string[], index: number, title: string) => void;
+}) {
+  const [photoIdx, setPhotoIdx] = useState(0);
+
+  const fotos =
+    Array.isArray(item.fotos) && item.fotos.length > 0
+      ? (item.fotos.filter(Boolean) as string[])
+      : ([item.portada_url].filter(Boolean) as string[]);
+
+  const total = fotos.length;
+  const currentPhoto = fotos[photoIdx] || fotos[0];
+
+  const handlePrev = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (total <= 1) return;
+    setPhotoIdx((prev) => (prev - 1 + total) % total);
+  };
+
+  const handleNext = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (total <= 1) return;
+    setPhotoIdx((prev) => (prev + 1) % total);
+  };
+
+  return (
+    <div className="rounded-3xl border border-[#E5E0D8] bg-white p-4 shadow-xs space-y-3 flex flex-col justify-between group">
+      {/* Contenedor de Foto con Flechas de Navegación */}
+      <div className="relative h-48 w-full rounded-2xl bg-stone-100 border border-[#E5E0D8] overflow-hidden flex items-center justify-center shadow-2xs select-none">
+        {currentPhoto ? (
+          <>
+            <img
+              src={currentPhoto}
+              alt={item.nombre}
+              onClick={() => onOpenLightbox(fotos, photoIdx, item.nombre)}
+              className="h-full w-full object-cover cursor-zoom-in hover:scale-102 transition-transform duration-200"
+              title="Clic para ver en pantalla completa"
+            />
+
+            {/* Badge de contador de fotos */}
+            <div className="absolute top-2 right-2 rounded-full bg-black/65 text-white backdrop-blur-md px-2 py-0.5 text-[10px] font-mono font-semibold pointer-events-none shadow-xs">
+              {photoIdx + 1} / {total}
+            </div>
+
+            {/* Flechas de navegación prev / next */}
+            {total > 1 && (
+              <>
+                <button
+                  type="button"
+                  onClick={handlePrev}
+                  className="absolute left-1.5 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded-full bg-black/60 hover:bg-black/85 text-white text-xs font-bold transition-all shadow-md active:scale-95 cursor-pointer backdrop-blur-xs"
+                  aria-label="Foto anterior"
+                >
+                  ‹
+                </button>
+                <button
+                  type="button"
+                  onClick={handleNext}
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded-full bg-black/60 hover:bg-black/85 text-white text-xs font-bold transition-all shadow-md active:scale-95 cursor-pointer backdrop-blur-xs"
+                  aria-label="Foto siguiente"
+                >
+                  ›
+                </button>
+              </>
+            )}
+          </>
+        ) : (
+          <div className="flex flex-col items-center justify-center text-stone-400 gap-1">
+            <span className="text-3xl">🖼️</span>
+            <span className="text-[11px]">Sin fotos</span>
+          </div>
+        )}
+      </div>
+
+      <div className="space-y-1">
+        <h4 className="font-bold text-stone-900 text-sm font-serif">{item.nombre}</h4>
+        {item.descripcion && (
+          <p className="text-xs text-stone-600 line-clamp-2 leading-relaxed">{item.descripcion}</p>
+        )}
+      </div>
+
+      <div className="flex items-center justify-between pt-2 border-t border-[#F0EDE8]">
+        <span className="text-[11px] text-stone-500 font-medium font-sans">
+          {total} {total === 1 ? "foto" : "fotos"}
+        </span>
+        <div className="flex items-center gap-1.5">
+          <Button
+            variant="outline"
+            onClick={onEdit}
+            className="text-[11px] rounded-xl h-7 py-0.5 px-2.5 font-semibold text-stone-800 border-stone-300"
+          >
+            ✏️ Editar
+          </Button>
+          <Button
+            variant="outline"
+            onClick={onDelete}
+            className="text-[11px] rounded-xl h-7 py-0.5 px-2 text-red-600 hover:bg-red-50 border-red-200"
+          >
+            🗑️
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }
