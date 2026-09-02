@@ -67,44 +67,7 @@
   --admin-danger: #B44A3E;
 }
 
-.dark {
-  /* ═══ Mapeo Semántico UI (Modo Oscuro Noche Taller / Galería Botánica Profunda) ═══ */
-  --crema-cruda: #0E1A16;
-  --arena: #162621;
-  --lino: #1F332C;
-  --barro-claro: #324D44;
-  --barro: #9BB8AE;
-  --chocolate: #F5EDE3;
-  --noche-taller: #09120F;
 
-  --background: #0C1714;
-  --foreground: #F5EDE3;
-  --muted: #9BB8AE;
-  --border: rgba(168, 213, 186, 0.15);
-  --surface: #14241F;
-  
-  --primary: #D48C5B;
-  --primary-foreground: #ffffff;
-  --primary-hover: #c47c4b;
-  
-  --secondary: #162621;
-  --secondary-foreground: #F5EDE3;
-  --secondary-hover: #1F332C;
-  
-  --accent: #E8A4A0;
-  --ring: #A8D5BA;
-
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
-  --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.5);
-  --shadow-piece: 0 16px 40px rgba(0, 0, 0, 0.6);
-
-  /* Admin sidebar Dark Mode */
-  --admin-sidebar: #08100D;
-  --admin-sidebar-hover: #192C27;
-  --admin-sidebar-text: #9BB8AE;
-  --admin-sidebar-active: #F5EDE3;
-}
 
 
 @theme inline {

@@ -326,7 +326,7 @@ export function PedidosManager({ initialPedidos, configSitio }: PedidosManagerPr
         <div>
           <div className="flex items-center gap-2">
             <span className="text-2xl">📦</span>
-            <h1 className="text-2xl font-serif font-bold text-chocolate">Gestión de Stock de la Tienda</h1>
+            <h1 className="text-2xl font-serif font-bold text-chocolate">Gestión de Ventas de la Tienda</h1>
           </div>
         </div>
       </div>

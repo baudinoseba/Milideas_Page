@@ -16,6 +16,7 @@ export const CART_RESERVATION_MS = CART_RESERVATION_MINUTES * 60 * 1000;
 interface CartState {
   items: LineaCarrito[];
   expiresAt: number | null;
+  extensionCount: number;
   hydrated: boolean;
   isOpen: boolean;
   lastAddedItem: {
@@ -39,6 +40,7 @@ interface CartState {
   togglePersonalizacion: (productoId: string) => void;
   clearCart: () => void;
   checkExpiration: () => boolean;
+  extendReservation: (minutes?: number) => boolean;
   getSubtotal: () => number;
   getTotalPiezas: () => number;
   getPricing: (metodoPago: MetodoPago, costoEnvio: number) => ReturnType<typeof calcularPricing>;
@@ -55,6 +57,7 @@ export const useCartStore = create<CartState>()(
     (set, get) => ({
       items: [],
       expiresAt: null,
+      extensionCount: 0,
       hydrated: false,
       isOpen: false,
       lastAddedItem: null,
@@ -146,15 +149,31 @@ export const useCartStore = create<CartState>()(
           ),
         })),
 
-      clearCart: () => set({ items: [], expiresAt: null }),
+      clearCart: () => set({ items: [], expiresAt: null, extensionCount: 0 }),
 
       checkExpiration: () => {
         const { expiresAt, items } = get();
         if (items.length > 0 && expiresAt && Date.now() > expiresAt) {
-          set({ items: [], expiresAt: null });
+          set({ items: [], expiresAt: null, extensionCount: 0 });
           return true; // Expired
         }
         return false;
+      },
+
+      extendReservation: (minutes?: number) => {
+        const { extensionCount, items, expiresAt } = get();
+        if (items.length === 0 || extensionCount >= 2) {
+          return false;
+        }
+        // Primera extensión: 10 min por defecto; Segunda: 5 min
+        const addMinutes = minutes ?? (extensionCount === 0 ? 10 : 5);
+        const baseTime = expiresAt && expiresAt > Date.now() ? expiresAt : Date.now();
+        const newExpiresAt = baseTime + addMinutes * 60 * 1000;
+        set({
+          expiresAt: newExpiresAt,
+          extensionCount: extensionCount + 1,
+        });
+        return true;
       },
 
       getSubtotal: () => calcularSubtotal(get().items),
@@ -176,7 +195,11 @@ export const useCartStore = create<CartState>()(
     }),
     {
       name: "milideas-cart",
-      partialize: (state) => ({ items: state.items, expiresAt: state.expiresAt }),
+      partialize: (state) => ({
+        items: state.items,
+        expiresAt: state.expiresAt,
+        extensionCount: state.extensionCount,
+      }),
       onRehydrateStorage: () => (state) => {
         state?.setHydrated();
         // Check expiration on rehydration

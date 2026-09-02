@@ -30,29 +30,35 @@ export function ImageLightbox({
   const [scale, setScale] = useState(1);
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
+
+  // Referencias para distinguir con precisión arrastre (drag/pan) vs clic/tap
   const dragStartRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const pointerDownPosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const hasDraggedRef = useRef<boolean>(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  // Normalize images array
+  // Normalizar array de imágenes
   const normalizedImages: LightboxImage[] = images.map((img) =>
     typeof img === "string" ? { url: img } : img
   );
 
   const currentImage = normalizedImages[currentIndex] || normalizedImages[0];
 
-  // Sync initialIndex when opened
+  // Sincronizar initialIndex al abrir
   useEffect(() => {
     if (isOpen) {
       setCurrentIndex(initialIndex);
       setScale(1);
       setPosition({ x: 0, y: 0 });
+      hasDraggedRef.current = false;
+      setIsDragging(false);
     }
   }, [isOpen, initialIndex]);
 
-  // Lock body scroll when open to prevent background scrolling
+  // Bloquear scroll de la página de fondo
   useEffect(() => {
     if (!isOpen) return;
 
@@ -64,7 +70,7 @@ export function ImageLightbox({
     };
   }, [isOpen]);
 
-  // Reset zoom and pan when slide changes
+  // Cambiar de diapositiva
   const changeSlide = useCallback(
     (newIndex: number) => {
       if (newIndex < 0) {
@@ -76,13 +82,45 @@ export function ImageLightbox({
       }
       setScale(1);
       setPosition({ x: 0, y: 0 });
+      hasDraggedRef.current = false;
+      setIsDragging(false);
     },
     [normalizedImages.length]
   );
 
-  // Click to zoom toggle (1x -> 2x -> 3x -> 1x)
+  // Funciones directas de zoom
+  const zoomIn = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setScale((prev) => Math.min(Number((prev + 0.5).toFixed(1)), 3.5));
+  };
+
+  const zoomOut = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setScale((prev) => {
+      const next = Math.max(Number((prev - 0.5).toFixed(1)), 1);
+      if (next === 1) setPosition({ x: 0, y: 0 });
+      return next;
+    });
+  };
+
+  const resetZoom = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setScale(1);
+    setPosition({ x: 0, y: 0 });
+    hasDraggedRef.current = false;
+    setIsDragging(false);
+  };
+
+  // Clic/Tap para alternar zoom (solo si NO se arrastró)
   const handleImageClick = (e: React.MouseEvent) => {
     e.stopPropagation();
+
+    // Si hubo arrastre, ignoramos el clic para evitar que aumente o resetee el zoom por error
+    if (hasDraggedRef.current) {
+      hasDraggedRef.current = false;
+      return;
+    }
+
     if (scale === 1) {
       setScale(2);
     } else if (scale === 2) {
@@ -93,7 +131,7 @@ export function ImageLightbox({
     }
   };
 
-  // Keyboard navigation & Esc to close
+  // Navegación con teclado
   useEffect(() => {
     if (!isOpen) return;
 
@@ -104,6 +142,12 @@ export function ImageLightbox({
         changeSlide(currentIndex + 1);
       } else if (e.key === "ArrowLeft") {
         changeSlide(currentIndex - 1);
+      } else if (e.key === "+" || e.key === "=") {
+        zoomIn();
+      } else if (e.key === "-") {
+        zoomOut();
+      } else if (e.key === "0") {
+        resetZoom();
       }
     };
 
@@ -113,7 +157,7 @@ export function ImageLightbox({
     };
   }, [isOpen, currentIndex, changeSlide, onClose]);
 
-  // Mouse wheel zoom inside modal
+  // Zoom con rueda del ratón
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -128,23 +172,42 @@ export function ImageLightbox({
     }
   };
 
-  // Dragging logic when zoomed in
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (scale <= 1) return;
+  // Inicio de arrastre (compatible mouse y táctil con PointerEvents)
+  const handlePointerDown = (e: React.PointerEvent) => {
+    if (e.button !== 0) return; // Solo clic izquierdo principal
     setIsDragging(true);
+    hasDraggedRef.current = false;
+    pointerDownPosRef.current = { x: e.clientX, y: e.clientY };
     dragStartRef.current = { x: e.clientX - position.x, y: e.clientY - position.y };
   };
 
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDragging || scale <= 1) return;
-    setPosition({
-      x: e.clientX - dragStartRef.current.x,
-      y: e.clientY - dragStartRef.current.y,
-    });
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (!isDragging) return;
+
+    const distance = Math.hypot(
+      e.clientX - pointerDownPosRef.current.x,
+      e.clientY - pointerDownPosRef.current.y
+    );
+
+    // Si se desplazó más de 5px, se considera arrastre activo
+    if (distance > 5) {
+      hasDraggedRef.current = true;
+    }
+
+    if (scale > 1) {
+      setPosition({
+        x: e.clientX - dragStartRef.current.x,
+        y: e.clientY - dragStartRef.current.y,
+      });
+    }
   };
 
-  const handleMouseUp = () => {
+  const handlePointerUp = () => {
     setIsDragging(false);
+    // Dejamos un micro-timeout para que el evento click no se active inmediatamente si hubo drag
+    setTimeout(() => {
+      // hasDraggedRef se mantendrá para el onClick inmediato
+    }, 50);
   };
 
   if (!isOpen || !currentImage || !mounted) return null;
@@ -152,35 +215,76 @@ export function ImageLightbox({
   return createPortal(
     <div
       onClick={onClose}
-      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-in fade-in duration-200 select-none cursor-zoom-out"
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/85 backdrop-blur-md p-3 sm:p-4 animate-in fade-in duration-200 select-none cursor-zoom-out"
     >
       {/* ─── Pop-up Card Centrado Elegante ─── */}
       <div
         onClick={(e) => e.stopPropagation()}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        className="relative max-w-lg sm:max-w-xl w-full rounded-3xl bg-surface p-4 sm:p-5 shadow-2xl space-y-3 cursor-default animate-in zoom-in-95 duration-200 border border-border/60"
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+        className="relative max-w-lg sm:max-w-2xl w-full rounded-3xl bg-surface p-4 sm:p-5 shadow-2xl space-y-3 cursor-default animate-in zoom-in-95 duration-200 border border-border/60"
       >
-        {/* Botón Cerrar (Cruz Arriba a la Derecha) */}
-        <button
-          type="button"
-          onClick={onClose}
-          title="Cerrar (Esc)"
-          className="absolute top-3 right-3 flex h-8 w-8 items-center justify-center rounded-full bg-black/60 hover:bg-black text-white transition-all active:scale-95 cursor-pointer z-20 shadow-md font-bold"
-        >
-          ✕
-        </button>
+        {/* Barra Superior con Controles de Zoom y Cerrar */}
+        <div className="flex items-center justify-between pb-1 border-b border-border/40">
+          {/* Controles de Zoom Accesibles */}
+          <div className="flex items-center gap-1.5 bg-arena/40 rounded-full px-2.5 py-1 border border-border/60">
+            <button
+              type="button"
+              onClick={zoomOut}
+              disabled={scale <= 1}
+              title="Alejar (-)"
+              className="flex h-6 w-6 items-center justify-center rounded-full bg-surface hover:bg-stone-200 text-chocolate font-bold text-xs disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            >
+              −
+            </button>
+            <span className="text-[11px] font-mono font-semibold text-chocolate min-w-[42px] text-center">
+              {Math.round(scale * 100)}%
+            </span>
+            <button
+              type="button"
+              onClick={zoomIn}
+              disabled={scale >= 3.5}
+              title="Acercar (+)"
+              className="flex h-6 w-6 items-center justify-center rounded-full bg-surface hover:bg-stone-200 text-chocolate font-bold text-xs disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            >
+              +
+            </button>
+            {scale > 1 && (
+              <button
+                type="button"
+                onClick={resetZoom}
+                title="Restablecer (0)"
+                className="ml-1 text-[10px] font-semibold text-terracota hover:underline cursor-pointer px-1"
+              >
+                ⟲ Restablecer
+              </button>
+            )}
+          </div>
+
+          {/* Botón Cerrar */}
+          <button
+            type="button"
+            onClick={onClose}
+            title="Cerrar (Esc)"
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-black/60 hover:bg-black text-white transition-all active:scale-95 cursor-pointer shadow-md font-bold text-xs"
+          >
+            ✕
+          </button>
+        </div>
 
         {/* Contenedor de Imagen con Zoom y Pan */}
         <div
           onWheel={handleWheel}
-          className="relative aspect-square sm:aspect-[4/3] rounded-2xl overflow-hidden bg-arena/30 flex items-center justify-center"
-          style={{ cursor: scale > 1 ? (isDragging ? "grabbing" : "grab") : "zoom-in" }}
+          className="relative aspect-square sm:aspect-[4/3] rounded-2xl overflow-hidden bg-arena/30 flex items-center justify-center touch-none"
+          style={{
+            cursor: scale > 1 ? (isDragging ? "grabbing" : "grab") : "zoom-in",
+          }}
         >
           <div
             onClick={handleImageClick}
-            onMouseDown={handleMouseDown}
-            className="relative flex items-center justify-center transition-transform duration-75 ease-out h-full w-full"
+            onPointerDown={handlePointerDown}
+            className="relative flex items-center justify-center transition-transform duration-75 ease-out h-full w-full select-none"
             style={{
               transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
             }}
@@ -189,14 +293,14 @@ export function ImageLightbox({
               src={currentImage.url}
               alt={currentImage.alt || currentImage.title || "Imagen ampliada"}
               draggable={false}
-              className="h-full w-full object-contain rounded-2xl"
+              className="h-full w-full object-contain rounded-2xl pointer-events-none"
             />
           </div>
 
           {/* Badge indicador de zoom cuando está ampliada */}
           {scale > 1 && (
             <span className="absolute bottom-2.5 left-2.5 rounded-full bg-black/75 text-white px-2.5 py-0.5 text-[11px] font-medium backdrop-blur-xs pointer-events-none z-10">
-              🔍 Zoom: {Math.round(scale * 100)}% (clic para restablecer)
+              🔍 Arrastrá libremente para recorrer la pieza
             </span>
           )}
 
@@ -256,7 +360,7 @@ export function ImageLightbox({
                 type="button"
                 onClick={() => changeSlide(idx)}
                 className={cn(
-                  "relative h-10 w-10 shrink-0 rounded-lg overflow-hidden border-2 transition-all cursor-pointer",
+                  "relative h-10 w-10 shrink-0 rounded-lg overflow-hidden border-2 transition-all cursor-pointer bg-arena/30 flex items-center justify-center p-0.5",
                   currentIndex === idx
                     ? "border-terracota scale-105 shadow-sm"
                     : "border-transparent opacity-50 hover:opacity-100"
@@ -265,7 +369,7 @@ export function ImageLightbox({
                 <img
                   src={img.url}
                   alt=""
-                  className="h-full w-full object-cover"
+                  className="h-full w-full object-contain"
                 />
               </button>
             ))}

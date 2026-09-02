@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ProductCard } from "@/components/product/product-card";
 import { formatPrecio } from "@/lib/pricing";
 import { cn } from "@/lib/utils/cn";
@@ -27,6 +27,33 @@ export function CatalogoView({
   const [activeTab, setActiveTab] = useState<"stock" | "catalogo" | "portfolio">(tabInicial);
   const [selectedCategoria, setSelectedCategoria] = useState<string>("todas");
   const [searchQuery, setSearchQuery] = useState<string>("");
+
+  useEffect(() => {
+    setActiveTab(tabInicial);
+  }, [tabInicial]);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      const path = window.location.pathname;
+      if (path.includes("/catalogo")) {
+        setActiveTab("catalogo");
+      } else if (path.includes("/portfolio")) {
+        setActiveTab("portfolio");
+      } else if (path.includes("/stock")) {
+        setActiveTab("stock");
+      }
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
+  const handleTabChange = (newTab: "stock" | "catalogo" | "portfolio") => {
+    setActiveTab(newTab);
+    const newPath = `/${rubro}/${newTab}`;
+    if (typeof window !== "undefined" && window.location.pathname !== newPath) {
+      window.history.pushState(null, "", newPath);
+    }
+  };
   
   // Estado para modal de encargo con memoria inteligente
   const [encargoModalFormato, setEncargoModalFormato] = useState<FormatoCatalogo | null>(null);
@@ -150,7 +177,7 @@ export function CatalogoView({
           {/* 1. STOCK DISPONIBLE (Primero por defecto) */}
           <button
             type="button"
-            onClick={() => setActiveTab("stock")}
+            onClick={() => handleTabChange("stock")}
             className={cn(
               "flex items-center gap-2 rounded-full px-4 py-2 text-xs sm:text-sm font-semibold font-sans transition-all cursor-pointer shadow-xs shrink-0",
               activeTab === "stock"
@@ -167,7 +194,7 @@ export function CatalogoView({
           {/* 2. CATÁLOGO (Nombre directo) */}
           <button
             type="button"
-            onClick={() => setActiveTab("catalogo")}
+            onClick={() => handleTabChange("catalogo")}
             className={cn(
               "flex items-center gap-2 rounded-full px-4 py-2 text-xs sm:text-sm font-semibold font-sans transition-all cursor-pointer shadow-xs shrink-0",
               activeTab === "catalogo"
@@ -184,7 +211,7 @@ export function CatalogoView({
           {/* 3. PORTFOLIO */}
           <button
             type="button"
-            onClick={() => setActiveTab("portfolio")}
+            onClick={() => handleTabChange("portfolio")}
             className={cn(
               "flex items-center gap-2 rounded-full px-4 py-2 text-xs sm:text-sm font-semibold font-sans transition-all cursor-pointer shadow-xs shrink-0",
               activeTab === "portfolio"
@@ -212,12 +239,12 @@ export function CatalogoView({
                 ✨ Piezas listas para entrega inmediata
               </p>
               <p className="text-xs text-muted font-sans mt-0.5">
-                Piezas únicas y pequeñas ediciones listas para despacho en 24-48 hs.
+                Piezas únicas y pequeñas ediciones listas para retirar en el momento o despachar en la semana.
               </p>
             </div>
             <button
               type="button"
-              onClick={() => setActiveTab("catalogo")}
+              onClick={() => handleTabChange("catalogo")}
               className="text-xs font-semibold text-terracota hover:underline cursor-pointer self-start sm:self-auto shrink-0"
             >
               ¿Buscás hacer un encargo a medida? Ver Catálogo →
@@ -226,19 +253,20 @@ export function CatalogoView({
 
           {productosStock.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-center rounded-3xl border border-border/60 bg-arena/25 p-8 space-y-3">
-              <span className="text-4xl">🏺</span>
+              <span className="text-4xl">{rubro === "ceramica" ? "🏺" : "🎨"}</span>
               <h3 className="text-lg font-medium font-serif text-chocolate">
                 No hay piezas en stock de entrega inmediata actualmente
               </h3>
               <p className="max-w-md text-xs sm:text-sm text-barro font-sans leading-relaxed">
-                Todas las piezas del último lanzamiento fueron adquiridas. Podés encargar cualquier formato desde el **Catálogo** y coordinar el diseño que más te guste.
+                Todas las piezas del último lanzamiento fueron adquiridas. Podés encargar cualquier formato desde el{" "}
+                <strong className="font-bold text-chocolate">Catálogo</strong> y coordinar el diseño que más te guste.
               </p>
               <button
                 type="button"
-                onClick={() => setActiveTab("catalogo")}
+                onClick={() => handleTabChange("catalogo")}
                 className="mt-2 rounded-full bg-terracota text-white px-5 py-2 text-xs font-semibold hover:bg-terracota/90 transition-all cursor-pointer shadow-xs"
               >
-                Ver Catálogo de Formatos →
+                {rubro === "ceramica" ? "Ver Catálogo de Formatos →" : "Ver Catálogo de Ilustraciones →"}
               </button>
             </div>
           ) : (
@@ -360,7 +388,7 @@ export function CatalogoView({
                       <img
                         src={formato.foto_url}
                         alt={formato.nombre}
-                        className="h-full w-full object-cover rounded-2xl group-hover/img:scale-105 transition-transform"
+                        className="h-full w-full object-contain p-1 rounded-2xl group-hover/img:scale-105 transition-transform"
                       />
                     ) : (
                       <span className="text-2xl sm:text-3xl">{rubro === "ceramica" ? "🏺" : "🎨"}</span>

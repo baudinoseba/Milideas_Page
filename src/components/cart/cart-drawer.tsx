@@ -68,6 +68,29 @@ export function CartDrawer() {
   const [metodoEntrega, setMetodoEntrega] = useState<"taller" | "domicilio" | "agencia">("taller");
   const [ciudad, setCiudad] = useState("");
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) {
+        supabase
+          .from("perfiles")
+          .select("*")
+          .eq("id", user.id)
+          .single()
+          .then(({ data: profileData }) => {
+            if (profileData) {
+              setNombreContacto((prev) => prev || profileData.nombre_completo || "");
+              setWhatsappContacto((prev) => prev || profileData.whatsapp || "");
+              setEmailContacto((prev) => prev || user.email || profileData.email || "");
+              if (profileData.direccion_ciudad) setCiudad((prev) => prev || profileData.direccion_ciudad);
+              if (profileData.direccion_calle) setMetodoEntrega("domicilio");
+            }
+          });
+      }
+    });
+  }, [isOpen]);
+
   const [crossSellItems, setCrossSellItems] = useState<CrossSellProduct[]>([]);
   const subtotalStock = calcularSubtotal(items);
   const totalEncargosPrice = getEncargosTotalPrice();
@@ -150,17 +173,30 @@ export function CartDrawer() {
         })
         .join("\n\n");
 
-      let entregaText = "*Entrega:* Retiro en Taller (Sunchales)";
+      let entregaText = "*Entrega:* Retiro en Taller (Sunchales - Sin Cargo)";
       if (metodoEntrega === "domicilio") {
         entregaText = `*Entrega:* Envío a Domicilio Vía Cargo (${ciudad})`;
       } else if (metodoEntrega === "agencia") {
         entregaText = `*Entrega:* Retiro en Sucursal Vía Cargo (${ciudad})`;
       }
 
-      const text = `*MILIDEAS ARTE - SOLICITUD DE ENCARGOS MÚLTIPLES*
+      const isSingle = totalEncargosCount === 1;
+      const title = isSingle
+        ? "*MILIDEAS ARTE - SOLICITUD DE ENCARGO*"
+        : "*MILIDEAS ARTE - SOLICITUD DE ENCARGOS*";
+
+      const sectionTitle = isSingle
+        ? "*PIEZA ENCARGADA (1 ítem):*"
+        : `*PIEZAS ENCARGADAS (${totalEncargosCount} ítems):*`;
+
+      const closingText = isSingle
+        ? "¡Hola Mili! Quisiera solicitar este encargo especial. Quedo a la espera de la confirmación y tiempo estimado de producción."
+        : "¡Hola Mili! Quisiera solicitar estos encargos especiales. Quedo a la espera de la confirmación y tiempo estimado de producción.";
+
+      const text = `${title}
 
 --------------------------------
-*PIEZAS ENCARGADAS (${totalEncargosCount} ítems):*
+${sectionTitle}
 
 ${itemsFormattedText}
 
@@ -174,7 +210,7 @@ ${itemsFormattedText}
 ${emailContacto ? `*Email:* ${emailContacto}\n` : ""}${entregaText}
 
 --------------------------------
-¡Hola Mili! Quisiera solicitar estos encargos especiales. Quedo a la espera de la confirmación y tiempo estimado de producción.`;
+${closingText}`;
 
       const vendorWhatsapp = process.env.NEXT_PUBLIC_VENDOR_WHATSAPP || "5493493668308";
       const waUrl = `https://wa.me/${vendorWhatsapp}?text=${encodeURIComponent(text)}`;
@@ -450,7 +486,7 @@ ${emailContacto ? `*Email:* ${emailContacto}\n` : ""}${entregaText}
                                 src={it.imagenUrl}
                                 alt={it.nombre}
                                 fill
-                                className="object-cover rounded-lg"
+                                className="object-contain rounded-lg p-0.5"
                               />
                             ) : (
                               <div className="flex h-full w-full items-center justify-center text-2xl">

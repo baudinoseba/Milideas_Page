@@ -70,7 +70,7 @@ export function HeroCarousel({ items }: HeroCarouselProps) {
             alt={currentItem.nombre}
             loading="eager"
             decoding="async"
-            className="h-full w-full object-cover rounded-2xl transition-all duration-500 group-hover:scale-[1.03]"
+            className="h-full w-full object-contain rounded-2xl transition-all duration-500 group-hover:scale-[1.03] p-3 sm:p-4"
           />
         </div>
 

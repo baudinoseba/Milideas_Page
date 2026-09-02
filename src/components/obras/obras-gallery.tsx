@@ -157,12 +157,12 @@ export function ObrasGallery({ obras, categoriaInicial }: ObrasGalleryProps) {
                       <button
                         type="button"
                         onClick={() => abrirLightbox(obra, 0)}
-                        className="group/main relative aspect-[4/3] w-full rounded-2xl overflow-hidden bg-arena/30 border border-border/40 cursor-zoom-in block"
+                        className="group/main relative aspect-[4/3] w-full rounded-2xl overflow-hidden bg-arena/30 border border-border/40 cursor-zoom-in flex items-center justify-center p-2"
                       >
                         <img
                           src={fotos[0]}
                           alt={obra.titulo}
-                          className="h-full w-full object-cover transition-transform duration-300 group-hover/main:scale-105"
+                          className="h-full w-full object-contain transition-transform duration-300 group-hover/main:scale-105 rounded-xl"
                         />
                         <span className="absolute bottom-2 right-2 rounded-full bg-black/60 text-white px-2.5 py-0.5 text-[10px] font-medium backdrop-blur-xs">
                           🔍 Ver {fotos.length} {fotos.length === 1 ? "foto" : "fotos"}
@@ -176,9 +176,9 @@ export function ObrasGallery({ obras, categoriaInicial }: ObrasGalleryProps) {
                               key={fIdx}
                               type="button"
                               onClick={() => abrirLightbox(obra, fIdx)}
-                              className="relative h-12 w-12 shrink-0 rounded-xl overflow-hidden border border-border/60 cursor-zoom-in hover:opacity-90"
+                              className="relative h-12 w-12 shrink-0 rounded-xl overflow-hidden border border-border/60 cursor-zoom-in hover:opacity-90 bg-arena/20 p-0.5 flex items-center justify-center"
                             >
-                              <img src={fUrl} alt="" className="h-full w-full object-cover" />
+                              <img src={fUrl} alt="" className="h-full w-full object-contain" />
                             </button>
                           ))}
                         </div>

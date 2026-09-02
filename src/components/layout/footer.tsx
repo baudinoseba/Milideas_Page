@@ -3,7 +3,7 @@ import Link from "next/link";
 const PROPOSITOS_VALOR = [
   { emoji: "🎨", titulo: "Arte ilustrado", detalle: "Obras y diseños originales pintados a mano" },
   { emoji: "✨", titulo: "Ediciones limitadas", detalle: "Piezas de autor en pequeños lotes" },
-  { emoji: "📦", titulo: "Estrenos mensuales", detalle: "Lanzamientos y piezas de autor" },
+  { emoji: "📦", titulo: "Estrenos mensuales", detalle: "Lanzamientos nuevos todos los meses" },
   { emoji: "🚚", titulo: "Embalaje y envío seguro", detalle: "Envíos protegidos a todo el país" },
 ] as const;
 

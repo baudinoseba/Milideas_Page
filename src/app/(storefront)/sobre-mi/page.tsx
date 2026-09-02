@@ -15,43 +15,37 @@ const FAQ_ITEMS = [
     categoria: "💳 Formas de Pago",
     pregunta: "¿Cuáles son las formas de pago disponibles?",
     respuesta:
-      "Acepto Transferencia Bancaria (con datos de cuenta inmediatos al confirmar tu pedido) y Efectivo si retirás personalmente por mi taller en Sunchales. Por el momento no trabajo con Mercado Pago ni tarjetas de débito/crédito (se incorporarán más adelante). Si elegís transferencia bancaria, podés adjuntar el comprobante o enviármelo por WhatsApp dentro de las 24 hs para agilizar la preparación de tu paquete.",
+      "Acepto Transferencia Bancaria (con los datos de cuenta al confirmar tu pedido) y Efectivo si retirás personalmente por mi taller en Sunchales. Por el momento no trabajo con tarjetas de débito ni crédito. Si abonás por transferencia bancaria, podés adjuntar el comprobante en la web o enviármelo por WhatsApp para coordinar la entrega de tu pedido.",
   },
   {
     categoria: "📦 Envíos y Embalaje",
-    pregunta: "¿Cómo se envían las piezas frágiles y a dónde llegan?",
+    pregunta: "¿Cómo se envían las piezas y a qué lugares llegan?",
     respuesta:
-      "Hago envíos seguros a toda la República Argentina. El servicio habitual y principal de transporte es Vía Cargo (tanto a sucursal como a domicilio). En caso de que en tu localidad no haya sucursal de Vía Cargo o no llegue este servicio, evaluamos y coordinamos juntas/os otro servicio de correo y logística confiable de común acuerdo. Cada pieza de cerámica y cuadro enmarcado se embala individualmente con varias capas de protección acolchada y cajas reforzadas para garantizar que viaje 100% protegida y llegue en perfectas condiciones a tu hogar o sucursal.",
+      "Hago envíos seguros a toda la República Argentina. El servicio habitual y principal de logística es Vía Cargo (tanto a sucursal como a domicilio). En caso de que en tu localidad no cuentes con sucursal de Vía Cargo, coordinamos juntas/os otro servicio de encomienda confiable de común acuerdo. Cada pieza de cerámica y cuadro se embala individualmente con varias capas de protección acolchada y cajas reforzadas para garantizar que viaje 100% protegida y llegue en perfectas condiciones.",
   },
   {
     categoria: "⏱️ Tiempos de Entrega",
     pregunta: "¿Cuánto demora en llegar mi pedido?",
     respuesta:
-      "• Piezas listas en Stock: Las despacho dentro de las 24 a 48 hs hábiles luego de acreditado el pago, y el correo demora habitualmente entre 3 y 7 días hábiles según tu localidad.\n• Encargos personalizados a pedido: Tienen un tiempo de producción artesanal de aproximadamente 30 días, ya que involucra el modelado manual, secado lento, primera quema en bizcocho cerámico, esmaltado, pintado a mano y horneado final a 1080°C.",
+      "• Piezas en Stock: Están listas para retirar en el momento por el taller o se despachan durante la semana una vez confirmado el pedido. El correo demora habitualmente entre 3 y 7 días hábiles según tu localidad.\n• Encargos personalizados: Tienen un tiempo de producción artesanal de aproximadamente 30 días, ya que involucran modelado manual, secado pausado, primera quema en bizcocho cerámico, esmaltado, pintado a mano y horneado final a 1080°C.",
   },
   {
     categoria: "🏺 Cuidados de Cerámica",
     pregunta: "¿Las piezas de cerámica son aptas para microondas y lavavajillas?",
     respuesta:
-      "¡Sí! Todas mis piezas cerámicas de vajilla están esmaltadas con materiales de calidad artística libres de plomo y 100% seguros para alimentos y bebidas. Son aptas para microondas y se pueden lavar tanto a mano como en lavavajillas. Para prolongar el brillo y la vida útil del esmalte artesanal a lo largo de los años, recomiendo evitar cambios bruscos extremos de temperatura (choques térmicos).",
+      "¡Sí! Todas mis piezas de cerámica están esmaltadas con materiales de calidad artística libres de plomo y 100% seguros para alimentos y bebidas. Son aptas para microondas y se pueden lavar tanto a mano como en lavavajillas. Para prolongar el brillo y la vida útil del esmalte artesanal a lo largo de los años, recomiendo evitar cambios bruscos extremos de temperatura (choques térmicos).",
   },
   {
     categoria: "🎨 Ilustraciones y Cuadros",
     pregunta: "¿Cómo son las obras e ilustraciones?",
     respuesta:
-      "No trabajo con impresiones ni reproducciones en serie. Todas las obras, dibujos y pinturas son piezas originales realizadas a mano sobre papel acuarela de alto gramaje y calidad artística. Ofrezco la opción de recibirlas enmarcadas artesanalmente en madera natural de primera calidad, listas para colgar y transformar tus espacios.",
-  },
-  {
-    categoria: "✨ Pedidos Especiales y B2B",
-    pregunta: "¿Realizás murales, esculturas de mascotas o vajilla para gastronomía?",
-    respuesta:
-      "¡Sí! Realizo intervenciones artísticas a gran escala (murales comerciales y particulares, vidrieras pintadas a mano), esculturas tridimensionales personalizadas de mascotas y vajilla de autor a medida para proyectos gastronómicos y marcas. Podés escribirme directamente por WhatsApp para coordinar una propuesta personalizada y cotización.",
+      "No trabajo con impresiones ni reproducciones en serie. Todas las obras, dibujos y pinturas son piezas originales realizadas a mano sobre papel acuarela de alto gramaje y calidad artística. También ofrezco la opción de entregarlas enmarcadas artesanalmente en madera natural de primera calidad, listas para colgar y transformar tus espacios.",
   },
   {
     categoria: "🔄 Cambios y Garantía",
     pregunta: "¿Qué pasa si un producto sufre algún daño durante el transporte?",
     respuesta:
-      "Cuido el empaque al máximo nivel para que nada sufra daños. No obstante, si al recibir tu paquete notas cualquier inconveniente, escribime por WhatsApp o mail adjuntando fotos del paquete para que pueda evaluar la situación de inmediato y brindarte una reposición o solución satisfactoria.",
+      "Cuido el embalaje al máximo nivel para que nada sufra daños. No obstante, si al recibir tu paquete notas cualquier inconveniente, escribime por WhatsApp o mail adjuntando fotos del paquete para que pueda evaluar la situación de inmediato y brindarte una reposición o solución satisfactoria.",
   },
 ];
 
@@ -186,7 +180,7 @@ export default async function SobreMiPage() {
             >
               Consultar por WhatsApp ↗
             </a>
-            <Link href="/ceramica">
+            <Link href="/ceramica/catalogo">
               <Button variant="outline" className="rounded-full border-border/80 bg-surface text-chocolate hover:bg-arena px-5 py-2.5 text-xs sm:text-sm font-semibold shadow-xs">
                 Explorar Catálogo →
               </Button>

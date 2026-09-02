@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useTransition, useSyncExternalStore } from "react";
+import { useState, useEffect, useTransition, useSyncExternalStore } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { createClient as createBrowserClient } from "@/lib/supabase/client";
 import { formatPrecio } from "@/lib/pricing";
 import { calcularTarifaPorProvincia } from "@/lib/shipping";
 import { crearEncargoAction } from "@/lib/actions";
@@ -15,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { WhatsAppIcon } from "@/components/ui/whatsapp-icon";
+import type { Perfil } from "@/types";
 
 const subscribeEmpty = () => () => {};
 
@@ -54,7 +56,13 @@ const PROVINCIAS_ARGENTINA = [
   "Tucumán",
 ];
 
-export function EncargosCheckoutClient() {
+export function EncargosCheckoutClient({
+  perfil,
+  userEmail,
+}: {
+  perfil?: Perfil | null;
+  userEmail?: string;
+}) {
   const isClient = useSyncExternalStore(
     subscribeEmpty,
     () => true,
@@ -70,16 +78,64 @@ export function EncargosCheckoutClient() {
   const [isPending, startTransition] = useTransition();
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // Step 2 Form State
-  const [nombreContacto, setNombreContacto] = useState("");
-  const [whatsappContacto, setWhatsappContacto] = useState("");
-  const [emailContacto, setEmailContacto] = useState("");
-  const [metodoEntrega, setMetodoEntrega] = useState<"taller" | "domicilio" | "agencia">("taller");
-  const [provincia, setProvincia] = useState("Santa Fe");
-  const [ciudad, setCiudad] = useState("");
-  const [calle, setCalle] = useState("");
-  const [numero, setNumero] = useState("");
-  const [codigoPostal, _setCodigoPostal] = useState("");
+  // Step 2 Form State (Initialized with profile if provided)
+  const [nombreContacto, setNombreContacto] = useState(perfil?.nombre_completo ?? "");
+  const [whatsappContacto, setWhatsappContacto] = useState(perfil?.whatsapp ?? "");
+  const [emailContacto, setEmailContacto] = useState(userEmail ?? (perfil as any)?.email ?? "");
+  const [metodoEntrega, setMetodoEntrega] = useState<"taller" | "domicilio" | "agencia">(
+    perfil?.direccion_calle ? "domicilio" : "taller",
+  );
+  const [provincia, setProvincia] = useState(perfil?.direccion_provincia || "Santa Fe");
+  const [ciudad, setCiudad] = useState(perfil?.direccion_ciudad || "");
+  const [calle, setCalle] = useState(perfil?.direccion_calle || "");
+  const [numero, setNumero] = useState(perfil?.direccion_numero || "");
+  const [piso, setPiso] = useState(perfil?.direccion_piso || "");
+  const [depto, setDepto] = useState(perfil?.direccion_depto || "");
+  const [codigoPostal, setCodigoPostal] = useState(perfil?.direccion_codigo_postal || "");
+
+  // Auto-sync profile on client mount if not passed as SSR prop
+  useEffect(() => {
+    if (perfil) {
+      setNombreContacto(perfil.nombre_completo || "");
+      setWhatsappContacto(perfil.whatsapp || "");
+      setEmailContacto(userEmail || (perfil as any)?.email || "");
+      if (perfil.direccion_provincia) setProvincia(perfil.direccion_provincia);
+      if (perfil.direccion_ciudad) setCiudad(perfil.direccion_ciudad);
+      if (perfil.direccion_calle) setCalle(perfil.direccion_calle);
+      if (perfil.direccion_numero) setNumero(perfil.direccion_numero);
+      if (perfil.direccion_piso) setPiso(perfil.direccion_piso);
+      if (perfil.direccion_depto) setDepto(perfil.direccion_depto);
+      if (perfil.direccion_codigo_postal) setCodigoPostal(perfil.direccion_codigo_postal);
+      if (perfil.direccion_calle) setMetodoEntrega("domicilio");
+    } else {
+      const supabase = createBrowserClient();
+      supabase.auth.getUser().then(({ data }) => {
+        const user = data?.user;
+        if (user) {
+          supabase
+            .from("perfiles")
+            .select("*")
+            .eq("id", user.id)
+            .single()
+            .then(({ data: profileData }: { data: any }) => {
+              if (profileData) {
+                setNombreContacto((prev: string) => prev || profileData.nombre_completo || "");
+                setWhatsappContacto((prev: string) => prev || profileData.whatsapp || "");
+                setEmailContacto((prev: string) => prev || user.email || profileData.email || "");
+                if (profileData.direccion_provincia) setProvincia(profileData.direccion_provincia);
+                if (profileData.direccion_ciudad) setCiudad(profileData.direccion_ciudad);
+                if (profileData.direccion_calle) setCalle(profileData.direccion_calle);
+                if (profileData.direccion_numero) setNumero(profileData.direccion_numero);
+                if (profileData.direccion_piso) setPiso(profileData.direccion_piso);
+                if (profileData.direccion_depto) setDepto(profileData.direccion_depto);
+                if (profileData.direccion_codigo_postal) setCodigoPostal(profileData.direccion_codigo_postal);
+                if (profileData.direccion_calle) setMetodoEntrega("domicilio");
+              }
+            });
+        }
+      });
+    }
+  }, [perfil, userEmail]);
 
   if (!isClient) return null;
 
@@ -109,8 +165,8 @@ export function EncargosCheckoutClient() {
             </div>
           )}
 
-          <Link href="/ceramica" className="block pt-2">
-            <Button variant="outline" className="rounded-full px-6 py-3 border-border text-chocolate text-xs font-semibold">
+          <Link href="/ceramica/catalogo" className="block pt-2">
+            <Button variant="outline" className="rounded-full px-6 py-3 border-border text-chocolate text-xs font-semibold cursor-pointer">
               Explorar Catálogo de Autor →
             </Button>
           </Link>
@@ -121,7 +177,7 @@ export function EncargosCheckoutClient() {
 
   const totalPiezasPrice = getTotalPrice();
   const tarifaEnvio = calcularTarifaPorProvincia(provincia || ciudad, metodoEntrega);
-  const costoEnvio = tarifaEnvio.precio;
+  const costoEnvio = metodoEntrega === "taller" ? 0 : tarifaEnvio.precio;
   const totalEstimadoFinal = totalPiezasPrice + costoEnvio;
 
   // Handle live editing of an encargo item
@@ -192,6 +248,8 @@ export function EncargosCheckoutClient() {
       formData.append("ciudad", ciudad);
       formData.append("calle", calle);
       formData.append("numero", numero);
+      if (piso) formData.append("piso", piso);
+      if (depto) formData.append("depto", depto);
       formData.append("codigoPostal", codigoPostal);
     } else if (metodoEntrega === "agencia") {
       formData.append("provincia", provincia);
@@ -224,15 +282,29 @@ export function EncargosCheckoutClient() {
 
       let entregaText = "*Entrega:* Retiro en Taller (Sunchales - Sin cargo)";
       if (metodoEntrega === "domicilio") {
-        entregaText = `*Entrega:* Envío a Domicilio Vía Cargo (${ciudad}, ${provincia}) => +${formatPrecio(costoEnvio)}`;
+        const fullAddr = `${calle} ${numero}${piso ? `, Piso ${piso}` : ""}${depto ? `, Depto ${depto}` : ""}, ${ciudad}, ${provincia} (CP ${codigoPostal})`;
+        entregaText = `*Entrega:* Envío a Domicilio Vía Cargo (${fullAddr}) => +${formatPrecio(costoEnvio)}`;
       } else if (metodoEntrega === "agencia") {
         entregaText = `*Entrega:* Sucursal Vía Cargo (${ciudad}, ${provincia}) => +${formatPrecio(costoEnvio)} (Estimado ${tarifaEnvio.regionNombre})`;
       }
 
-      const text = `*MILIDEAS ARTE - SOLICITUD DE ENCARGOS MÚLTIPLES*
+      const isSingle = items.length === 1;
+      const title = isSingle
+        ? "*MILIDEAS ARTE - SOLICITUD DE ENCARGO*"
+        : "*MILIDEAS ARTE - SOLICITUD DE ENCARGOS*";
+
+      const sectionTitle = isSingle
+        ? "*PIEZA ENCARGADA (1 ítem):*"
+        : `*PIEZAS ENCARGADAS (${items.length} ítems):*`;
+
+      const closingText = isSingle
+        ? "¡Hola Mili! Quisiera solicitar este encargo especial. Quedo a la espera de la confirmación y tiempo estimado de producción."
+        : "¡Hola Mili! Quisiera solicitar estos encargos especiales. Quedo a la espera de la confirmación y tiempo estimado de producción.";
+
+      const text = `${title}
 
 --------------------------------
-*PIEZAS ENCARGADAS (${items.length} ítems):*
+${sectionTitle}
 
 ${itemsFormattedText}
 
@@ -248,7 +320,7 @@ Envío (${metodoEntrega === "taller" ? "Retiro en Taller" : tarifaEnvio.regionNo
 ${emailContacto ? `*Email:* ${emailContacto}\n` : ""}${entregaText}
 
 --------------------------------
-¡Hola Mili! Quisiera solicitar estos encargos especiales. Quedo a la espera de la confirmación y tiempo estimado de producción.`;
+${closingText}`;
 
       const vendorWhatsapp = process.env.NEXT_PUBLIC_VENDOR_WHATSAPP || "5493493668308";
       const waUrl = `https://wa.me/${vendorWhatsapp}?text=${encodeURIComponent(text)}`;
@@ -292,111 +364,135 @@ ${emailContacto ? `*Email:* ${emailContacto}\n` : ""}${entregaText}
                   </div>
                 </div>
                 <Link href="/carrito" className="shrink-0">
-                  <Button className="bg-terracota text-white hover:bg-terracota/90 rounded-full text-xs font-semibold px-4 py-1.5">
+                  <Button className="bg-terracota text-white hover:bg-terracota/90 rounded-full text-xs font-semibold px-4 py-1.5 cursor-pointer">
                     Ir a Mi Carrito →
                   </Button>
                 </Link>
               </Card>
             )}
 
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-serif font-semibold text-chocolate">
-                Configuración y Personalización de tus Encargos ({items.length})
-              </h2>
-              <span className="text-xs text-muted">Ajustá medidas, grabados y detalles</span>
-            </div>
-
-            <div className="space-y-6">
+            <div className="space-y-4">
               {items.map((it) => (
                 <Card
                   key={it.id}
-                  className="p-5 rounded-2xl border-border/80 bg-surface shadow-xs space-y-4 relative"
+                  className="p-5 rounded-2xl border-border/80 bg-surface shadow-xs space-y-4 transition-all hover:border-admin-accent/30"
                 >
-                  <button
-                    type="button"
-                    onClick={() => removeItem(it.id)}
-                    className="absolute top-4 right-4 text-muted hover:text-red-500 text-sm p-1 font-bold"
-                    title="Eliminar encargo"
-                  >
-                    ✕
-                  </button>
-
-                  <div className="flex gap-4 items-start">
-                    <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-xl bg-arena/50 border border-border/40">
-                      {it.imagenUrl ? (
-                        <Image src={it.imagenUrl} alt={it.nombre} fill className="object-cover" />
-                      ) : (
-                        <div className="flex h-full w-full items-center justify-center text-3xl">🏺</div>
-                      )}
+                  {/* Top: Remove button + Identity */}
+                  <div className="flex items-start justify-between gap-3 border-b border-border/40 pb-3">
+                    <div className="flex items-center gap-3">
+                      <div className="relative h-14 w-14 sm:h-16 sm:w-16 rounded-xl overflow-hidden bg-arena/50 border border-border/60 shrink-0 flex items-center justify-center p-1">
+                        {it.imagenUrl ? (
+                          <Image
+                            src={it.imagenUrl}
+                            alt={it.nombre}
+                            fill
+                            className="object-contain rounded-lg p-0.5"
+                          />
+                        ) : (
+                          <span className="text-2xl">🏺</span>
+                        )}
+                      </div>
+                      <div>
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-admin-accent font-sans">
+                          Catálogo de {it.tipoCatalogo}
+                        </span>
+                        <h3 className="font-serif font-semibold text-chocolate text-base leading-tight">
+                          {it.nombre}
+                        </h3>
+                        <p className="text-xs text-muted font-mono">
+                          Precio base: {formatPrecio(it.precioBase)}
+                        </p>
+                      </div>
                     </div>
 
-                    <div className="flex-1 space-y-1">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-admin-accent font-sans">
-                        Catálogo de {it.tipoCatalogo}
-                      </span>
-                      <h3 className="text-base font-serif font-semibold text-chocolate">{it.nombre}</h3>
-                      <p className="text-xs text-muted">
-                        Precio base: <strong className="text-foreground">{formatPrecio(it.precioBase)}</strong>
-                      </p>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeItem(it.id)}
+                      className="text-xs text-muted hover:text-red-600 transition-colors p-1"
+                      title="Quitar este encargo"
+                    >
+                      ✕
+                    </button>
                   </div>
 
-                  {/* Interactive Customization Section */}
-                  <div className="space-y-4 pt-3 border-t border-border/50 bg-arena/20 p-4 rounded-xl text-xs">
-                    {/* Ilustración specific options */}
+                  {/* Customization Options */}
+                  <div className="space-y-3.5 text-xs">
+                    {/* Size Selector for Illustrations */}
                     {it.tipoCatalogo === "ilustraciones" && (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div>
-                          <Label className="text-xs text-chocolate font-semibold block mb-1">
-                            📐 Tamaño de Lámina
-                          </Label>
-                          <select
-                            value={it.medidaSeleccionada || "A4 (21 x 30 cm)"}
-                            onChange={(e) =>
-                              handleEditItemFields(it, { medidaSeleccionada: e.target.value })
-                            }
-                            className="w-full rounded-lg border border-border bg-surface px-3 py-1.5 text-xs text-foreground focus:border-admin-accent focus:outline-none"
-                          >
-                            {MEDIDAS_DEFAULT.map((m) => (
-                              <option key={m.id} value={m.nombre}>
-                                {m.nombre} {m.recargo > 0 ? `(+${formatPrecio(m.recargo)})` : ""}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-
-                        <div className="flex items-center gap-2 pt-5">
-                          <input
-                            type="checkbox"
-                            id={`marco-${it.id}`}
-                            checked={it.conMarco}
-                            onChange={(e) =>
-                              handleEditItemFields(it, { conMarco: e.target.checked })
-                            }
-                            className="h-4 w-4 rounded border-border text-admin-accent cursor-pointer"
-                          />
-                          <Label htmlFor={`marco-${it.id}`} className="text-xs cursor-pointer font-medium">
-                            Enmarcado en madera artesanal (+{formatPrecio(PRECIO_MARCO_DEFAULT)})
-                          </Label>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-medium text-chocolate">
+                          Tamaño de la Ilustración:
+                        </Label>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                          {MEDIDAS_DEFAULT.map((m) => {
+                            const isSelected = (it.medidaSeleccionada || "A4 (21 x 30 cm)") === m.nombre;
+                            return (
+                              <button
+                                key={m.id}
+                                type="button"
+                                onClick={() =>
+                                  handleEditItemFields(it, { medidaSeleccionada: m.nombre })
+                                }
+                                className={`rounded-xl border p-2.5 text-left transition-all ${
+                                  isSelected
+                                    ? "border-admin-accent bg-admin-accent/10 text-admin-accent font-semibold ring-1 ring-admin-accent/20"
+                                    : "border-border bg-surface text-muted hover:border-border/80"
+                                }`}
+                              >
+                                <div className="font-medium text-xs">{m.nombre}</div>
+                                <div className="text-[10px] opacity-75">
+                                  {m.recargo > 0 ? `+${formatPrecio(m.recargo)}` : "Incluido"}
+                                </div>
+                              </button>
+                            );
+                          })}
                         </div>
                       </div>
                     )}
 
-                    {/* Personalization (+15%) */}
-                    <div className="space-y-2 pt-1 border-t border-border/40">
-                      <div className="flex items-center gap-2">
+                    {/* Frame toggle for Illustrations */}
+                    {it.tipoCatalogo === "ilustraciones" && (
+                      <label className="flex items-center gap-2.5 rounded-xl border border-border/70 p-3 bg-arena/20 cursor-pointer transition-all hover:bg-arena/30">
                         <input
                           type="checkbox"
-                          id={`custom-${it.id}`}
-                          checked={it.esPersonalizado}
+                          checked={it.conMarco || false}
                           onChange={(e) =>
-                            handleEditItemFields(it, { esPersonalizado: e.target.checked })
+                            handleEditItemFields(it, { conMarco: e.target.checked })
                           }
-                          className="h-4 w-4 rounded border-border text-admin-accent cursor-pointer"
+                          className="h-4 w-4 rounded border-border text-admin-accent focus:ring-admin-accent/30"
                         />
-                        <Label htmlFor={`custom-${it.id}`} className="text-xs font-semibold text-chocolate cursor-pointer">
-                          ✨ ¿Deseás personalizar esta pieza con nombres, frases o motivos? (+15%)
-                        </Label>
+                        <div className="flex-1">
+                          <span className="font-medium text-chocolate text-xs block">
+                            Enmarcado artesanal en madera de primera calidad con vidrio
+                          </span>
+                          <span className="text-[11px] text-muted block">
+                            Listas para colgar (+{formatPrecio(PRECIO_MARCO_DEFAULT)})
+                          </span>
+                        </div>
+                      </label>
+                    )}
+
+                    {/* Custom Engraving / Dedication */}
+                    <div className="rounded-xl border border-border/70 p-3 bg-surface space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={it.esPersonalizado || false}
+                            onChange={(e) =>
+                              handleEditItemFields(it, { esPersonalizado: e.target.checked })
+                            }
+                            className="h-4 w-4 rounded border-border text-admin-accent focus:ring-admin-accent/30"
+                          />
+                          <span className="font-medium text-chocolate text-xs">
+                            Personalizado a medida (+15%) (te cuento mi idea)
+                          </span>
+                        </label>
+                        {it.esPersonalizado && (
+                          <span className="text-[11px] font-semibold text-terracota font-mono">
+                            +{formatPrecio(Math.round(it.precioBase * PORCENTAJE_RECARGO_DEFAULT))}
+                          </span>
+                        )}
                       </div>
 
                       {it.esPersonalizado && (
@@ -426,7 +522,7 @@ ${emailContacto ? `*Email:* ${emailContacto}\n` : ""}${entregaText}
                           <button
                             type="button"
                             onClick={() => updateQuantity(it.id, it.cantidad - 1)}
-                            className="px-2 text-xs font-bold text-chocolate hover:text-admin-accent"
+                            className="px-2 text-xs font-bold text-chocolate hover:text-admin-accent cursor-pointer"
                           >
                             −
                           </button>
@@ -434,7 +530,7 @@ ${emailContacto ? `*Email:* ${emailContacto}\n` : ""}${entregaText}
                           <button
                             type="button"
                             onClick={() => updateQuantity(it.id, it.cantidad + 1)}
-                            className="px-2 text-xs font-bold text-chocolate hover:text-admin-accent"
+                            className="px-2 text-xs font-bold text-chocolate hover:text-admin-accent cursor-pointer"
                           >
                             +
                           </button>
@@ -470,7 +566,7 @@ ${emailContacto ? `*Email:* ${emailContacto}\n` : ""}${entregaText}
                 <div className="flex justify-between text-chocolate">
                   <span className="text-muted">Costo de Envío Estimado:</span>
                   <span className="font-semibold text-chocolate">
-                    {costoEnvio > 0 ? formatPrecio(costoEnvio) : "Se calcula en el paso 2"}
+                    {metodoEntrega === "taller" ? "Sin Cargo ($0)" : costoEnvio > 0 ? formatPrecio(costoEnvio) : "Se calcula en el paso 2"}
                   </span>
                 </div>
 
@@ -482,7 +578,7 @@ ${emailContacto ? `*Email:* ${emailContacto}\n` : ""}${entregaText}
 
               <Button
                 onClick={() => setStep(2)}
-                className="w-full py-3.5 text-sm font-semibold rounded-full bg-admin-accent text-white hover:bg-admin-accent-hover shadow-md transition-all"
+                className="w-full py-3.5 text-sm font-semibold rounded-full bg-admin-accent text-white hover:bg-admin-accent-hover shadow-md transition-all cursor-pointer"
               >
                 Continuar a Tus Datos →
               </Button>
@@ -554,7 +650,7 @@ ${emailContacto ? `*Email:* ${emailContacto}\n` : ""}${entregaText}
                 <button
                   type="button"
                   onClick={() => setMetodoEntrega("taller")}
-                  className={`rounded-xl border p-3 text-center text-xs font-medium transition-all ${
+                  className={`rounded-xl border p-3 text-center text-xs font-medium transition-all cursor-pointer ${
                     metodoEntrega === "taller"
                       ? "border-admin-accent bg-admin-accent/10 text-admin-accent font-semibold ring-2 ring-admin-accent/20"
                       : "border-border bg-surface text-muted hover:border-border/80"
@@ -565,7 +661,7 @@ ${emailContacto ? `*Email:* ${emailContacto}\n` : ""}${entregaText}
                 <button
                   type="button"
                   onClick={() => setMetodoEntrega("agencia")}
-                  className={`rounded-xl border p-3 text-center text-xs font-medium transition-all ${
+                  className={`rounded-xl border p-3 text-center text-xs font-medium transition-all cursor-pointer ${
                     metodoEntrega === "agencia"
                       ? "border-admin-accent bg-admin-accent/10 text-admin-accent font-semibold ring-2 ring-admin-accent/20"
                       : "border-border bg-surface text-muted hover:border-border/80"
@@ -576,7 +672,7 @@ ${emailContacto ? `*Email:* ${emailContacto}\n` : ""}${entregaText}
                 <button
                   type="button"
                   onClick={() => setMetodoEntrega("domicilio")}
-                  className={`rounded-xl border p-3 text-center text-xs font-medium transition-all ${
+                  className={`rounded-xl border p-3 text-center text-xs font-medium transition-all cursor-pointer ${
                     metodoEntrega === "domicilio"
                       ? "border-admin-accent bg-admin-accent/10 text-admin-accent font-semibold ring-2 ring-admin-accent/20"
                       : "border-border bg-surface text-muted hover:border-border/80"
@@ -586,8 +682,34 @@ ${emailContacto ? `*Email:* ${emailContacto}\n` : ""}${entregaText}
                 </button>
               </div>
 
+              {/* Taller option details */}
+              {metodoEntrega === "taller" && (
+                <div className="pt-2">
+                  <div className="rounded-2xl border border-[#C9A98C] bg-[#FAF7F2] p-4 sm:p-5 text-xs space-y-3 shadow-xs">
+                    <div className="rounded-xl bg-white border border-stone-200 p-4 space-y-2.5 shadow-2xs">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <div className="flex items-center gap-2 font-black text-xs sm:text-sm text-stone-950">
+                          <span className="text-base">📍</span>
+                          <span>Dirección del Taller para Retiro Físico</span>
+                        </div>
+                        <span className="rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider">
+                          Sin Cargo ($0)
+                        </span>
+                      </div>
+                      <p className="text-sm font-bold text-chocolate">
+                        Florentino Ameghino 1576, Sunchales, Santa Fe, Argentina.
+                      </p>
+                      <p className="text-xs leading-relaxed text-stone-900 font-sans font-medium">
+                        El retiro es totalmente <strong>SIN CARGO ($0)</strong>. Al confirmar tu encargo, coordinaremos directamente con vos por WhatsApp el día y horario en que pasás a buscar tus piezas por el taller.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Agencia or Domicilio forms */}
               {metodoEntrega !== "taller" && (
-                <div className="pt-3 space-y-4 bg-arena/20 p-4 rounded-xl border border-border/50">
+                <div className="pt-3 space-y-4 bg-white p-4 sm:p-5 rounded-2xl border border-stone-200 shadow-2xs">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <Label htmlFor="provincia">Provincia *</Label>
@@ -595,7 +717,7 @@ ${emailContacto ? `*Email:* ${emailContacto}\n` : ""}${entregaText}
                         id="provincia"
                         value={provincia}
                         onChange={(e) => setProvincia(e.target.value)}
-                        className="mt-1 block w-full rounded-md border border-border bg-surface px-3 py-2 text-xs text-foreground focus:border-admin-accent focus:outline-none"
+                        className="mt-1 block w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-xs text-stone-900 focus:border-chocolate focus:outline-none"
                       >
                         {PROVINCIAS_ARGENTINA.map((p) => (
                           <option key={p} value={p}>
@@ -618,43 +740,96 @@ ${emailContacto ? `*Email:* ${emailContacto}\n` : ""}${entregaText}
                   </div>
 
                   {/* Calculated Shipping Rate Banner */}
-                  <div className="rounded-xl border border-admin-accent/30 bg-surface p-3 flex items-center justify-between text-xs">
+                  <div className="rounded-xl border border-stone-200 bg-stone-50 p-3.5 flex items-center justify-between text-xs">
                     <div>
-                      <span className="font-semibold text-chocolate block">
+                      <span className="font-bold text-stone-900 block text-xs">
                         Costo de Envío Estimado ({tarifaEnvio.regionNombre}):
                       </span>
-                      <span className="text-[11px] text-muted">
+                      <span className="text-[11px] text-stone-500 font-sans">
                         Calculado por proximidad a Sunchales para todo el país
                       </span>
                     </div>
-                    <span className="text-base font-bold font-serif text-admin-accent">
+                    <span className="text-base font-black font-mono text-terracota">
                       {formatPrecio(costoEnvio)}
                     </span>
                   </div>
 
-                  <p className="text-[11px] text-muted leading-relaxed italic bg-surface/50 p-2.5 rounded-lg border border-border/30">
-                    💡 <strong>Nota sobre las Sucursales Vía Cargo:</strong> El costo mostrado es una estimación aproximada por zona geográfica. Al solicitar el encargo por WhatsApp, Mili acordará con vos la sucursal de Vía Cargo más cercana a tu localidad o transporte alternativo (ej. Correo Argentino) si Vía Cargo no posee sucursal directa en tu ciudad.
-                  </p>
+                  <div className="rounded-xl border border-[#C9A98C] bg-[#FAF7F2] p-4 text-xs space-y-2">
+                    <p className="text-xs text-stone-900 font-sans leading-relaxed">
+                      💡 <strong>Nota sobre las Sucursales Vía Cargo:</strong> El costo mostrado es una estimación aproximada por zona geográfica. Al solicitar el encargo por WhatsApp, Mili acordará con vos la sucursal de Vía Cargo más cercana a tu localidad o transporte alternativo (ej. Correo Argentino) si Vía Cargo no posee sucursal directa en tu ciudad.
+                    </p>
+                  </div>
 
+                  {/* Full Address fields for Domicilio */}
                   {metodoEntrega === "domicilio" && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-border/40">
-                      <div>
-                        <Label htmlFor="calle">Calle</Label>
-                        <Input
-                          id="calle"
-                          placeholder="ej. Av. Independencia"
-                          value={calle}
-                          onChange={(e) => setCalle(e.target.value)}
-                        />
+                    <div className="space-y-3 pt-2 border-t border-border/40">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div className="sm:col-span-2">
+                          <Label htmlFor="calle">Calle *</Label>
+                          <Input
+                            id="calle"
+                            placeholder="ej. Av. Independencia"
+                            value={calle}
+                            onChange={(e) => setCalle(e.target.value)}
+                            required
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="numero">Número *</Label>
+                          <Input
+                            id="numero"
+                            placeholder="1234"
+                            value={numero}
+                            onChange={(e) => setNumero(e.target.value)}
+                            required
+                          />
+                        </div>
                       </div>
-                      <div>
-                        <Label htmlFor="numero">Número</Label>
-                        <Input
-                          id="numero"
-                          placeholder="1234"
-                          value={numero}
-                          onChange={(e) => setNumero(e.target.value)}
-                        />
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div>
+                          <Label htmlFor="piso">Piso (opcional)</Label>
+                          <Input
+                            id="piso"
+                            placeholder="Ej. 4"
+                            value={piso}
+                            onChange={(e) => setPiso(e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="depto">Depto (opcional)</Label>
+                          <Input
+                            id="depto"
+                            placeholder="Ej. B"
+                            value={depto}
+                            onChange={(e) => setDepto(e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <div className="flex items-center justify-between">
+                            <Label htmlFor="codigoPostal">Código Postal</Label>
+                          </div>
+                          <Input
+                            id="codigoPostal"
+                            placeholder="Ej. S2322"
+                            value={codigoPostal}
+                            onChange={(e) => setCodigoPostal(e.target.value)}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="pt-1">
+                        <p className="text-[11px] text-muted">
+                          ¿No sabés tu código postal?{" "}
+                          <a
+                            href="https://www.correoargentino.com.ar/formularios/cpa"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-terracota underline hover:text-chocolate font-medium"
+                          >
+                            Buscalo acá →
+                          </a>
+                        </p>
                       </div>
                     </div>
                   )}
@@ -663,10 +838,10 @@ ${emailContacto ? `*Email:* ${emailContacto}\n` : ""}${entregaText}
             </div>
 
             <div className="flex items-center justify-between pt-4 border-t border-border/60">
-              <Button type="button" variant="outline" onClick={() => setStep(1)} className="rounded-full text-xs">
+              <Button type="button" variant="outline" onClick={() => setStep(1)} className="rounded-full text-xs cursor-pointer">
                 ← Volver a Edición
               </Button>
-              <Button type="submit" className="rounded-full bg-admin-accent text-white hover:bg-admin-accent-hover text-xs font-semibold px-6">
+              <Button type="submit" className="rounded-full bg-admin-accent text-white hover:bg-admin-accent-hover text-xs font-semibold px-6 cursor-pointer">
                 Revisar Resumen Final →
               </Button>
             </div>
@@ -699,12 +874,12 @@ ${emailContacto ? `*Email:* ${emailContacto}\n` : ""}${entregaText}
 
               <div className="space-y-1">
                 <p className="font-semibold text-chocolate">🚚 Método de Entrega</p>
-                <p className="capitalize font-semibold text-foreground">
+                <p className="font-semibold text-foreground">
                   {metodoEntrega === "taller"
-                    ? "Retiro en Taller Mili Ferrero (Sunchales - Sin Cargo)"
+                    ? "Retiro en Taller (Florentino Ameghino 1576, Sunchales - Sin Cargo)"
                     : metodoEntrega === "agencia"
                     ? `Sucursal Vía Cargo (${ciudad}, ${provincia}) => ${formatPrecio(costoEnvio)}`
-                    : `Domicilio Vía Cargo (${calle} ${numero}, ${ciudad}, ${provincia}) => ${formatPrecio(costoEnvio)}`}
+                    : `Domicilio Vía Cargo (${calle} ${numero}${piso ? `, Piso ${piso}` : ""}${depto ? `, Depto ${depto}` : ""}, ${ciudad}, ${provincia}${codigoPostal ? ` - CP ${codigoPostal}` : ""}) => ${formatPrecio(costoEnvio)}`}
                 </p>
               </div>
             </div>
@@ -744,7 +919,7 @@ ${emailContacto ? `*Email:* ${emailContacto}\n` : ""}${entregaText}
                 <span className="font-semibold text-chocolate">{formatPrecio(totalPiezasPrice)}</span>
               </div>
               <div className="flex justify-between text-muted text-xs font-sans">
-                <span>Costo Envío Estimado ({tarifaEnvio.regionNombre}):</span>
+                <span>Costo Envío Estimado ({metodoEntrega === "taller" ? "Retiro en Taller" : tarifaEnvio.regionNombre}):</span>
                 <span className="font-semibold text-chocolate">{costoEnvio > 0 ? formatPrecio(costoEnvio) : "Sin Cargo"}</span>
               </div>
               <div className="flex justify-between font-bold text-lg pt-2 border-t border-border/40">
@@ -754,13 +929,13 @@ ${emailContacto ? `*Email:* ${emailContacto}\n` : ""}${entregaText}
             </div>
 
             <div className="flex items-center justify-between pt-4 border-t border-border/60">
-              <Button type="button" variant="outline" onClick={() => setStep(2)} className="rounded-full text-xs">
+              <Button type="button" variant="outline" onClick={() => setStep(2)} className="rounded-full text-xs cursor-pointer">
                 ← Modificar Datos
               </Button>
               <Button
                 onClick={handleFinalSubmit}
                 disabled={isPending}
-                className="rounded-full bg-[#25D366] text-white hover:bg-[#20bd5a] text-xs font-semibold px-6 py-3.5 flex items-center gap-2 shadow-md"
+                className="rounded-full bg-[#25D366] text-white hover:bg-[#20bd5a] text-xs font-semibold px-6 py-3.5 flex items-center gap-2 shadow-md cursor-pointer"
               >
                 <WhatsAppIcon className="h-5 w-5 fill-current" />
                 <span>{isPending ? "Registrando Encargo..." : "Solicitar por WhatsApp →"}</span>
@@ -783,8 +958,8 @@ ${emailContacto ? `*Email:* ${emailContacto}\n` : ""}${entregaText}
             </p>
 
             <div className="pt-4 border-t border-border/60 space-y-3">
-              <Link href="/ceramica">
-                <Button className="w-full rounded-full bg-chocolate text-crema-cruda hover:bg-chocolate/90 py-3 text-xs font-semibold">
+              <Link href="/ceramica/catalogo">
+                <Button className="w-full rounded-full bg-chocolate text-crema-cruda hover:bg-chocolate/90 py-3 text-xs font-semibold cursor-pointer">
                   Volver al Catálogo
                 </Button>
               </Link>

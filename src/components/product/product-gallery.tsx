@@ -38,20 +38,20 @@ export function ProductGallery({
       {/* Main image — Proportioned container with rounded corners & click to zoom */}
       <div
         onClick={() => setLightboxOpen(true)}
-        className="group relative overflow-hidden rounded-2xl sm:rounded-3xl bg-surface aspect-square sm:aspect-[4/3] lg:aspect-square w-full max-h-[420px] border border-border/60 shadow-md cursor-zoom-in select-none"
+        className="group relative overflow-hidden rounded-2xl sm:rounded-3xl bg-arena/20 aspect-square sm:aspect-[4/3] lg:aspect-square w-full max-h-[420px] border border-border/60 shadow-md cursor-zoom-in select-none flex items-center justify-center p-3"
       >
         <OptimizedImage
           key={current.id}
           src={current.url_imagen}
           alt="Imagen del producto"
           aspectRatio="none"
-          objectFit="cover"
-          className="animate-fade-in h-full w-full object-cover rounded-2xl sm:rounded-3xl transition-transform duration-500 group-hover:scale-[1.02]"
+          objectFit="contain"
+          className="animate-fade-in h-full w-full object-contain rounded-2xl transition-transform duration-500 group-hover:scale-[1.02]"
           priority
         />
 
         {/* Hover hint */}
-        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/15 transition-all flex items-center justify-center pointer-events-none">
+        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-all flex items-center justify-center pointer-events-none">
           <span className="opacity-0 group-hover:opacity-100 transition-opacity rounded-full bg-black/75 text-white px-3.5 py-1.5 text-xs font-medium backdrop-blur-xs flex items-center gap-1.5 shadow-lg">
             <span>🔍 Clic para ampliar</span>
           </span>
@@ -67,17 +67,16 @@ export function ProductGallery({
               type="button"
               onClick={() => setActive(i)}
               className={cn(
-                "relative h-14 w-14 sm:h-16 sm:w-16 shrink-0 overflow-hidden rounded-xl border-2 transition-all duration-200 cursor-pointer",
+                "relative h-14 w-14 sm:h-16 sm:w-16 shrink-0 overflow-hidden rounded-xl border-2 transition-all duration-200 cursor-pointer bg-arena/20 p-1 flex items-center justify-center",
                 i === active
-                  ? "border-terracota ring-2 ring-terracota/20 scale-105"
-                  : "border-transparent opacity-60 hover:opacity-100",
+                  ? "border-terracota ring-2 ring-terracota/20 scale-105 shadow-sm"
+                  : "border-border/60 opacity-60 hover:opacity-100",
               )}
             >
-              <OptimizedImage
+              <img
                 src={img.url_imagen}
                 alt=""
-                sizes="64px"
-                className="h-full w-full object-cover"
+                className="h-full w-full object-contain rounded-lg"
               />
             </button>
           ))}

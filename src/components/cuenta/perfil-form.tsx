@@ -1,23 +1,21 @@
 "use client";
 
-import { useTransition, useState, useEffect } from "react";
+import { useTransition, useState } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
-import { Card } from "@/components/ui/card";
 import { Select } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { BackButton } from "@/components/ui/back-button";
-import { Toast } from "@/components/ui/modal";
+import { toast } from "@/stores/toast-store";
 import {
   updatePerfilAction,
-  logoutAction,
   updateEmailAction,
   updatePasswordAction,
 } from "@/lib/actions";
+import { cn } from "@/lib/utils/cn";
 import type { Perfil } from "@/types";
-import Link from "next/link";
 
 const PROVINCIAS = [
   "CABA",
@@ -48,27 +46,8 @@ const PROVINCIAS = [
 
 export function PerfilForm({ perfil, email }: { perfil: Perfil; email: string }) {
   const [pending, startTransition] = useTransition();
-  const [loggingOut, startLogout] = useTransition();
-  const [updatingEmail, startEmailUpdate] = useTransition();
   const [updatingPassword, startPasswordUpdate] = useTransition();
-
-  const [showEmailForm, setShowEmailForm] = useState(false);
-  const [showPasswordForm, setShowPasswordForm] = useState(false);
-  const [mfaActive, setMfaActive] = useState(false);
-  const [message, setMessage] = useState<{ text: string; type: "success" | "error" | "info" } | null>(null);
-
-  useEffect(() => {
-    const active = localStorage.getItem("mfa_active") === "true";
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setMfaActive(active);
-  }, []);
-
-  useEffect(() => {
-    if (message) {
-      const timer = setTimeout(() => setMessage(null), 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [message]);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -76,34 +55,9 @@ export function PerfilForm({ perfil, email }: { perfil: Perfil; email: string })
     startTransition(async () => {
       const result = await updatePerfilAction(formData);
       if (result.success) {
-        setMessage({ type: "success", text: "¡Perfil y dirección guardados correctamente!" });
+        toast.success("¡Perfil y dirección guardados correctamente!");
       } else {
-        setMessage({ type: "error", text: result.error ?? "Error al actualizar perfil" });
-      }
-    });
-  };
-
-  const handleLogout = () => {
-    startLogout(async () => {
-      await logoutAction();
-    });
-  };
-
-  const handleEmailUpdate = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-    const nuevoEmail = String(formData.get("nuevoEmail"));
-
-    startEmailUpdate(async () => {
-      const result = await updateEmailAction(nuevoEmail);
-      if (result.success) {
-        setMessage({
-          type: "success",
-          text: "¡Se ha enviado un correo de confirmación a tu nueva dirección!",
-        });
-        setShowEmailForm(false);
-      } else {
-        setMessage({ type: "error", text: result.error ?? "Error al actualizar email" });
+        toast.error(result.error ?? "Error al actualizar perfil");
       }
     });
   };
@@ -115,35 +69,23 @@ export function PerfilForm({ perfil, email }: { perfil: Perfil; email: string })
     const confirmarContrasena = String(formData.get("confirmarContrasena"));
 
     if (nuevaContrasena !== confirmarContrasena) {
-      setMessage({ type: "error", text: "Las contraseñas no coinciden" });
+      toast.error("Las contraseñas no coinciden");
       return;
     }
 
     if (nuevaContrasena.length < 6) {
-      setMessage({ type: "error", text: "La contraseña debe tener al menos 6 caracteres" });
+      toast.error("La contraseña debe tener al menos 6 caracteres");
       return;
     }
 
     startPasswordUpdate(async () => {
       const result = await updatePasswordAction(nuevaContrasena);
       if (result.success) {
-        setMessage({ type: "success", text: "¡Contraseña actualizada correctamente!" });
-        setShowPasswordForm(false);
+        toast.success("¡Contraseña actualizada correctamente!");
+        setShowPasswordModal(false);
       } else {
-        setMessage({ type: "error", text: result.error ?? "Error al actualizar contraseña" });
+        toast.error(result.error ?? "Error al actualizar contraseña");
       }
-    });
-  };
-
-  const handleMfaToggle = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const checked = e.target.checked;
-    setMfaActive(checked);
-    localStorage.setItem("mfa_active", String(checked));
-    setMessage({
-      type: "success",
-      text: checked
-        ? "Verificación en dos pasos activada (Demostración de seguridad)"
-        : "Verificación en dos pasos desactivada",
     });
   };
 
@@ -158,193 +100,213 @@ export function PerfilForm({ perfil, email }: { perfil: Perfil; email: string })
   };
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6 pb-12">
-      {message && (
-        <Toast
-          message={message.text}
-          type={message.type}
-          onClose={() => setMessage(null)}
-        />
-      )}
-
-      <div className="flex items-center justify-between">
-        <BackButton fallbackHref="/">Volver a la tienda</BackButton>
-        <Button
-          variant="ghost"
-          onClick={handleLogout}
-          isLoading={loggingOut}
-          className="text-xs text-muted hover:text-red-600 transition-colors"
-        >
-          Cerrar sesión
-        </Button>
-      </div>
-
-      {/* Header card with Avatar and basic details */}
-      <Card className="flex flex-col sm:flex-row items-center gap-5 sm:gap-6 text-center sm:text-left">
-        <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-xl font-bold border border-primary/20 shadow-inner">
-          {getInitials()}
-        </div>
-        <div className="flex-1 space-y-1">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-center sm:justify-start gap-2">
-            <h1 className="text-xl font-semibold text-foreground">
-              {perfil.nombre_completo || "Usuario"}
-            </h1>
-            {perfil.es_admin && (
-              <Badge variant="success" className="w-fit mx-auto sm:mx-0">
-                Administrador
-              </Badge>
-            )}
+    <div className="space-y-6 pb-20 w-full">
+      {/* ─── Tarjeta Principal de Identidad de Usuario ─── */}
+      <div className="rounded-3xl border border-[#E5E0D8] bg-white p-5 sm:p-6 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-5">
+        <div className="flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left">
+          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-[#FAF7F2] text-chocolate text-xl font-bold font-serif border border-[#E5E0D8] shadow-2xs">
+            {getInitials()}
           </div>
-          <p className="text-sm text-muted">{email}</p>
+          <div className="space-y-1">
+            <div className="flex items-center justify-center sm:justify-start gap-2 flex-wrap">
+              <h1 className="text-xl font-serif font-bold text-chocolate">
+                {perfil.nombre_completo || "Usuario"}
+              </h1>
+              {perfil.es_admin ? (
+                <span className="rounded-full bg-emerald-100 text-emerald-800 font-semibold px-2.5 py-0.5 text-[11px] border border-emerald-300 shadow-2xs">
+                  🛡️ Administrador
+                </span>
+              ) : (
+                <span className="rounded-full bg-stone-100 text-stone-700 font-semibold px-2.5 py-0.5 text-[11px] border border-stone-200">
+                  👤 Cliente
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-stone-500 font-sans">{email}</p>
+          </div>
         </div>
-      </Card>
 
-      {perfil.es_admin && (
-        <Card className="border-emerald-200/60 bg-emerald-50/20 p-5 space-y-2">
-          <p className="text-sm font-semibold text-emerald-800 flex items-center gap-1.5">
-            🛡️ Acceso Administrativo
-          </p>
-          <p className="text-xs text-muted">
-            Tenés permisos de administrador para gestionar productos, categorías y pedidos.
-          </p>
-          <Link href="/admin" className="inline-block pt-1">
-            <Button className="text-xs px-4 py-2 min-h-0 bg-emerald-700 hover:bg-emerald-800 text-white border-0">
-              Ir al Panel Admin
+        {/* Botón de Acceso Admin Integrado si es Administrador */}
+        {perfil.es_admin && (
+          <Link href="/admin">
+            <Button className="rounded-2xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold px-4 py-2.5 min-h-10 shadow-xs flex items-center gap-2 cursor-pointer">
+              <span>🛡️</span>
+              <span>Ir al Panel Admin</span>
+              <span>→</span>
             </Button>
           </Link>
-        </Card>
-      )}
+        )}
+      </div>
 
-      {/* Main Profile Info Form */}
-      <form method="POST" onSubmit={handleSubmit} className="space-y-6">
-        {/* Card: Datos Personales */}
-        <Card className="space-y-4">
-          <h2 className="text-base font-semibold border-b border-border pb-3">Datos personales</h2>
-          <div className="grid gap-4 sm:grid-cols-2">
+      {/* ─── Formulario Principal de Perfil y Dirección ─── */}
+      <form onSubmit={handleSubmit} className="space-y-6">
+        
+        {/* Card: Datos Personales y de Contacto */}
+        <section className="rounded-3xl border border-[#E5E0D8] bg-[#FAF7F2]/80 p-5 sm:p-6 shadow-2xs space-y-4">
+          <div className="border-b border-[#E5E0D8] pb-3 flex items-center gap-2">
+            <span className="text-lg">📋</span>
             <div>
-              <Label htmlFor="nombreCompleto">Nombre completo</Label>
+              <h2 className="text-sm sm:text-base font-serif font-bold text-chocolate">
+                Datos Personales & Contacto
+              </h2>
+              <p className="text-[11px] text-stone-600">
+                Información para facturación de compras, envíos y coordinación de encargos.
+              </p>
+            </div>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div>
+              <Label htmlFor="nombreCompleto" className="text-xs font-bold text-stone-800">
+                Nombre Completo <span className="text-rose-600">*</span>
+              </Label>
               <Input
                 id="nombreCompleto"
                 name="nombreCompleto"
                 defaultValue={perfil.nombre_completo ?? ""}
                 required
                 placeholder="Ej. Sebastian Baudino"
+                className="rounded-xl text-xs bg-white mt-1"
               />
             </div>
+
             <div>
-              <Label htmlFor="dni">Número de documento (DNI/CUIT)</Label>
+              <Label htmlFor="dni" className="text-xs font-bold text-stone-800">
+                DNI / CUIT <span className="text-rose-600">*</span>
+              </Label>
               <Input
                 id="dni"
                 name="dni"
                 defaultValue={perfil.dni ?? ""}
+                required
+                placeholder="Ej. 43248253"
+                className="rounded-xl text-xs bg-white mt-1"
               />
             </div>
-          </div>
-        </Card>
 
-        {/* Card: Datos de contacto y cuenta */}
-        <Card className="space-y-4">
-          <h2 className="text-base font-semibold border-b border-border pb-3">Datos de cuenta y contacto</h2>
-          <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <Label htmlFor="nombreUsuario">Nombre de perfil / usuario</Label>
-              <Input
-                id="nombreUsuario"
-                name="nombreUsuario"
-                defaultValue={perfil.nombre_usuario ?? ""}
-                placeholder="Ej. seba_baudino"
-              />
-            </div>
-            <div>
-              <Label htmlFor="whatsapp">WhatsApp / Teléfono</Label>
+              <Label htmlFor="whatsapp" className="text-xs font-bold text-stone-800">
+                WhatsApp / Teléfono <span className="text-rose-600">*</span>
+              </Label>
               <Input
                 id="whatsapp"
                 name="whatsapp"
                 defaultValue={perfil.whatsapp ?? ""}
                 required
                 placeholder="Ej. 3493668308"
+                className="rounded-xl text-xs bg-white mt-1"
               />
-              <div className="mt-1.5 flex items-center gap-1 text-[11px] text-muted select-none">
-                <span>Formato:</span>
-                <span className="text-muted/40 line-through decoration-1">0</span>
-                <span className="font-semibold text-foreground/80">3493</span>
-                <span className="text-muted/40 line-through decoration-1">15</span>
-                <span className="font-semibold text-foreground/80">668308</span>
-                <span className="text-[10px] text-muted/70 ml-0.5">(sin el 0 y sin el 15)</span>
-              </div>
+              <p className="text-[10px] text-stone-500 mt-1">
+                Formato: <strong className="text-stone-700">3493 668308</strong> (sin 0 y sin 15)
+              </p>
             </div>
           </div>
-        </Card>
+        </section>
 
-        {/* Card: Dirección de envío */}
-        <Card className="space-y-4">
-          <h2 className="text-base font-semibold border-b border-border pb-3">Dirección de envío predeterminada</h2>
-          <p className="text-xs text-muted">
-            Configurá tu dirección aquí para pre-completarla automáticamente durante el checkout de tus compras.
-          </p>
-          <div className="grid gap-4 sm:grid-cols-3">
-            <div className="sm:col-span-2">
-              <Label htmlFor="direccionCalle">Calle</Label>
+        {/* Card: Dirección de Envío Predeterminada */}
+        <section className="rounded-3xl border border-[#E5E0D8] bg-[#FAF7F2]/80 p-5 sm:p-6 shadow-2xs space-y-4">
+          <div className="border-b border-[#E5E0D8] pb-3 flex items-center gap-2">
+            <span className="text-lg">📍</span>
+            <div>
+              <h2 className="text-sm sm:text-base font-serif font-bold text-chocolate">
+                Dirección de Envío Predeterminada
+              </h2>
+              <p className="text-[11px] text-stone-600">
+                Se autocompletará en tus compras y pedidos para que no tengas que escribirla cada vez.
+              </p>
+            </div>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-6">
+            <div className="sm:col-span-4">
+              <Label htmlFor="direccionCalle" className="text-xs font-bold text-stone-800">
+                Calle
+              </Label>
               <Input
                 id="direccionCalle"
                 name="direccionCalle"
                 defaultValue={perfil.direccion_calle ?? ""}
-                placeholder="Ej. Av. de Mayo"
+                placeholder="Ej. Tucumán"
+                className="rounded-xl text-xs bg-white mt-1"
               />
             </div>
-            <div>
-              <Label htmlFor="direccionNumero">Número</Label>
+
+            <div className="sm:col-span-2">
+              <Label htmlFor="direccionNumero" className="text-xs font-bold text-stone-800">
+                Número
+              </Label>
               <Input
                 id="direccionNumero"
                 name="direccionNumero"
                 defaultValue={perfil.direccion_numero ?? ""}
-                placeholder="Ej. 1370"
+                placeholder="Ej. 232"
+                className="rounded-xl text-xs bg-white mt-1"
               />
             </div>
-            <div>
-              <Label htmlFor="direccionPiso">Piso (opcional)</Label>
+
+            <div className="sm:col-span-2">
+              <Label htmlFor="direccionPiso" className="text-xs font-bold text-stone-800">
+                Piso (opcional)
+              </Label>
               <Input
                 id="direccionPiso"
                 name="direccionPiso"
                 defaultValue={perfil.direccion_piso ?? ""}
                 placeholder="Ej. 4"
+                className="rounded-xl text-xs bg-white mt-1"
               />
             </div>
-            <div>
-              <Label htmlFor="direccionDepto">Depto (opcional)</Label>
+
+            <div className="sm:col-span-2">
+              <Label htmlFor="direccionDepto" className="text-xs font-bold text-stone-800">
+                Depto (opcional)
+              </Label>
               <Input
                 id="direccionDepto"
                 name="direccionDepto"
                 defaultValue={perfil.direccion_depto ?? ""}
                 placeholder="Ej. B"
+                className="rounded-xl text-xs bg-white mt-1"
               />
             </div>
-            <div>
-              <Label htmlFor="direccionCodigoPostal">Código postal</Label>
+
+            <div className="sm:col-span-2">
+              <Label htmlFor="direccionCodigoPostal" className="text-xs font-bold text-stone-800">
+                Código Postal
+              </Label>
               <Input
                 id="direccionCodigoPostal"
                 name="direccionCodigoPostal"
                 defaultValue={perfil.direccion_codigo_postal ?? ""}
-                placeholder="Ej. 1085"
+                placeholder="Ej. S2322"
+                className="rounded-xl text-xs bg-white mt-1"
               />
             </div>
-            <div className="sm:col-span-2">
-              <Label htmlFor="direccionCiudad">Ciudad / Localidad</Label>
+
+            <div className="sm:col-span-3">
+              <Label htmlFor="direccionCiudad" className="text-xs font-bold text-stone-800">
+                Ciudad / Localidad
+              </Label>
               <Input
                 id="direccionCiudad"
                 name="direccionCiudad"
                 defaultValue={perfil.direccion_ciudad ?? ""}
-                placeholder="Ej. Congreso"
+                placeholder="Ej. Sunchales"
+                className="rounded-xl text-xs bg-white mt-1"
               />
             </div>
-            <div>
-              <Label htmlFor="direccionProvincia">Provincia</Label>
+
+            <div className="sm:col-span-3">
+              <Label htmlFor="direccionProvincia" className="text-xs font-bold text-stone-800">
+                Provincia
+              </Label>
               <Select
                 id="direccionProvincia"
                 name="direccionProvincia"
                 defaultValue={perfil.direccion_provincia ?? ""}
+                className="rounded-xl text-xs bg-white mt-1"
               >
-                <option value="">Seleccionar...</option>
+                <option value="">Seleccionar provincia...</option>
                 {PROVINCIAS.map((prov) => (
                   <option key={prov} value={prov}>
                     {prov}
@@ -353,132 +315,125 @@ export function PerfilForm({ perfil, email }: { perfil: Perfil; email: string })
               </Select>
             </div>
           </div>
-        </Card>
+        </section>
 
-        {/* Global Save Button for Main Profile Info */}
-        <div className="flex justify-end">
-          <Button type="submit" isLoading={pending} className="w-full sm:w-auto px-8">
-            Guardar cambios
+        {/* ─── Botón Flotante: "Guardar" ─── */}
+        <div className="fixed bottom-6 right-4 sm:right-6 z-40">
+          <Button
+            type="submit"
+            isLoading={pending}
+            className="rounded-full bg-chocolate text-crema-cruda hover:bg-chocolate/90 px-5 sm:px-6 py-2.5 sm:py-3 text-xs sm:text-sm font-bold shadow-2xl transition-all hover:scale-105 active:scale-95 cursor-pointer flex items-center gap-1.5 border border-white/20 backdrop-blur-md"
+          >
+            <span>💾</span>
+            <span>Guardar</span>
           </Button>
         </div>
       </form>
 
-      {/* Card: Seguridad */}
-      <Card className="space-y-5">
-        <h2 className="text-base font-semibold border-b border-border pb-3">Seguridad</h2>
-
-        {/* Sub-section: Email change */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium">Correo electrónico</p>
-              <p className="text-xs text-muted">{email}</p>
-            </div>
-            <Button
-              variant="outline"
-              type="button"
-              className="text-xs px-3 py-1.5 h-auto min-h-0"
-              onClick={() => setShowEmailForm(!showEmailForm)}
-            >
-              {showEmailForm ? "Cancelar" : "Modificar"}
-            </Button>
+      {/* ─── Card: Seguridad y Autenticación ─── */}
+      <section className="rounded-3xl border border-[#E5E0D8] bg-[#FAF7F2]/80 p-5 sm:p-6 shadow-2xs space-y-4">
+        <div className="border-b border-[#E5E0D8] pb-3 flex items-center gap-2">
+          <span className="text-lg">🔒</span>
+          <div>
+            <h2 className="text-sm sm:text-base font-serif font-bold text-chocolate">
+              Seguridad & Accesos
+            </h2>
+            <p className="text-[11px] text-stone-600">
+              Administrá tus credenciales y opciones de protección de cuenta.
+            </p>
           </div>
-          {showEmailForm && (
-            <form method="POST" onSubmit={handleEmailUpdate} className="space-y-3 border-t border-border/60 pt-3 max-w-sm">
-              <div>
-                <Label htmlFor="nuevoEmail">Nuevo correo electrónico</Label>
-                <Input
-                  id="nuevoEmail"
-                  name="nuevoEmail"
-                  type="email"
-                  required
-                  placeholder="nuevo@correo.com"
-                />
-              </div>
-              <Button type="submit" isLoading={updatingEmail} className="text-xs px-3 py-1.5 min-h-0">
-                Confirmar cambio de email
-              </Button>
-              <p className="text-[10px] text-muted leading-tight">
-                ⚠️ Se enviará un correo de confirmación a tu nueva dirección de correo electrónico para verificar el cambio.
-              </p>
-            </form>
-          )}
         </div>
 
-        <hr className="border-border/60" />
-
-        {/* Sub-section: Password change */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
+        <div className="divide-y divide-[#E5E0D8] space-y-3">
+          {/* Correo Electrónico (Informativo) */}
+          <div className="pt-2 flex items-center justify-between gap-4">
             <div>
-              <p className="text-sm font-medium">Contraseña</p>
-              <p className="text-xs text-muted">••••••••••••</p>
+              <p className="text-xs font-bold text-stone-800">Correo Electrónico</p>
+              <p className="text-xs text-stone-600 font-mono mt-0.5">{email}</p>
+            </div>
+            <span className="text-[11px] font-medium text-stone-400 bg-stone-100 px-2.5 py-1 rounded-lg">
+              Cuenta vinculada
+            </span>
+          </div>
+
+          {/* Contraseña */}
+          <div className="pt-3 flex items-center justify-between gap-4">
+            <div>
+              <p className="text-xs font-bold text-stone-800">Contraseña</p>
+              <p className="text-xs text-stone-500 tracking-widest mt-0.5">••••••••••••</p>
             </div>
             <Button
               variant="outline"
               type="button"
-              className="text-xs px-3 py-1.5 h-auto min-h-0"
-              onClick={() => setShowPasswordForm(!showPasswordForm)}
+              className="rounded-xl text-xs bg-white hover:bg-stone-50 font-semibold px-3 py-1.5 h-auto min-h-0 border-stone-300 cursor-pointer"
+              onClick={() => setShowPasswordModal(true)}
             >
-              {showPasswordForm ? "Cancelar" : "Modificar"}
+              Modificar
             </Button>
           </div>
-          {showPasswordForm && (
-            <form method="POST" onSubmit={handlePasswordUpdate} className="space-y-3 border-t border-border/60 pt-3 max-w-sm">
+        </div>
+      </section>
+
+      {/* ─── MODAL: MODIFICAR CONTRASEÑA ─── */}
+      {showPasswordModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-150">
+          <div className="w-full max-w-md rounded-3xl border border-[#E5E0D8] bg-white p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-stone-200 pb-3">
+              <h3 className="font-serif font-bold text-chocolate text-base">Cambiar Contraseña</h3>
+              <button
+                type="button"
+                onClick={() => setShowPasswordModal(false)}
+                className="text-stone-400 hover:text-stone-700 text-sm font-bold p-1 cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+            <form onSubmit={handlePasswordUpdate} className="space-y-4">
               <div>
-                <Label htmlFor="nuevaContrasena">Nueva contraseña</Label>
+                <Label htmlFor="nuevaContrasena" className="text-xs font-bold text-stone-800">
+                  Nueva Contraseña (mínimo 6 caracteres)
+                </Label>
                 <PasswordInput
                   id="nuevaContrasena"
                   name="nuevaContrasena"
                   required
-                  placeholder="Mínimo 6 caracteres"
+                  placeholder="••••••••"
+                  className="rounded-xl text-xs bg-stone-50 mt-1"
                 />
               </div>
               <div>
-                <Label htmlFor="confirmarContrasena">Confirmar nueva contraseña</Label>
+                <Label htmlFor="confirmarContrasena" className="text-xs font-bold text-stone-800">
+                  Confirmar Nueva Contraseña
+                </Label>
                 <PasswordInput
                   id="confirmarContrasena"
                   name="confirmarContrasena"
                   required
-                  placeholder="Repetí la contraseña"
+                  placeholder="••••••••"
+                  className="rounded-xl text-xs bg-stone-50 mt-1"
                 />
               </div>
-              <Button type="submit" isLoading={updatingPassword} className="text-xs px-3 py-1.5 min-h-0">
-                Guardar nueva contraseña
-              </Button>
-            </form>
-          )}
-        </div>
-
-        <hr className="border-border/60" />
-
-        {/* Sub-section: Two-step verification */}
-        <div className="space-y-3">
-          <div className="flex items-start justify-between gap-4">
-            <div className="space-y-1">
-              <div className="flex items-center gap-1.5">
-                <p className="text-sm font-medium">Verificación en dos pasos (2FA)</p>
-                <Badge variant={mfaActive ? "success" : "muted"} className="text-[10px] py-0 px-1.5">
-                  {mfaActive ? "Activo" : "Inactivo"}
-                </Badge>
+              <div className="flex justify-end gap-2 pt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowPasswordModal(false)}
+                  className="rounded-xl text-xs font-semibold"
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  type="submit"
+                  isLoading={updatingPassword}
+                  className="rounded-xl bg-chocolate text-crema-cruda text-xs font-bold px-4"
+                >
+                  Guardar Contraseña
+                </Button>
               </div>
-              <p className="text-xs text-muted leading-relaxed max-w-md">
-                Protegé tu cuenta requiriendo un código de seguridad adicional de tu aplicación de autenticación (Google Authenticator, Authy, etc.) al iniciar sesión.
-              </p>
-            </div>
-            <label className="relative inline-flex cursor-pointer items-center select-none pt-1">
-              <input
-                type="checkbox"
-                checked={mfaActive}
-                onChange={handleMfaToggle}
-                className="peer sr-only"
-              />
-              <div className="h-5 w-9 rounded-full bg-border transition-colors peer-checked:bg-primary" />
-              <div className="absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform peer-checked:translate-x-4" />
-            </label>
+            </form>
           </div>
         </div>
-      </Card>
+      )}
     </div>
   );
 }

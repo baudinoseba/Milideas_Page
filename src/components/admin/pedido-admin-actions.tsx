@@ -166,7 +166,7 @@ export function PedidoAdminActions({
         {proximoAVencer && pedido.estado === "pendiente_pago" && (
           <div className="rounded-2xl bg-[#FDF6E2] border border-[#EADBBD] p-3 text-xs text-[#855D1A] font-medium flex items-center gap-2">
             <span>⏰</span>
-            <span>Reserva de 48hs por vencer: {limite.toLocaleString("es-AR")}</span>
+            <span>Reserva de 24hs por vencer: {limite.toLocaleString("es-AR")}</span>
           </div>
         )}
       </div>

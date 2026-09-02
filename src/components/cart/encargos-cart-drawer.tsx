@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useEffect, useTransition } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
+import { createClient } from "@/lib/supabase/client";
 import { formatPrecio } from "@/lib/pricing";
 import { crearEncargoAction } from "@/lib/actions";
 import { useEncargosCartStore } from "@/stores/encargos-cart-store";
@@ -38,6 +39,32 @@ export function EncargosCartDrawer() {
   const [ciudad, setCiudad] = useState("");
   const [codigoPostal, _setCodigoPostal] = useState("");
   const [referencia, _setReferencia] = useState("");
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data }) => {
+      const user = data?.user;
+      if (user) {
+        supabase
+          .from("perfiles")
+          .select("*")
+          .eq("id", user.id)
+          .single()
+          .then(({ data: profileData }: { data: any }) => {
+            if (profileData) {
+              setNombreContacto((prev: string) => prev || profileData.nombre_completo || "");
+              setWhatsappContacto((prev: string) => prev || profileData.whatsapp || "");
+              setEmailContacto((prev: string) => prev || user.email || profileData.email || "");
+              if (profileData.direccion_ciudad) setCiudad(profileData.direccion_ciudad);
+              if (profileData.direccion_calle) _setCalle(profileData.direccion_calle);
+              if (profileData.direccion_numero) _setNumero(profileData.direccion_numero);
+              if (profileData.direccion_codigo_postal) _setCodigoPostal(profileData.direccion_codigo_postal);
+              if (profileData.direccion_calle) setMetodoEntrega("domicilio");
+            }
+          });
+      }
+    });
+  }, []);
 
   const totalPrice = getTotalPrice();
   const totalItemsCount = getTotalItems();
@@ -92,17 +119,30 @@ export function EncargosCartDrawer() {
         })
         .join("\n\n");
 
-      let entregaText = "*Entrega:* Retiro en Taller (Sunchales)";
+      let entregaText = "*Entrega:* Retiro en Taller (Sunchales - Sin Cargo)";
       if (metodoEntrega === "domicilio") {
         entregaText = `*Entrega:* Envío a Domicilio Vía Cargo (${ciudad})`;
       } else if (metodoEntrega === "agencia") {
         entregaText = `*Entrega:* Retiro en Sucursal Vía Cargo (${ciudad})`;
       }
 
-      const text = `*MILIDEAS ARTE - SOLICITUD DE ENCARGOS MÚLTIPLES*
+      const isSingle = totalItemsCount === 1;
+      const title = isSingle
+        ? "*MILIDEAS ARTE - SOLICITUD DE ENCARGO*"
+        : "*MILIDEAS ARTE - SOLICITUD DE ENCARGOS*";
+
+      const sectionTitle = isSingle
+        ? "*PIEZA ENCARGADA (1 ítem):*"
+        : `*PIEZAS ENCARGADAS (${totalItemsCount} ítems):*`;
+
+      const closingText = isSingle
+        ? "¡Hola Mili! Quisiera solicitar este encargo especial. Quedo a la espera de la confirmación y tiempo estimado de producción."
+        : "¡Hola Mili! Quisiera solicitar estos encargos especiales. Quedo a la espera de la confirmación y tiempo estimado de producción.";
+
+      const text = `${title}
 
 --------------------------------
-*PIEZAS ENCARGADAS (${totalItemsCount} ítems):*
+${sectionTitle}
 
 ${itemsFormattedText}
 
@@ -116,7 +156,7 @@ ${itemsFormattedText}
 ${emailContacto ? `*Email:* ${emailContacto}\n` : ""}${entregaText}
 
 --------------------------------
-¡Hola Mili! Quisiera solicitar estos encargos especiales. Quedo a la espera de la confirmación y tiempo estimado de producción.`;
+${closingText}`;
 
       const vendorWhatsapp = process.env.NEXT_PUBLIC_VENDOR_WHATSAPP || "5493493668308";
       const waUrl = `https://wa.me/${vendorWhatsapp}?text=${encodeURIComponent(text)}`;
@@ -198,7 +238,7 @@ ${emailContacto ? `*Email:* ${emailContacto}\n` : ""}${entregaText}
                             src={it.imagenUrl}
                             alt={it.nombre}
                             fill
-                            className="object-cover rounded-lg"
+                            className="object-contain rounded-lg p-0.5"
                           />
                         ) : (
                           <div className="flex h-full w-full items-center justify-center text-xl">

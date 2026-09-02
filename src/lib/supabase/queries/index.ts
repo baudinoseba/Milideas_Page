@@ -153,15 +153,18 @@ export async function getPedidoById(id: string): Promise<PedidoConItems | null> 
   return data as PedidoConItems;
 }
 
-export async function getPedidosUsuario(userId: string): Promise<PedidoConItems[]> {
+export async function getPedidosUsuario(userId: string): Promise<any[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("pedidos")
-    .select("*, items_pedido(*, productos(*))")
+    .select("*, items_pedido(*, productos(*, producto_imagenes(*)))")
     .eq("usuario_id", userId)
     .order("created_at", { ascending: false });
-  if (error) throw error;
-  return (data ?? []) as PedidoConItems[];
+  if (error) {
+    console.error("getPedidosUsuario error:", error);
+    return [];
+  }
+  return (data ?? []) as any[];
 }
 
 export async function getPerfil(userId: string): Promise<Perfil | null> {
@@ -667,6 +670,34 @@ export async function getObrasProyectosAdmin(): Promise<ObraProyecto[]> {
   }
   return (data ?? []) as ObraProyecto[];
 }
+
+// ─── Consultas de Encargos del Usuario ───
+
+export async function getEncargosUsuario(userId: string, email?: string): Promise<any[]> {
+  const adminClient = createAdminClient();
+  let query = adminClient
+    .from("encargos")
+    .select("*, productos(*, producto_imagenes(*)), items_encargo(*)")
+    .order("created_at", { ascending: false });
+
+  if (userId) {
+    if (email) {
+      query = query.or(`usuario_id.eq.${userId},email_contacto.eq.${email}`);
+    } else {
+      query = query.eq("usuario_id", userId);
+    }
+  } else if (email) {
+    query = query.eq("email_contacto", email);
+  }
+
+  const { data, error } = await query;
+  if (error) {
+    console.error("getEncargosUsuario error:", error);
+    return [];
+  }
+  return data ?? [];
+}
+
 
 
 

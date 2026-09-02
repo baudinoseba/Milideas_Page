@@ -13,7 +13,7 @@ export function DashboardPedidosList({ pedidos }: DashboardPedidosListProps) {
   const [isPending, startTransition] = useTransition();
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [ahora] = useState(() => Date.now());
-  const DOS_DIAS_MS = 48 * 60 * 60 * 1000;
+  const UN_DIA_MS = 24 * 60 * 60 * 1000;
 
   const handleConfirmarPago = (id: string, cliente: string) => {
     if (!confirm(`¿Confirmar recepción de pago para el pedido de ${cliente}?`)) return;
@@ -47,7 +47,7 @@ export function DashboardPedidosList({ pedidos }: DashboardPedidosListProps) {
     <div className="rounded-3xl border border-border/60 bg-surface divide-y divide-border/40 shadow-xs overflow-hidden">
       {pedidos.map((pedido: any) => {
         const diffMs = ahora - new Date(pedido.created_at).getTime();
-        const esDemorado = pedido.estado === "pendiente_pago" && diffMs > DOS_DIAS_MS;
+        const esDemorado = pedido.estado === "pendiente_pago" && diffMs > UN_DIA_MS;
         const dias = Math.floor(diffMs / (24 * 60 * 60 * 1000));
         
         const items = pedido.items_pedido || [];

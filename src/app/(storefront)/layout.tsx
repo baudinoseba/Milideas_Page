@@ -6,6 +6,8 @@ import { CartDrawer } from "@/components/cart/cart-drawer";
 import { CartToast } from "@/components/cart/cart-toast";
 import { AuthWelcomeToast } from "@/components/layout/auth-welcome-toast";
 
+import { StorefrontMain } from "@/components/layout/storefront-main";
+
 export default function StorefrontLayout({
   children,
 }: {
@@ -18,9 +20,7 @@ export default function StorefrontLayout({
       <Suspense fallback={null}>
         <AuthWelcomeToast />
       </Suspense>
-      <main className="mx-auto w-full max-w-7xl flex-1 px-3.5 py-6 sm:px-6 sm:py-8 overflow-x-hidden">
-        {children}
-      </main>
+      <StorefrontMain>{children}</StorefrontMain>
       <Footer />
       <CartDrawer />
       <CartToast />

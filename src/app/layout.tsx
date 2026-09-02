@@ -59,6 +59,20 @@ export default function RootLayout({
       data-scroll-behavior="smooth"
       className={`${dmSans.variable} ${caveat.variable} ${playfairDisplay.variable} ${amaticSc.variable} h-full`}
     >
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                try {
+                  document.documentElement.classList.remove('dark');
+                  localStorage.removeItem('milideas-theme');
+                } catch(e) {}
+              })();
+            `,
+          }}
+        />
+      </head>
       <body className="min-h-full flex flex-col antialiased bg-background text-foreground transition-colors duration-300">
         {children}
         <ToastContainer />

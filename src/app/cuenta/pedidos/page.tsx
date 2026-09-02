@@ -1,63 +1,34 @@
-import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
-import { getPedidosUsuario } from "@/lib/supabase/queries";
-import { formatPrecio } from "@/lib/pricing";
-import { Badge } from "@/components/ui/badge";
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+import { getPedidosUsuario, getEncargosUsuario } from "@/lib/supabase/queries";
+import { ComprasEncargosView } from "@/components/cuenta/compras-encargos-view";
 
-export const metadata = { title: "Mis pedidos" };
-
-const estadoLabels: Record<string, string> = {
-  pendiente_pago: "Pendiente de pago",
-  confirmado: "Confirmado",
-  enviado: "Enviado",
-  cancelado: "Cancelado",
+export const metadata = {
+  title: "Mis Compras & Encargos | Milideas",
+  description: "Seguimiento de compras de stock y estado de tus encargos en taller.",
 };
-
-import { BackButton } from "@/components/ui/back-button";
 
 export default async function PedidosPage() {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
 
-  const pedidos = await getPedidosUsuario(user.id).catch(() => []);
+  if (!user) redirect("/login?redirect=/cuenta/pedidos");
+
+  const [pedidos, encargos] = await Promise.all([
+    getPedidosUsuario(user.id).catch(() => []),
+    getEncargosUsuario(user.id, user.email ?? "").catch(() => []),
+  ]);
 
   return (
-    <div>
-      <div className="mb-4">
-        <BackButton fallbackHref="/cuenta/perfil">Volver al perfil</BackButton>
-      </div>
-      <h1 className="mb-6 text-xl font-medium">Mis pedidos</h1>
-      {pedidos.length === 0 ? (
-        <p className="text-muted">Aún no tenés pedidos.</p>
-      ) : (
-        <ul className="space-y-3">
-          {pedidos.map((pedido) => (
-            <li key={pedido.id}>
-              <Link
-                href={`/cuenta/pedidos/${pedido.id}`}
-                className="flex items-center justify-between rounded-sm border border-border p-4 hover:bg-surface"
-              >
-                <div>
-                  <p className="text-sm font-medium">
-                    Pedido #{pedido.id.slice(0, 8)}
-                  </p>
-                  <p className="text-xs text-muted">
-                    {new Date(pedido.created_at).toLocaleDateString("es-AR")}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <Badge>{estadoLabels[pedido.estado] ?? pedido.estado}</Badge>
-                  <p className="mt-1 text-sm">{formatPrecio(pedido.total)}</p>
-                </div>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
+    <Suspense fallback={<div className="p-8 text-center text-xs text-muted">Cargando tus compras y encargos...</div>}>
+      <ComprasEncargosView
+        pedidos={pedidos}
+        encargos={encargos}
+        userEmail={user.email ?? ""}
+      />
+    </Suspense>
   );
 }

@@ -100,7 +100,7 @@ export function PortfolioCarouselCard({ coleccion }: PortfolioCarouselCardProps)
 
       {/* Contenedor del Carrusel Compacto */}
       <div
-        className="relative w-full aspect-[4/3] max-h-[220px] sm:max-h-[250px] rounded-xl sm:rounded-2xl overflow-hidden bg-stone-900 border border-stone-200 shadow-2xs group select-none cursor-pointer"
+        className="relative w-full aspect-[4/3] max-h-[220px] sm:max-h-[250px] rounded-xl sm:rounded-2xl overflow-hidden bg-arena/30 border border-stone-200 shadow-2xs group select-none cursor-pointer flex items-center justify-center p-2"
         onClick={() => setLightboxOpen(true)}
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
@@ -109,7 +109,7 @@ export function PortfolioCarouselCard({ coleccion }: PortfolioCarouselCardProps)
         <img
           src={currentFoto}
           alt={`${coleccion.nombre} foto ${activeIdx + 1}`}
-          className="h-full w-full object-cover object-center transition-all duration-300 hover:scale-102"
+          className="h-full w-full object-contain object-center transition-all duration-300 hover:scale-102 rounded-xl"
         />
 
         {/* Contador de Foto */}

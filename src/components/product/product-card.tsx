@@ -23,15 +23,15 @@ export function ProductCard({ producto, priority = false }: { producto: Producto
       >
         {/* Clickable Image & Details — Clean single <a> tag */}
         <Link href={`/producto/${producto.slug}`} className="block space-y-3">
-          {/* Image container — Full coverage with rounded corners */}
-          <div className="relative overflow-hidden rounded-xl aspect-[4/5] w-full bg-surface/50">
+          {/* Image container — Full piece visible with contain */}
+          <div className="relative overflow-hidden rounded-xl aspect-[4/5] w-full bg-arena/20 flex items-center justify-center p-1.5 sm:p-2 border border-border/30">
             <OptimizedImage
               src={imagen?.url_imagen ?? "https://placehold.co/800x800"}
               alt={producto.nombre}
               aspectRatio="none"
-              objectFit="cover"
+              objectFit="contain"
               priority={priority}
-              className="h-full w-full object-cover rounded-xl transition-transform duration-500 ease-out group-hover:scale-[1.03]"
+              className="h-full w-full object-contain rounded-lg transition-transform duration-500 ease-out group-hover:scale-[1.03]"
             />
 
             {/* Badges overlay */}

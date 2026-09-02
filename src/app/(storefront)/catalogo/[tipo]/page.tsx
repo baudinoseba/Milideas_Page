@@ -12,11 +12,11 @@ export default async function CatalogoTipoPage({
   const query = categoria ? `?categoria=${categoria}` : "";
 
   if (tipo === "ceramica") {
-    redirect(`/ceramica${query}`);
+    redirect(`/ceramica/catalogo${query}`);
   }
 
   if (tipo === "ilustracion" || tipo === "ilustraciones") {
-    redirect(`/ilustracion${query}`);
+    redirect(`/ilustracion/catalogo${query}`);
   }
 
   if (tipo === "esculturas") {
@@ -25,4 +25,3 @@ export default async function CatalogoTipoPage({
 
   notFound();
 }
-

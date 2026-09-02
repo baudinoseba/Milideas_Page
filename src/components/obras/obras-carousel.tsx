@@ -175,7 +175,7 @@ export function ObrasCarousel({ obras }: ObrasCarouselProps) {
             {/* Imagen Principal con Click para Ampliar, Touch Swipe y Flechas */}
             <div
               onClick={() => handleOpenLightbox(activeIdx)}
-              className="relative aspect-[16/10] sm:aspect-[16/9] w-full rounded-2xl overflow-hidden bg-arena/40 border border-border/40 select-none cursor-pointer group/card"
+              className="relative aspect-[16/10] sm:aspect-[16/9] w-full rounded-2xl overflow-hidden bg-arena/25 border border-border/40 select-none cursor-pointer group/card flex items-center justify-center p-2.5 sm:p-4"
               onTouchStart={onTouchStart}
               onTouchMove={onTouchMove}
               onTouchEnd={onTouchEnd}
@@ -183,7 +183,7 @@ export function ObrasCarousel({ obras }: ObrasCarouselProps) {
               <img
                 src={portada}
                 alt={currentObra.titulo}
-                className="h-full w-full object-cover transition-transform duration-500 group-hover/card:scale-105"
+                className="h-full w-full object-contain transition-transform duration-500 group-hover/card:scale-105 rounded-xl"
                 draggable={false}
               />
 

@@ -17,7 +17,9 @@ function IconBag({ className }: { className?: string }) {
 
 const subscribeEmpty = () => () => {};
 
-export function CartButton() {
+import { cn } from "@/lib/utils/cn";
+
+export function CartButton({ className }: { className?: string } = {}) {
   const stockCount = useCartItemCount();
   const encargosCount = useEncargosCartStore((s) => s.getTotalItems());
   const count = stockCount + encargosCount;
@@ -44,7 +46,10 @@ export function CartButton() {
     <button
       type="button"
       onClick={openCart}
-      className="relative flex items-center justify-center rounded-lg p-2 text-muted transition-colors hover:bg-border/40 hover:text-foreground"
+      className={cn(
+        "relative flex items-center justify-center rounded-full p-2 text-stone-700 transition-colors hover:bg-stone-100 hover:text-chocolate cursor-pointer",
+        className
+      )}
       aria-label={`Carrito, ${isClient ? count : 0} items`}
     >
       <IconBag />

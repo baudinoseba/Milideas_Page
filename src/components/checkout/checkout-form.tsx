@@ -19,6 +19,7 @@ import { CheckoutSteps } from "@/components/checkout/checkout-steps";
 import { TerminosModal } from "@/components/checkout/terminos-modal";
 import { CartReservationTimer } from "@/components/cart/cart-reservation-timer";
 import { WhatsAppIcon } from "@/components/ui/whatsapp-icon";
+import { cn } from "@/lib/utils/cn";
 import type { MetodoPago, TipoEnvio, ZonaLogistica, Perfil } from "@/types";
 
 const PROVINCIAS_ARGENTINAS = [
@@ -123,7 +124,8 @@ export function CheckoutForm({
     zonas
   );
   const costoEnvio = autoShipping.precio;
-  const pricing = useCartStore.getState().getPricing(metodoPago, costoEnvio);
+  const costoEnvioEfectivo = step >= 3 && step3Data.tipoEnvio !== "taller" ? costoEnvio : 0;
+  const pricing = useCartStore.getState().getPricing(metodoPago, costoEnvioEfectivo);
 
   // Redirect if cart is empty
   useEffect(() => {
@@ -1017,13 +1019,13 @@ export function CheckoutForm({
 
                     <div>
                       <Label>Cotización Estimada de Retiro en Agencia Vía Cargo</Label>
-                      <div className="flex h-10 w-full items-center justify-between rounded-md border border-border/80 bg-arena/40 px-3 text-xs font-semibold text-chocolate shadow-sm">
+                      <div className="flex h-11 w-full items-center justify-between rounded-xl border border-stone-200 bg-white px-3.5 text-xs font-bold text-stone-900 shadow-2xs">
                         <span>{autoShipping.regionNombre}</span>
-                        <span className="text-terracota font-serif font-bold text-sm">{formatPrecio(costoEnvio)}</span>
+                        <span className="text-terracota font-serif font-black text-sm">{formatPrecio(costoEnvio)}</span>
                       </div>
                     </div>
 
-                    <div className="rounded-xl bg-amber-50 dark:bg-amber-950/40 p-3.5 text-xs text-amber-950 dark:text-amber-200 border border-amber-300 dark:border-amber-700/60 leading-relaxed font-sans font-medium">
+                    <div className="rounded-xl bg-white p-3.5 text-xs text-stone-900 border border-stone-200 leading-relaxed font-sans font-medium shadow-2xs">
                       ℹ️ Retirarás en la sucursal de Vía Cargo de tu localidad o ciudad seleccionada. El punto exacto de retiro se terminará coordinando directamente por WhatsApp con la vendedora.
                     </div>
                   </div>
@@ -1032,34 +1034,43 @@ export function CheckoutForm({
                 {/* Retiro en Taller Form */}
                 {step3Data.tipoEnvio === "taller" && (
                   <div className="pt-4 border-t border-border/60 space-y-4">
-                    <div className="rounded-2xl border-2 border-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 p-4 text-xs space-y-2 text-emerald-950 dark:text-emerald-100 shadow-xs">
-                      <div className="flex items-center gap-2 font-bold text-sm text-emerald-900 dark:text-emerald-200">
-                        <span>📍</span>
-                        <span>Dirección del Taller para Retiro Físico</span>
+                    <div className="rounded-2xl border border-[#C9A98C] bg-[#FAF7F2] p-4 sm:p-5 text-xs space-y-3 shadow-xs">
+                      <div className="rounded-xl bg-white border border-stone-200 p-4 space-y-2.5 shadow-2xs">
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <div className="flex items-center gap-2 font-black text-xs sm:text-sm text-stone-950">
+                            <span className="text-base">📍</span>
+                            <span>Dirección del Taller para Retiro Físico</span>
+                          </div>
+                          <span className="rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider">
+                            Sin Cargo ($0)
+                          </span>
+                        </div>
+                        <p className="text-sm font-bold text-chocolate">
+                          Florentino Ameghino 1576, Sunchales, Santa Fe, Argentina.
+                        </p>
+                        <p className="text-xs leading-relaxed text-stone-900 font-sans font-medium">
+                          El retiro es totalmente <strong>SIN CARGO ($0)</strong>. Al confirmar tu pedido, coordinaremos directamente con vos por WhatsApp el día y horario en que pasás a buscar tus piezas por el taller.
+                        </p>
                       </div>
-                      <p className="text-xs font-bold text-chocolate dark:text-white">
-                        Florentino Ameghino 1576, Sunchales, Santa Fe, Argentina.
-                      </p>
-                      <p className="text-xs leading-relaxed text-emerald-900/90 dark:text-emerald-200 font-sans font-medium">
-                        El retiro es totalmente <strong>SIN CARGO ($0)</strong>. Al confirmar tu pedido, coordinaremos directamente con vos por WhatsApp el día y horario en que pasás a buscar tus piezas por el taller.
-                      </p>
                     </div>
                   </div>
                 )}
 
                 {/* 🚚 Transport Provider & Mandatory Disclaimer (Vía Cargo) */}
                 {step3Data.tipoEnvio !== "taller" && (
-                  <div className="rounded-2xl border-2 border-amber-400 bg-amber-50 dark:bg-amber-950/40 p-4 text-xs space-y-2.5 shadow-xs">
-                    <div className="flex items-center gap-2 font-bold text-amber-950 dark:text-amber-200 text-xs sm:text-sm">
-                      <span className="text-base">🚚</span>
-                      <span>Empresa de Transporte: Vía Cargo</span>
-                    </div>
-                    <p className="leading-relaxed font-sans text-xs font-medium text-amber-900 dark:text-amber-200">
-                      &quot;Los valores de cotización son únicamente informativos y están sujetos a variaciones según cargo por manejo, peso y/o medidas reales registradas en el momento de la venta. El valor del servicio contraentrega tiene un costo adicional que no está contemplado en esta cotización. El valor del envío puede variar en el momento de la entrega en el punto de venta.&quot;
-                    </p>
-                    <div className="pt-2 border-t border-amber-300 dark:border-amber-700/60 text-xs font-semibold text-amber-950 dark:text-amber-300 space-y-1">
-                      <p>• La cotización mostrada es un valor aproximado para tu zona y está a cargo del comprador.</p>
-                      <p>• El precio final y punto exacto de despacho se terminará acordando directamente con la vendedora.</p>
+                  <div className="rounded-2xl border border-[#C9A98C] bg-[#FAF7F2] p-4 sm:p-5 text-xs space-y-3 shadow-xs">
+                    <div className="rounded-xl bg-white border border-stone-200 p-4 space-y-3 shadow-2xs">
+                      <div className="flex items-center gap-2 font-black text-xs sm:text-sm text-stone-950">
+                        <span className="text-base">🚚</span>
+                        <span>Empresa de Transporte: Vía Cargo</span>
+                      </div>
+                      <p className="leading-relaxed font-sans text-xs font-normal text-stone-800">
+                        &quot;Los valores de cotización son únicamente informativos y están sujetos a variaciones según cargo por manejo, peso y/o medidas reales registradas en el momento de la venta. El valor del servicio contraentrega tiene un costo adicional que no está contemplado en esta cotización. El valor del envío puede variar en el momento de la entrega en el punto de venta.&quot;
+                      </p>
+                      <div className="pt-2.5 border-t border-stone-100 text-xs font-bold text-stone-950 space-y-1">
+                        <p>• La cotización mostrada es un valor aproximado para tu zona y está a cargo del comprador.</p>
+                        <p>• El precio final y punto exacto de despacho se terminará acordando directamente con la vendedora.</p>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -1121,7 +1132,10 @@ export function CheckoutForm({
                         <p><span className="font-medium text-foreground">Ubicación:</span> {step3Data.ciudad}, {step3Data.provincia} ({step3Data.codigoPostal})</p>
                       </>
                     ) : (
-                      <p><span className="font-medium text-foreground">Agencia/Zona:</span> {autoShipping.regionNombre}</p>
+                      <>
+                        <p><span className="font-medium text-foreground">Destino:</span> {step3Data.ciudad ? `${step3Data.ciudad}, ${step3Data.provincia}` : step3Data.provincia || "A coordinar"}</p>
+                        <p><span className="font-medium text-foreground">Punto de Entrega:</span> Sucursal Vía Cargo ({autoShipping.regionNombre})</p>
+                      </>
                     )}
                     {step3Data.tipoEnvio !== "taller" && (
                       <p className="text-[11px] text-amber-700 dark:text-amber-300 font-medium pt-1">
@@ -1134,58 +1148,76 @@ export function CheckoutForm({
 
               {/* Payment Section */}
               <form onSubmit={handleSubmit} className="space-y-6">
-                <Card className="space-y-5 border-[#25D366]/30 bg-[#25D366]/5">
-                  <div className="flex items-center justify-between border-b border-border/80 pb-3">
-                    <h2 className="text-lg font-medium text-foreground flex items-center gap-2">
+                <div className="space-y-5 border-2 border-[#C9A98C] bg-[#FAF7F2] p-5 sm:p-7 shadow-sm rounded-3xl">
+                  <div className="flex items-center justify-between border-b border-[#E5E0D8] pb-3.5">
+                    <h2 className="text-lg font-serif font-bold text-chocolate flex items-center gap-2.5">
                       <WhatsAppIcon className="w-6 h-6 text-[#25D366]" />
                       <span>Coordinación y Pago por WhatsApp</span>
                     </h2>
                   </div>
 
-                  <div className="p-4 rounded-xl bg-white/80 dark:bg-black/30 border border-border/80 text-xs text-muted leading-relaxed space-y-2">
-                    <p className="font-semibold text-chocolate text-sm">
-                      🏦 Transferencia o Efectivo a la cuenta de la artista
+                  <div className="p-4 sm:p-5 rounded-2xl bg-white border border-[#E5E0D8] text-xs text-stone-900 leading-relaxed space-y-2 shadow-2xs">
+                    <p className="font-bold text-stone-950 text-sm flex items-center gap-1.5 font-sans">
+                      <span>🏦</span>
+                      <span>Transferencia Bancaria o Efectivo en Taller</span>
                     </p>
-                    <p>
-                      Al confirmar el pedido, tus piezas quedarán <strong>reservadas a tu nombre por 48 horas</strong>. La vendedora te enviará el alias bancario por WhatsApp para que realices la transferencia o coordines en efectivo.
+                    <p className="text-stone-900 font-medium leading-relaxed font-sans text-xs">
+                      Al confirmar el pedido, tus piezas quedarán <strong>reservadas a tu nombre por 24 horas</strong>. Podrás ver los datos bancarios y el alias directo en la siguiente pantalla para realizar la transferencia y adjuntarle el comprobante a Mili por WhatsApp.
                     </p>
                   </div>
 
                   {/* Terms and conditions checkbox */}
-                  <div className="flex items-start gap-2 pt-2 select-none">
+                  <label
+                    htmlFor="terminos"
+                    className={cn(
+                      "flex items-start gap-3 p-4 rounded-2xl border transition-all cursor-pointer select-none bg-white",
+                      aceptarTerminos
+                        ? "border-chocolate ring-2 ring-chocolate/30 shadow-xs"
+                        : "border-[#E5E0D8] hover:border-chocolate/50",
+                    )}
+                  >
                     <input
                       type="checkbox"
                       id="terminos"
                       checked={aceptarTerminos}
                       onChange={(e) => setAceptarTerminos(e.target.checked)}
-                      className="mt-1 h-4 w-4 rounded border-border text-primary focus:ring-primary/40"
+                      className="mt-0.5 h-4 w-4 rounded border-stone-400 text-chocolate focus:ring-chocolate accent-chocolate shrink-0 cursor-pointer"
                     />
-                    <label htmlFor="terminos" className="text-xs text-muted leading-normal">
+                    <span className="text-xs leading-relaxed font-sans text-stone-900 font-medium">
                       Acepto los{" "}
                       <button
                         type="button"
-                        onClick={() => setTermsOpen(true)}
-                        className="text-primary underline hover:text-primary-hover font-medium"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setTermsOpen(true);
+                        }}
+                        className="text-terracota underline font-bold hover:text-chocolate cursor-pointer"
                       >
                         términos y condiciones
                       </button>{" "}
-                      de compra.
-                    </label>
-                  </div>
+                      de compra y reserva artesanal.
+                    </span>
+                  </label>
 
-                  <div className="flex gap-3 pt-2">
-                    <Button type="button" variant="outline" onClick={() => setStep(3)} className="flex-1 sm:flex-initial">
+                  <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setStep(3)}
+                      className="rounded-full border-stone-300 bg-white hover:bg-stone-100 text-stone-800 font-semibold min-h-11 px-6 cursor-pointer"
+                    >
                       ← Volver
                     </Button>
                     <Button
                       type="submit"
-                      className="flex-1 sm:flex-initial bg-[#25D366] hover:bg-[#20ba59] text-white font-semibold shadow-sm"
+                      className="flex-1 rounded-full bg-[#25D366] hover:bg-[#20ba59] text-white font-bold min-h-11 px-6 shadow-md cursor-pointer transition-all active:scale-95"
                       isLoading={pending}
                     >
                       Confirmar Reserva y Coordinar por WhatsApp →
                     </Button>
                   </div>
-                </Card>
+                </div>
               </form>
             </div>
           )}
@@ -1241,7 +1273,15 @@ export function CheckoutForm({
               <div className="flex justify-between text-muted">
                 <span>Costo de envío</span>
                 <span>
-                  {step >= 3 ? formatPrecio(costoEnvio) : <span className="italic text-[11px]">(Se calcula en Paso 3)</span>}
+                  {step >= 3 ? (
+                    step3Data.tipoEnvio === "taller" ? (
+                      <span className="text-emerald-700 font-semibold">Gratis ($0)</span>
+                    ) : (
+                      formatPrecio(costoEnvioEfectivo)
+                    )
+                  ) : (
+                    <span className="italic text-[11px]">(Se calcula en Paso 3)</span>
+                  )}
                 </span>
               </div>
 

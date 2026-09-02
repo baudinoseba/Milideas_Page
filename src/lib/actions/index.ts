@@ -1774,9 +1774,14 @@ export async function crearEncargoAction(formData: FormData): Promise<{
     }
   }
 
+  const {
+    data: { user: currentUser },
+  } = await supabase.auth.getUser();
+
   const { data, error } = await supabase
     .from("encargos")
     .insert({
+      usuario_id: currentUser?.id || null,
       producto_id: validProductoId,
       nombre_contacto: nombreContacto,
       whatsapp_contacto: whatsappContacto,
@@ -3551,6 +3556,40 @@ export async function lanzarColeccionDropCompletaAction(data: {
   revalidatePath("/admin/ilustracion");
   return { success: true };
 }
+
+export async function getCurrentUserRoleAction(): Promise<{
+  isLoggedIn: boolean;
+  isAdmin: boolean;
+  email?: string | null;
+  nombre?: string | null;
+}> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return { isLoggedIn: false, isAdmin: false };
+
+  const adminClient = createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SECRET_KEY!,
+    { auth: { persistSession: false, autoRefreshToken: false } }
+  );
+
+  const { data: perfil } = await adminClient
+    .from("perfiles")
+    .select("nombre_completo, es_admin")
+    .eq("id", user.id)
+    .single();
+
+  return {
+    isLoggedIn: true,
+    isAdmin: !!perfil?.es_admin,
+    email: user.email ?? null,
+    nombre: perfil?.nombre_completo || user.user_metadata?.nombre_completo || null,
+  };
+}
+
 
 
 

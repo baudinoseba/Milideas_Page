@@ -30,7 +30,7 @@ export function CartLineItem({
           src={item.imagenUrl || "https://placehold.co/800x800"}
           alt={item.nombre}
           fill
-          className="object-cover"
+          className="object-contain p-1"
           sizes="80px"
         />
       </div>

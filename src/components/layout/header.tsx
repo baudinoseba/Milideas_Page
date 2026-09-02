@@ -6,7 +6,9 @@ import { usePathname } from "next/navigation";
 import { NAV_LINKS } from "@/lib/utils/constants";
 import { cn } from "@/lib/utils/cn";
 import { CartButton } from "@/components/cart/cart-button";
+import { NotificationBell } from "@/components/layout/notification-bell";
 import { createClient } from "@/lib/supabase/client";
+import { getCurrentUserRoleAction } from "@/lib/actions";
 
 function IconUser({ className }: { className?: string }) {
   return (
@@ -36,7 +38,6 @@ export function Header() {
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
-  const [isDark, setIsDark] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   // Close mobile drawer on route change
@@ -45,37 +46,23 @@ export function Header() {
     setMenuOpen(false);
   }, [pathname]);
 
+  const refreshUserRole = async () => {
+    try {
+      const res = await getCurrentUserRoleAction();
+      setIsLoggedIn(res.isLoggedIn);
+      setIsAdmin(res.isAdmin);
+      setUserEmail(res.email ?? null);
+      setUserName(res.nombre ?? null);
+    } catch {
+      // Fallback
+    }
+  };
+
   useEffect(() => {
     const supabase = createClient();
-    
-    // Check initial dark theme
-    const storedTheme = localStorage.getItem("milideas-theme");
-    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    if (storedTheme === "dark" || (!storedTheme && prefersDark)) {
-      setIsDark(true);
-    } else {
-      setIsDark(false);
-    }
 
-    // Check session & admin profile
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (session) {
-        setIsLoggedIn(true);
-        setUserEmail(session.user.email ?? null);
-        const { data: profile } = await supabase
-          .from("perfiles")
-          .select("nombre_completo, es_admin")
-          .eq("id", session.user.id)
-          .single();
-        if (profile) {
-          setIsAdmin(!!profile.es_admin);
-          setUserName(profile.nombre_completo ?? null);
-        }
-      } else {
-        setIsLoggedIn(false);
-        setIsAdmin(false);
-      }
-    });
+    // Refresh user role
+    refreshUserRole();
 
     supabase
       .from("configuracion_sitio")
@@ -88,25 +75,8 @@ export function Header() {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (session) {
-        setIsLoggedIn(true);
-        setUserEmail(session.user.email ?? null);
-        const { data: profile } = await supabase
-          .from("perfiles")
-          .select("nombre_completo, es_admin")
-          .eq("id", session.user.id)
-          .single();
-        if (profile) {
-          setIsAdmin(!!profile.es_admin);
-          setUserName(profile.nombre_completo ?? null);
-        }
-      } else {
-        setIsLoggedIn(false);
-        setIsAdmin(false);
-        setUserEmail(null);
-        setUserName(null);
-      }
+    } = supabase.auth.onAuthStateChange(async (_event, _session) => {
+      await refreshUserRole();
     });
 
     // Close user menu on outside click
@@ -122,18 +92,6 @@ export function Header() {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
-
-  const toggleTheme = () => {
-    const next = !isDark;
-    setIsDark(next);
-    if (next) {
-      document.documentElement.classList.add("dark");
-      localStorage.setItem("milideas-theme", "dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-      localStorage.setItem("milideas-theme", "light");
-    }
-  };
 
   const handleLogout = async () => {
     try {
@@ -151,16 +109,16 @@ export function Header() {
 
   return (
     <>
-      <header className="sticky top-0 z-40 w-full border-b border-border/50 bg-surface/90 backdrop-blur-md transition-colors duration-300 shadow-xs">
+      <header className="sticky top-0 z-40 w-full border-b border-[#E5E0D8] bg-white transition-all duration-200 shadow-2xs">
         <div className="mx-auto flex h-14 sm:h-16 max-w-7xl items-center justify-between px-3 sm:px-6">
           
-          {/* Left: Mobile Hamburger Icon + Brand Logo */}
-          <div className="flex items-center gap-2 sm:gap-3.5">
+          {/* Left: Mobile Hamburger Icon + Brand Logo Circular */}
+          <div className="flex items-center gap-2 sm:gap-3.5 flex-1 justify-start">
             {/* Hamburger button visible only on mobile/tablets (< md) */}
             <button
               type="button"
               onClick={() => setMobileDrawerOpen(true)}
-              className="flex md:hidden h-9 w-9 items-center justify-center rounded-full border border-border/60 bg-surface text-chocolate hover:bg-secondary/40 active:scale-95 transition-all shadow-xs cursor-pointer"
+              className="flex md:hidden h-9 w-9 items-center justify-center rounded-full border border-stone-200 bg-white text-chocolate hover:bg-stone-100 active:scale-95 transition-all shadow-xs cursor-pointer"
               aria-label="Abrir menú de navegación"
             >
               <IconMenu className="h-5 w-5" />
@@ -168,27 +126,29 @@ export function Header() {
 
             <Link
               href="/"
-              className="flex items-center shrink-0 hover:opacity-90 transition-transform active:scale-95"
+              className="flex items-center shrink-0 group transition-transform active:scale-95"
               title="Milideas Inicio"
             >
-              {logoUrl ? (
-                <img
-                  src={logoUrl}
-                  alt="Milideas"
-                  className="h-10 sm:h-12 w-auto object-contain"
-                />
-              ) : (
-                <img
-                  src="/logo-artistic.jpg"
-                  alt="Milideas"
-                  className="h-10 sm:h-12 w-auto object-contain"
-                />
-              )}
+              <div className="h-9 w-9 sm:h-11 sm:w-11 rounded-full bg-white p-1 ring-1 ring-stone-200 shadow-2xs overflow-hidden flex items-center justify-center shrink-0 transition-transform group-hover:scale-105">
+                {logoUrl ? (
+                  <img
+                    src={logoUrl}
+                    alt="Milideas"
+                    className="h-full w-full object-contain rounded-full"
+                  />
+                ) : (
+                  <img
+                    src="/milideas_logo.png"
+                    alt="Milideas"
+                    className="h-full w-full object-contain rounded-full"
+                  />
+                )}
+              </div>
             </Link>
           </div>
 
-          {/* Center: Desktop Nav Links (hidden on mobile, visible on desktop >= md) */}
-          <nav className="hidden md:flex items-center gap-1 sm:gap-2">
+          {/* Center: Desktop Nav Links (hidden on mobile, strictly centered in the viewport) */}
+          <nav className="hidden md:flex items-center justify-center shrink-0 gap-1 sm:gap-2">
             {NAV_LINKS.map((link) => {
               const isActive =
                 pathname === link.href || pathname.startsWith(link.href + "/");
@@ -197,10 +157,10 @@ export function Header() {
                   key={link.href}
                   href={link.href}
                   className={cn(
-                    "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs lg:text-sm font-medium font-sans transition-all duration-200",
+                    "flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs lg:text-sm font-semibold font-sans transition-all duration-200",
                     isActive
-                      ? "bg-terracota/15 text-chocolate font-semibold ring-1 ring-terracota/30 shadow-xs"
-                      : "text-muted hover:text-chocolate hover:bg-secondary/40",
+                      ? "bg-terracota/15 text-chocolate font-bold ring-1 ring-terracota/30 shadow-xs"
+                      : "text-stone-700 hover:text-chocolate hover:bg-stone-100",
                   )}
                 >
                   <span className="text-sm lg:text-base leading-none">{link.emoji}</span>
@@ -210,8 +170,26 @@ export function Header() {
             })}
           </nav>
 
-          {/* Right Actions: Cart + Profile Popover */}
-          <div className="flex items-center gap-1.5 sm:gap-2">
+          {/* Right Actions: Mis Compras + Notification Bell + Cart + Profile Popover */}
+          <div className="flex items-center gap-1.5 sm:gap-2 flex-1 justify-end">
+            {/* Direct Mis Compras & Encargos Button */}
+            <Link
+              href={isLoggedIn ? "/cuenta/pedidos" : "/login?redirect=/cuenta/pedidos"}
+              className={cn(
+                "hidden sm:flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-all duration-200 border",
+                pathname === "/cuenta/pedidos"
+                  ? "bg-terracota text-white border-terracota shadow-2xs"
+                  : "border-stone-200 bg-white text-stone-700 hover:text-chocolate hover:bg-stone-100 shadow-2xs",
+              )}
+              title="Ver mis compras de stock y estado de mis encargos"
+            >
+              <span>🛍️</span>
+              <span className="hidden lg:inline">Mis Compras</span>
+            </Link>
+
+            {/* Notification Bell */}
+            <NotificationBell />
+
             <CartButton />
 
             {/* Profile & Settings Dropdown Menu */}
@@ -220,8 +198,8 @@ export function Header() {
                 type="button"
                 onClick={() => setMenuOpen((prev) => !prev)}
                 className={cn(
-                  "flex h-9 w-9 items-center justify-center rounded-full border border-border/60 bg-surface text-muted transition-all duration-200 hover:text-foreground hover:bg-secondary/40 active:scale-95 cursor-pointer shadow-xs",
-                  menuOpen && "ring-2 ring-terracota/50 text-foreground bg-secondary/50",
+                  "flex h-9 w-9 items-center justify-center rounded-full border border-stone-200 bg-white text-stone-700 transition-all duration-200 hover:text-chocolate hover:bg-stone-100 active:scale-95 cursor-pointer shadow-xs",
+                  menuOpen && "ring-2 ring-terracota/50 text-chocolate bg-stone-100",
                 )}
                 title="Ajustes y Cuenta"
                 aria-label="Menú de usuario"
@@ -230,68 +208,54 @@ export function Header() {
               </button>
 
               {menuOpen && (
-                <div className="absolute right-0 top-full mt-2 w-64 rounded-2xl border border-border/80 bg-surface/98 p-3 shadow-xl backdrop-blur-xl animate-in fade-in slide-in-from-top-2 duration-200 z-50">
+                <div className="absolute right-0 top-full mt-2 w-64 rounded-3xl border border-[#E5E0D8] bg-white p-3.5 shadow-2xl animate-in fade-in slide-in-from-top-2 duration-150 z-50">
                   {/* User info banner */}
-                  <div className="border-b border-border/60 pb-2.5 mb-2.5 px-1">
-                    <p className="text-xs font-semibold text-chocolate truncate">
+                  <div className="border-b border-stone-100 pb-2.5 mb-2.5 px-1">
+                    <p className="text-xs font-bold text-chocolate truncate">
                       {userName || (isLoggedIn ? "Mi Cuenta" : "Hola, visitante")}
                     </p>
-                    <p className="text-[11px] text-muted truncate">
+                    <p className="text-[11px] text-stone-500 truncate">
                       {userEmail || "Bienvenido a Milideas"}
                     </p>
                   </div>
 
-                  {/* Dark mode switch inside menu */}
-                  <div className="flex items-center justify-between rounded-xl bg-secondary/40 px-3 py-2 text-xs font-medium text-foreground mb-2">
-                    <span className="flex items-center gap-2">
-                      <span>{isDark ? "🌙 Modo Noche" : "☀️ Modo Claro"}</span>
-                    </span>
-                    <button
-                      type="button"
-                      onClick={toggleTheme}
-                      className={cn(
-                        "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden",
-                        isDark ? "bg-terracota" : "bg-barro-claro",
-                      )}
-                      role="switch"
-                      aria-checked={isDark}
+                  {/* Botón Verde Destacado de Panel Admin si es Administrador */}
+                  {isAdmin && (
+                    <Link
+                      href="/admin"
+                      onClick={() => setMenuOpen(false)}
+                      className="flex items-center justify-center gap-2 rounded-2xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold py-2.5 px-3 text-xs shadow-xs transition-all mb-2.5 cursor-pointer"
                     >
-                      <span
-                        className={cn(
-                          "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out",
-                          isDark ? "translate-x-4" : "translate-x-0",
-                        )}
-                      />
-                    </button>
-                  </div>
+                      <span>🛡️</span>
+                      <span>Panel de Administración</span>
+                      <span>→</span>
+                    </Link>
+                  )}
 
                   {/* Menu items */}
-                  <div className="space-y-1 text-xs">
-                    {isAdmin && (
-                      <Link
-                        href="/admin"
-                        onClick={() => setMenuOpen(false)}
-                        className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 font-semibold text-terracota hover:bg-terracota/10 transition-colors"
-                      >
-                        <span>⚙️</span>
-                        <span>Panel de Administración</span>
-                      </Link>
-                    )}
-
+                  <div className="space-y-1 text-xs font-medium">
                     {isLoggedIn ? (
                       <>
                         <Link
                           href="/cuenta/perfil"
                           onClick={() => setMenuOpen(false)}
-                          className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-foreground hover:bg-secondary/50 transition-colors"
+                          className="flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-stone-700 hover:text-chocolate hover:bg-stone-100 transition-colors"
                         >
                           <span>👤</span>
-                          <span>Mi Perfil & Compras</span>
+                          <span>Mi Perfil</span>
+                        </Link>
+                        <Link
+                          href="/cuenta/pedidos"
+                          onClick={() => setMenuOpen(false)}
+                          className="flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-stone-700 hover:text-chocolate hover:bg-stone-100 transition-colors"
+                        >
+                          <span>🛍️</span>
+                          <span>Compras & Encargos</span>
                         </Link>
                         <button
                           type="button"
                           onClick={handleLogout}
-                          className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-admin-danger hover:bg-red-500/10 transition-colors cursor-pointer"
+                          className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
                         >
                           <span>🚪</span>
                           <span>Cerrar Sesión</span>
@@ -302,7 +266,7 @@ export function Header() {
                         <Link
                           href="/login"
                           onClick={() => setMenuOpen(false)}
-                          className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 font-medium text-foreground hover:bg-secondary/50 transition-colors"
+                          className="flex items-center gap-2.5 rounded-xl px-2.5 py-2 font-bold text-chocolate hover:bg-stone-100 transition-colors"
                         >
                           <span>🔑</span>
                           <span>Iniciar Sesión</span>
@@ -310,7 +274,7 @@ export function Header() {
                         <Link
                           href="/registro"
                           onClick={() => setMenuOpen(false)}
-                          className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-muted hover:bg-secondary/50 transition-colors"
+                          className="flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-stone-600 hover:text-chocolate hover:bg-stone-100 transition-colors"
                         >
                           <span>✨</span>
                           <span>Crear Cuenta</span>
@@ -333,57 +297,37 @@ export function Header() {
           onClick={() => setMobileDrawerOpen(false)}
         >
           <div
-            className="relative w-72 sm:w-80 max-w-[85vw] h-full bg-surface border-r border-border/80 shadow-2xl p-5 flex flex-col justify-between animate-in slide-in-from-left duration-300"
+            className="relative w-72 sm:w-80 max-w-[85vw] h-full bg-white border-r border-[#E5E0D8] shadow-2xl p-5 flex flex-col justify-between animate-in slide-in-from-left duration-300"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="space-y-6">
               {/* Header del Drawer */}
-              <div className="flex items-center justify-between border-b border-border/60 pb-4">
+              <div className="flex items-center justify-between border-b border-stone-100 pb-4">
                 <Link
                   href="/"
                   onClick={() => setMobileDrawerOpen(false)}
                   className="flex items-center gap-2.5 group"
                 >
-                  <img
-                    src="/logo-artistic.jpg"
-                    alt="Milideas"
-                    className="h-10 w-auto object-contain group-hover:scale-105 transition-transform"
-                  />
-                  <div>
-                    <span className="text-sm font-semibold text-chocolate font-serif block group-hover:text-terracota transition-colors">
-                      Milideas
-                    </span>
-                    <span className="text-[10px] text-muted block">Estudio de Arte & Cerámica</span>
+                  <div className="h-10 w-10 rounded-full bg-white p-1 ring-1 ring-stone-200 shadow-2xs overflow-hidden flex items-center justify-center shrink-0">
+                    <img
+                      src={logoUrl || "/milideas_logo.png"}
+                      alt="Milideas Logo"
+                      className="h-full w-full object-contain rounded-full"
+                    />
                   </div>
                 </Link>
-
                 <button
                   type="button"
                   onClick={() => setMobileDrawerOpen(false)}
-                  className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary/50 text-chocolate hover:bg-secondary transition-all cursor-pointer"
+                  className="rounded-full p-2 text-stone-500 hover:bg-stone-100 active:scale-95 transition-all cursor-pointer"
                   aria-label="Cerrar menú"
                 >
                   ✕
                 </button>
               </div>
 
-              {/* Lista de Navegación Principal */}
-              <nav className="space-y-1.5">
-                {/* Botón Volver al Inicio */}
-                <Link
-                  href="/"
-                  onClick={() => setMobileDrawerOpen(false)}
-                  className={cn(
-                    "flex items-center gap-3 rounded-2xl px-3.5 py-2.5 text-sm font-medium font-sans transition-all",
-                    pathname === "/"
-                      ? "bg-terracota/15 text-chocolate font-semibold ring-1 ring-terracota/30 shadow-xs"
-                      : "text-muted hover:text-chocolate hover:bg-secondary/40"
-                  )}
-                >
-                  <span className="text-lg leading-none">🏠</span>
-                  <span>Inicio</span>
-                </Link>
-
+              {/* Links de Navegación Mobile */}
+              <nav className="flex flex-col gap-1.5">
                 {NAV_LINKS.map((link) => {
                   const isActive =
                     pathname === link.href || pathname.startsWith(link.href + "/");
@@ -393,46 +337,63 @@ export function Header() {
                       href={link.href}
                       onClick={() => setMobileDrawerOpen(false)}
                       className={cn(
-                        "flex items-center gap-3 rounded-2xl px-3.5 py-2.5 text-sm font-medium font-sans transition-all",
+                        "flex items-center gap-3 rounded-2xl px-3.5 py-3 text-sm font-semibold transition-all",
                         isActive
-                          ? "bg-terracota/15 text-chocolate font-semibold ring-1 ring-terracota/30 shadow-xs"
-                          : "text-muted hover:text-chocolate hover:bg-secondary/40"
+                          ? "bg-terracota/15 text-chocolate font-bold"
+                          : "text-stone-700 hover:bg-stone-100 hover:text-chocolate",
                       )}
                     >
-                      <span className="text-lg leading-none">{link.emoji}</span>
+                      <span className="text-xl leading-none">{link.emoji}</span>
                       <span>{link.label}</span>
                     </Link>
                   );
                 })}
               </nav>
 
-              {/* Enlaces de Cuenta */}
-              <div className="border-t border-border/60 pt-4 space-y-1.5 text-xs">
+              {/* Acceso a Admin / Cuenta Mobile */}
+              <div className="border-t border-stone-100 pt-4 space-y-1.5 text-xs font-semibold">
                 {isAdmin && (
                   <Link
                     href="/admin"
                     onClick={() => setMobileDrawerOpen(false)}
-                    className="flex items-center gap-3 rounded-xl px-3.5 py-2 font-semibold text-terracota hover:bg-terracota/10 transition-colors"
+                    className="flex items-center justify-center gap-2 rounded-2xl px-3.5 py-2.5 font-bold text-xs bg-emerald-700 hover:bg-emerald-800 text-white shadow-xs transition-colors"
                   >
-                    <span>⚙️</span>
-                    <span>Panel Admin</span>
+                    <span>🛡️</span>
+                    <span>Panel de Administración</span>
+                    <span>→</span>
                   </Link>
                 )}
 
+                <Link
+                  href={isLoggedIn ? "/cuenta/pedidos" : "/login?redirect=/cuenta/pedidos"}
+                  onClick={() => setMobileDrawerOpen(false)}
+                  className={cn(
+                    "flex items-center gap-3 rounded-2xl px-3.5 py-2.5 font-bold transition-all",
+                    pathname === "/cuenta/pedidos"
+                      ? "bg-terracota text-white shadow-xs"
+                      : "bg-arena/30 border border-terracota/20 text-chocolate hover:bg-arena/50",
+                  )}
+                >
+                  <span>🛍️</span>
+                  <span>Mis Compras & Encargos</span>
+                </Link>
+
                 {isLoggedIn ? (
-                  <Link
-                    href="/cuenta/perfil"
-                    onClick={() => setMobileDrawerOpen(false)}
-                    className="flex items-center gap-3 rounded-xl px-3.5 py-2 text-foreground hover:bg-secondary/40 transition-colors"
-                  >
-                    <span>👤</span>
-                    <span>Mi Perfil & Compras</span>
-                  </Link>
+                  <>
+                    <Link
+                      href="/cuenta/perfil"
+                      onClick={() => setMobileDrawerOpen(false)}
+                      className="flex items-center gap-3 rounded-2xl px-3.5 py-2.5 text-stone-700 hover:bg-stone-100 transition-colors"
+                    >
+                      <span>👤</span>
+                      <span>Mi Perfil</span>
+                    </Link>
+                  </>
                 ) : (
                   <Link
                     href="/login"
                     onClick={() => setMobileDrawerOpen(false)}
-                    className="flex items-center gap-3 rounded-xl px-3.5 py-2 text-chocolate font-medium hover:bg-secondary/40 transition-colors"
+                    className="flex items-center gap-3 rounded-2xl px-3.5 py-2.5 text-chocolate font-bold hover:bg-stone-100 transition-colors"
                   >
                     <span>🔑</span>
                     <span>Iniciar Sesión / Registro</span>
@@ -442,28 +403,7 @@ export function Header() {
             </div>
 
             {/* Footer del Drawer */}
-            <div className="border-t border-border/60 pt-4 space-y-3">
-              <div className="flex items-center justify-between rounded-xl bg-secondary/40 px-3 py-2 text-xs font-medium text-foreground">
-                <span>{isDark ? "🌙 Modo Noche" : "☀️ Modo Claro"}</span>
-                <button
-                  type="button"
-                  onClick={toggleTheme}
-                  className={cn(
-                    "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out",
-                    isDark ? "bg-terracota" : "bg-barro-claro"
-                  )}
-                  role="switch"
-                  aria-checked={isDark}
-                >
-                  <span
-                    className={cn(
-                      "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out",
-                      isDark ? "translate-x-4" : "translate-x-0"
-                    )}
-                  />
-                </button>
-              </div>
-
+            <div className="border-t border-stone-100 pt-4">
               <a
                 href="https://instagram.com/milideas_arte"
                 target="_blank"

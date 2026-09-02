@@ -101,6 +101,26 @@ export function EncargosManager({ initialEncargos, configSitio, configEncargos }
   // Modals state
   const [acceptModalEncargo, setAcceptModalEncargo] = useState<Encargo | null>(null);
   const [demoraDiasInput, setDemoraDiasInput] = useState<number>(demoraDefaultConfig);
+  const [acceptMessageText, setAcceptMessageText] = useState<string>("");
+
+  // Generic Stage Transition Modal with Message Preview
+  const [transitionModal, setTransitionModal] = useState<{
+    encargo: Encargo;
+    nuevoEstado: EstadoEncargo;
+    tipoMensaje: TipoMensajeEncargo;
+    titulo: string;
+    descripcion: string;
+    textoMensaje: string;
+    stageName: string;
+  } | null>(null);
+
+  // Confirmation modal when advancing without sending WhatsApp
+  const [silentConfirmModal, setSilentConfirmModal] = useState<{
+    encargo: Encargo;
+    nuevoEstado: EstadoEncargo;
+    dias?: number;
+    stageName: string;
+  } | null>(null);
 
   const [messageModal, setMessageModal] = useState<{
     encargo: Encargo;
@@ -219,6 +239,7 @@ export function EncargosManager({ initialEncargos, configSitio, configEncargos }
     nuevoEstado: EstadoEncargo,
     dias?: number,
     autoOpenWhatsAppTipo?: TipoMensajeEncargo,
+    customMensajeTexto?: string,
   ) => {
     startTransition(async () => {
       const res = await actualizarEstadoEncargoAction(encargo.id, nuevoEstado, dias);
@@ -248,18 +269,31 @@ export function EncargosManager({ initialEncargos, configSitio, configEncargos }
           ),
         );
 
-        if (autoOpenWhatsAppTipo) {
-          const meta = parseEncargoMeta(encargo.notas_admin);
-          const msg = generateMensajeWhatsApp(autoOpenWhatsAppTipo, { ...encargo, estado: nuevoEstado }, bankInfo, {
-            diasDemora: dias ?? encargo.demora_estimada_dias ?? demoraDefaultConfig,
-            codigoSeguimiento: meta.codigoSeguimiento,
-            porcentajeSena: pctSenaConfig,
-          });
-          const url = buildWhatsAppLink(encargo.whatsapp_contacto, msg.texto);
-          window.open(url, "_blank");
+        if (customMensajeTexto || autoOpenWhatsAppTipo) {
+          let textoParaEnviar = customMensajeTexto;
+          if (!textoParaEnviar && autoOpenWhatsAppTipo) {
+            const meta = parseEncargoMeta(encargo.notas_admin);
+            const msg = generateMensajeWhatsApp(autoOpenWhatsAppTipo, { ...encargo, estado: nuevoEstado }, bankInfo, {
+              diasDemora: dias ?? encargo.demora_estimada_dias ?? demoraDefaultConfig,
+              codigoSeguimiento: meta.codigoSeguimiento,
+              porcentajeSena: pctSenaConfig,
+            });
+            textoParaEnviar = msg.texto;
+          }
+          if (textoParaEnviar) {
+            const url = buildWhatsAppLink(encargo.whatsapp_contacto, textoParaEnviar);
+            window.open(url, "_blank");
+          }
+        }
+
+        // Auto redirigir la vista a la pestaña del nuevo estado para seguir trabajando sin perder el encargo
+        if (nuevoEstado === "aceptado" || nuevoEstado === "en_proceso" || nuevoEstado === "listo") {
+          setFiltroEstado(nuevoEstado);
         }
 
         setAcceptModalEncargo(null);
+        setTransitionModal(null);
+        setSilentConfirmModal(null);
         setRejectModalEncargo(null);
         setArchiveModalEncargo(null);
         setDetailModalEncargo(null);
@@ -267,6 +301,72 @@ export function EncargosManager({ initialEncargos, configSitio, configEncargos }
       } else {
         toast.error(res.error || "Error al actualizar estado del encargo");
       }
+    });
+  };
+
+  const handleOpenAcceptModal = (enc: Encargo) => {
+    const dias = enc.demora_estimada_dias || demoraDefaultConfig;
+    setDemoraDiasInput(dias);
+    const meta = parseEncargoMeta(enc.notas_admin);
+    const generated = generateMensajeWhatsApp("solicitud_aceptada", { ...enc, estado: "aceptado" }, bankInfo, {
+      diasDemora: dias,
+      codigoSeguimiento: meta.codigoSeguimiento,
+      porcentajeSena: pctSenaConfig,
+    });
+    setAcceptMessageText(generated.texto);
+    setAcceptModalEncargo(enc);
+  };
+
+  const handleDemoraChange = (val: number) => {
+    setDemoraDiasInput(val);
+    if (acceptModalEncargo) {
+      const meta = parseEncargoMeta(acceptModalEncargo.notas_admin);
+      const generated = generateMensajeWhatsApp("solicitud_aceptada", { ...acceptModalEncargo, estado: "aceptado" }, bankInfo, {
+        diasDemora: val,
+        codigoSeguimiento: meta.codigoSeguimiento,
+        porcentajeSena: pctSenaConfig,
+      });
+      setAcceptMessageText(generated.texto);
+    }
+  };
+
+  const handleOpenPaso3Modal = (enc: Encargo) => {
+    const meta = parseEncargoMeta(enc.notas_admin);
+    const generated = generateMensajeWhatsApp("en_proceso", { ...enc, estado: "en_proceso" }, bankInfo, {
+      diasDemora: enc.demora_estimada_dias || demoraDefaultConfig,
+      codigoSeguimiento: meta.codigoSeguimiento,
+      porcentajeSena: pctSenaConfig,
+    });
+    setTransitionModal({
+      encargo: enc,
+      nuevoEstado: "en_proceso",
+      tipoMensaje: "en_proceso",
+      titulo: "🎨 Iniciar Elaboración en Taller (Paso 3)",
+      descripcion: `Confirmar inicio de producción artesanal para ${enc.nombre_contacto}.`,
+      textoMensaje: generated.texto,
+      stageName: "Paso 3: En Elaboración en Taller",
+    });
+  };
+
+  const handleOpenPaso4Modal = (enc: Encargo) => {
+    const meta = parseEncargoMeta(enc.notas_admin);
+    const isEnvio = enc.metodo_entrega?.toLowerCase().includes("envio") || enc.metodo_entrega?.toLowerCase().includes("domicilio") || enc.metodo_entrega?.toLowerCase().includes("sucursal");
+    const tipo: TipoMensajeEncargo = meta.saldoAbonado 
+      ? (isEnvio ? "pago_final_envio" : "pago_final_retiro") 
+      : "saldo_pendiente";
+    const generated = generateMensajeWhatsApp(tipo, { ...enc, estado: "listo" }, bankInfo, {
+      diasDemora: enc.demora_estimada_dias || demoraDefaultConfig,
+      codigoSeguimiento: meta.codigoSeguimiento,
+      porcentajeSena: pctSenaConfig,
+    });
+    setTransitionModal({
+      encargo: enc,
+      nuevoEstado: "listo",
+      tipoMensaje: tipo,
+      titulo: "✨ Marcar Listo para Entrega / Retiro (Paso 4)",
+      descripcion: `Notificar a ${enc.nombre_contacto} que sus piezas están listas.`,
+      textoMensaje: generated.texto,
+      stageName: "Paso 4: Listo para Entrega / Retiro",
     });
   };
 
@@ -1345,18 +1445,6 @@ export function EncargosManager({ initialEncargos, configSitio, configEncargos }
                   <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-3 border-t border-border/50">
                     {/* WhatsApp Contextual Actions */}
                     <div className="flex flex-wrap items-center gap-2">
-                      {/* Stage 1 WhatsApp Button */}
-                      {enc.estado === "pendiente" && (
-                        <button
-                          type="button"
-                          onClick={() => openMessagePreview(enc, "solicitud_aceptada")}
-                          className="inline-flex items-center gap-1.5 bg-[#25D366] text-white hover:bg-[#1ebe5d] text-xs rounded-xl font-semibold px-3 py-1.5 shadow-xs transition-colors cursor-pointer"
-                        >
-                          <WhatsAppIcon className="h-4 w-4 fill-current" />
-                          <span>Notificar Aceptación & Seña {pctSenaConfig}%</span>
-                        </button>
-                      )}
-
                       {/* Stage 2 WhatsApp Buttons */}
                       {enc.estado === "aceptado" && (
                         <>
@@ -1440,18 +1528,15 @@ export function EncargosManager({ initialEncargos, configSitio, configEncargos }
                       {enc.estado === "pendiente" && (
                         <>
                           <Button
-                            onClick={() => {
-                              setAcceptModalEncargo(enc);
-                              setDemoraDiasInput(enc.demora_estimada_dias || demoraDefaultConfig);
-                            }}
-                            className="bg-emerald-600 text-white hover:bg-emerald-700 rounded-xl text-xs font-semibold min-h-9 py-1 px-3.5 shadow-xs"
+                            onClick={() => handleOpenAcceptModal(enc)}
+                            className="bg-emerald-600 text-white hover:bg-emerald-700 rounded-xl text-xs font-semibold min-h-9 py-1 px-3.5 shadow-xs cursor-pointer"
                           >
                             ✅ Aceptar Encargo
                           </Button>
                           <Button
                             variant="outline"
                             onClick={() => setRejectModalEncargo(enc)}
-                            className="text-xs rounded-xl text-red-600 hover:bg-red-500/10 border-red-200 min-h-9 py-1 px-3"
+                            className="text-xs rounded-xl text-red-600 hover:bg-red-500/10 border-red-200 min-h-9 py-1 px-3 cursor-pointer"
                           >
                             ❌ Rechazar
                           </Button>
@@ -1462,8 +1547,8 @@ export function EncargosManager({ initialEncargos, configSitio, configEncargos }
                       {enc.estado === "aceptado" && (
                         <Button
                           disabled={isPending}
-                          onClick={() => handleCambiarEstado(enc, "en_proceso", undefined, "en_proceso")}
-                          className="bg-admin-accent text-white hover:bg-admin-accent-hover rounded-xl text-xs font-semibold min-h-9 py-1 px-3.5 shadow-xs"
+                          onClick={() => handleOpenPaso3Modal(enc)}
+                          className="bg-admin-accent text-white hover:bg-admin-accent-hover rounded-xl text-xs font-semibold min-h-9 py-1 px-3.5 shadow-xs cursor-pointer"
                         >
                           🎨 Poner En Proceso (Paso 3)
                         </Button>
@@ -1473,8 +1558,8 @@ export function EncargosManager({ initialEncargos, configSitio, configEncargos }
                       {enc.estado === "en_proceso" && (
                         <Button
                           disabled={isPending}
-                          onClick={() => handleCambiarEstado(enc, "listo", undefined, "saldo_pendiente")}
-                          className="bg-emerald-600 text-white hover:bg-emerald-700 rounded-xl text-xs font-semibold min-h-9 py-1 px-3.5 shadow-xs"
+                          onClick={() => handleOpenPaso4Modal(enc)}
+                          className="bg-emerald-600 text-white hover:bg-emerald-700 rounded-xl text-xs font-semibold min-h-9 py-1 px-3.5 shadow-xs cursor-pointer"
                         >
                           ✨ Marcar Listo para Entrega (Paso 4)
                         </Button>
@@ -1731,11 +1816,11 @@ export function EncargosManager({ initialEncargos, configSitio, configEncargos }
         </div>
       )}
 
-      {/* Accept Encargo Dialog */}
+      {/* Accept Encargo Dialog with Message Preview */}
       {acceptModalEncargo && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-3xl border border-border bg-surface p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-start justify-between">
+          <div className="w-full max-w-lg rounded-3xl border border-border bg-surface p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150 max-h-[92vh] overflow-y-auto">
+            <div className="flex items-start justify-between border-b border-border/50 pb-3">
               <div>
                 <h3 className="text-lg font-serif font-bold text-chocolate">Aceptar Encargo Especial</h3>
                 <p className="text-xs text-muted mt-0.5">
@@ -1779,7 +1864,7 @@ export function EncargosManager({ initialEncargos, configSitio, configEncargos }
                 id="demora"
                 type="number"
                 value={demoraDiasInput}
-                onChange={(e) => setDemoraDiasInput(Math.max(1, Number(e.target.value)))}
+                onChange={(e) => handleDemoraChange(Math.max(1, Number(e.target.value)))}
                 min={1}
                 className="rounded-xl text-xs"
               />
@@ -1788,24 +1873,211 @@ export function EncargosManager({ initialEncargos, configSitio, configEncargos }
               </p>
             </div>
 
-            <div className="flex justify-end gap-2 pt-2 border-t border-border/40">
-              <Button variant="outline" onClick={() => setAcceptModalEncargo(null)} className="rounded-xl text-xs min-h-9 py-1 px-3">
+            {/* Editable WhatsApp message preview */}
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-[11px] font-semibold text-stone-700 block">
+                  Mensaje de WhatsApp a enviar:
+                </label>
+                <span className="text-[10px] text-stone-500 italic">Podés revisarlo y editarlo</span>
+              </div>
+              <textarea
+                value={acceptMessageText}
+                onChange={(e) => setAcceptMessageText(e.target.value)}
+                rows={5}
+                className="w-full rounded-2xl border border-stone-200 bg-stone-50 p-3 text-xs font-mono text-stone-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 resize-y"
+              />
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 pt-3 border-t border-border/40">
+              <Button
+                variant="outline"
+                onClick={() => setAcceptModalEncargo(null)}
+                className="rounded-xl text-xs min-h-9 py-1 px-3"
+              >
+                Cancelar
+              </Button>
+
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                <Button
+                  variant="outline"
+                  disabled={isPending}
+                  onClick={() => {
+                    const enc = acceptModalEncargo;
+                    const dias = demoraDiasInput;
+                    setAcceptModalEncargo(null);
+                    setSilentConfirmModal({
+                      encargo: enc,
+                      nuevoEstado: "aceptado",
+                      dias,
+                      stageName: "Paso 2: Espera de Seña",
+                    });
+                  }}
+                  className="rounded-xl text-xs font-semibold text-stone-700 hover:text-chocolate hover:bg-stone-100 border-border/80 min-h-9 py-1 px-3 cursor-pointer"
+                  title="Aceptar el encargo en el sistema sin abrir chat de WhatsApp"
+                >
+                  <span>✓ Aceptar sin enviar WhatsApp</span>
+                </Button>
+
+                <Button
+                  disabled={isPending}
+                  onClick={() =>
+                    handleCambiarEstado(
+                      acceptModalEncargo,
+                      "aceptado",
+                      demoraDiasInput,
+                      undefined,
+                      acceptMessageText,
+                    )
+                  }
+                  className="bg-[#25D366] text-white hover:bg-[#1ebe5d] rounded-xl text-xs font-semibold gap-1.5 shadow-xs min-h-9 py-1 px-3.5 cursor-pointer"
+                >
+                  <WhatsAppIcon className="h-4 w-4 fill-current" />
+                  <span>{isPending ? "Aceptando..." : `Aceptar y Notificar Seña (${pctSenaConfig}%)`}</span>
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Generic Stage Transition Modal with Message Preview & Confirmation */}
+      {transitionModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-lg rounded-3xl border border-border bg-surface p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150 max-h-[92vh] overflow-y-auto">
+            <div className="flex items-start justify-between border-b border-border/50 pb-3">
+              <div>
+                <h3 className="text-base font-serif font-bold text-chocolate">{transitionModal.titulo}</h3>
+                <p className="text-xs text-muted mt-0.5">{transitionModal.descripcion}</p>
+              </div>
+              <button
+                onClick={() => setTransitionModal(null)}
+                className="text-muted hover:text-foreground text-sm cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Breakdown summary */}
+            <div className="p-3 rounded-2xl bg-arena/20 border border-border/50 space-y-1.5 text-xs">
+              <div className="flex justify-between">
+                <span className="text-muted">Cliente:</span>
+                <span className="font-semibold text-foreground">
+                  {transitionModal.encargo.nombre_contacto} ({transitionModal.encargo.whatsapp_contacto})
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted">Pieza/s:</span>
+                <span className="font-semibold text-foreground">{getResumenPiezas(transitionModal.encargo)}</span>
+              </div>
+            </div>
+
+            {/* WhatsApp Message Preview & Editable Area */}
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-[11px] font-semibold text-stone-700 block">
+                  Mensaje de WhatsApp a enviar:
+                </label>
+                <span className="text-[10px] text-stone-500 italic">Podés revisarlo y editarlo antes de enviar</span>
+              </div>
+              <textarea
+                value={transitionModal.textoMensaje}
+                onChange={(e) =>
+                  setTransitionModal((prev) => (prev ? { ...prev, textoMensaje: e.target.value } : null))
+                }
+                rows={6}
+                className="w-full rounded-2xl border border-stone-200 bg-stone-50 p-3 text-xs font-mono text-stone-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 resize-y"
+              />
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 pt-3 border-t border-border/40">
+              <Button
+                variant="outline"
+                onClick={() => setTransitionModal(null)}
+                className="rounded-xl text-xs min-h-9 py-1 px-3"
+              >
+                Cancelar
+              </Button>
+
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                <Button
+                  variant="outline"
+                  disabled={isPending}
+                  onClick={() => {
+                    const enc = transitionModal.encargo;
+                    const st = transitionModal.nuevoEstado;
+                    const name = transitionModal.stageName;
+                    setTransitionModal(null);
+                    setSilentConfirmModal({
+                      encargo: enc,
+                      nuevoEstado: st,
+                      stageName: name,
+                    });
+                  }}
+                  className="rounded-xl text-xs font-semibold text-stone-700 hover:text-chocolate hover:bg-stone-100 border-border/80 min-h-9 py-1 px-3 cursor-pointer"
+                  title="Avanzar etapa sin enviar WhatsApp"
+                >
+                  <span>✓ Avanzar sin enviar WhatsApp</span>
+                </Button>
+
+                <Button
+                  disabled={isPending}
+                  onClick={() =>
+                    handleCambiarEstado(
+                      transitionModal.encargo,
+                      transitionModal.nuevoEstado,
+                      undefined,
+                      undefined,
+                      transitionModal.textoMensaje,
+                    )
+                  }
+                  className="bg-[#25D366] text-white hover:bg-[#1ebe5d] rounded-xl text-xs font-semibold gap-1.5 shadow-xs min-h-9 py-1 px-3.5 cursor-pointer"
+                >
+                  <WhatsAppIcon className="h-4 w-4 fill-current" />
+                  <span>{isPending ? "Avanzando..." : "Enviar WhatsApp y Avanzar"}</span>
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Modal: Advance without sending WhatsApp */}
+      {silentConfirmModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-3xl border border-amber-300 bg-white p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150 text-center">
+            <div className="h-12 w-12 rounded-full bg-amber-100 text-amber-800 flex items-center justify-center mx-auto text-xl shadow-2xs">
+              ⚠️
+            </div>
+            <div className="space-y-1.5">
+              <h3 className="text-base font-serif font-bold text-chocolate">
+                ¿Avanzar sin notificar por WhatsApp?
+              </h3>
+              <p className="text-xs text-stone-600 leading-relaxed font-sans">
+                El encargo de <strong>{silentConfirmModal.encargo.nombre_contacto}</strong> pasará a{" "}
+                <strong>{silentConfirmModal.stageName}</strong> en el sistema, pero <strong>no se enviará ningún mensaje</strong>. Deberás coordinar con el cliente de forma manual.
+              </p>
+            </div>
+            <div className="flex justify-center gap-2 pt-2 border-t border-stone-100">
+              <Button
+                variant="outline"
+                onClick={() => setSilentConfirmModal(null)}
+                className="rounded-xl text-xs font-semibold cursor-pointer"
+              >
                 Cancelar
               </Button>
               <Button
                 disabled={isPending}
                 onClick={() =>
                   handleCambiarEstado(
-                    acceptModalEncargo,
-                    "aceptado",
-                    demoraDiasInput,
-                    "solicitud_aceptada",
+                    silentConfirmModal.encargo,
+                    silentConfirmModal.nuevoEstado,
+                    silentConfirmModal.dias,
                   )
                 }
-                className="bg-[#25D366] text-white hover:bg-[#1ebe5d] rounded-xl text-xs font-semibold gap-1.5 shadow-xs min-h-9 py-1 px-3.5"
+                className="rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold px-4 cursor-pointer"
               >
-                <WhatsAppIcon className="h-4 w-4 fill-current" />
-                <span>{isPending ? "Aceptando..." : `Aceptar y Notificar Seña (${pctSenaConfig}%)`}</span>
+                {isPending ? "Avanzando..." : "Sí, avanzar sin WhatsApp"}
               </Button>
             </div>
           </div>
