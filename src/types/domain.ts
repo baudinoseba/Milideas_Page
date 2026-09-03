@@ -166,6 +166,7 @@ export type ConfiguracionSitio = {
   hero_titulo: string;
   hero_subtitulo: string;
   hero_imagen_url: string | null;
+  login_imagen_url?: string | null;
   coleccion_destacada_id: string | null;
   sobre_mi_foto_url?: string | null;
   sobre_mi_titulo?: string | null;

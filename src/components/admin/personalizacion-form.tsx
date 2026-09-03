@@ -10,6 +10,7 @@ import {
   saveConfiguracionSitioAction,
   uploadLogoAction,
   uploadHeroImageAction,
+  uploadLoginImageAction,
   uploadSobreMiFotoAction,
 } from "@/lib/actions";
 import { toast } from "@/stores/toast-store";
@@ -35,6 +36,7 @@ export function PersonalizacionForm({
   const [pending, startTransition] = useTransition();
   const [logoUrl, setLogoUrl] = useState(config.logo_url);
   const [heroImageUrl, setHeroImageUrl] = useState(config.hero_imagen_url);
+  const [loginImageUrl, setLoginImageUrl] = useState(config.login_imagen_url || "/login-art.jpg");
   const [sobreMiFotoUrl, setSobreMiFotoUrl] = useState(config.sobre_mi_foto_url || "/mili-ferrero.jpg");
 
   // Interactive Image Customizer state for Sobre Mí
@@ -47,6 +49,7 @@ export function PersonalizacionForm({
 
   const logoInputRef = useRef<HTMLInputElement>(null);
   const heroInputRef = useRef<HTMLInputElement>(null);
+  const loginInputRef = useRef<HTMLInputElement>(null);
   const sobreMiInputRef = useRef<HTMLInputElement>(null);
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -79,6 +82,23 @@ export function PersonalizacionForm({
         toast.success("Fondo de portada actualizado con éxito");
       } else {
         toast.error(res.error ?? "Error al subir la portada");
+      }
+    });
+  };
+
+  const handleLoginImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    startTransition(async () => {
+      const formData = new FormData();
+      formData.set("loginImage", file);
+      const res = await uploadLoginImageAction(formData);
+      if (res.success && res.url) {
+        setLoginImageUrl(res.url);
+        toast.success("Ilustración de inicio de sesión actualizada con éxito");
+      } else {
+        toast.error(res.error ?? "Error al subir la imagen de login");
       }
     });
   };
@@ -629,6 +649,60 @@ export function PersonalizacionForm({
                   className="rounded-xl text-xs bg-white font-sans leading-relaxed mt-1"
                   required
                 />
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* 🎨 7. ILUSTRACIÓN DE INICIO DE SESIÓN (LOGIN & AUTH) */}
+        <section className="lg:col-span-2 flex flex-col justify-between rounded-3xl border border-[#E5E0D8] bg-[#FAF7F2]/80 p-5 sm:p-6 shadow-2xs space-y-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="text-xl">🎨</span>
+              <h2 className="text-sm sm:text-base font-serif font-bold text-chocolate">
+                Ilustración de Inicio de Sesión & Cuentas (Login, Registro y Recuperación)
+              </h2>
+            </div>
+            <p className="text-[11px] text-stone-600">
+              Esta ilustración acompaña a la derecha en la versión de escritorio de las páginas de Login, Registro y Recuperar Contraseña. En móviles se adapta con estética limpia.
+            </p>
+          </div>
+
+          <div className="grid gap-6 lg:grid-cols-12 items-center">
+            <div className="lg:col-span-4 flex justify-center">
+              <div className="relative aspect-[3/4] w-44 sm:w-48 overflow-hidden rounded-2xl border-2 border-stone-200 bg-white shadow-md">
+                <img
+                  src={loginImageUrl}
+                  alt="Ilustración de Login"
+                  className="h-full w-full object-cover"
+                />
+              </div>
+            </div>
+
+            <div className="lg:col-span-8 space-y-3">
+              <p className="text-xs text-stone-700 leading-relaxed">
+                Podés subir una ilustración propia de Milideas (como la chica en el taller con el gato, tazas o cerámica de autor) con paleta pastel y cálida.
+              </p>
+              <div className="flex flex-wrap items-center gap-3 pt-2">
+                <input
+                  ref={loginInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleLoginImageUpload}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => loginInputRef.current?.click()}
+                  isLoading={pending}
+                  className="rounded-xl text-xs bg-white hover:bg-stone-50 border-stone-300 font-semibold cursor-pointer"
+                >
+                  🖼️ Subir / Cambiar Ilustración de Login
+                </Button>
+                <span className="text-[11px] text-stone-500">
+                  Formato vertical recomendado (ej. 3:4 o 4:5 en JPG, PNG o WEBP)
+                </span>
               </div>
             </div>
           </div>

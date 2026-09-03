@@ -2,11 +2,11 @@
 
 import { useState, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
-import { BackButton } from "@/components/ui/back-button";
 import { updatePasswordAction } from "@/lib/actions";
 import { createClient } from "@/lib/supabase/client";
 
@@ -67,69 +67,114 @@ export default function RestablecerPasswordPage() {
   };
 
   return (
-    <div className="mx-auto max-w-sm">
-      <div className="mb-4">
-        <BackButton fallbackHref="/login">Volver al login</BackButton>
-      </div>
-
-      <Card>
-        <h1 className="mb-2 text-xl font-medium">Restablecer contraseña</h1>
-        <p className="mb-6 text-xs text-muted">
-          Ingresá tu nueva contraseña a continuación para recuperar el acceso a tu cuenta.
-        </p>
+    <div className="w-full">
+      <Card className="rounded-3xl border border-[#E5E0D8] bg-white p-6 sm:p-8 shadow-xs space-y-5">
+        <div>
+          <h1 className="text-2xl font-serif font-bold text-chocolate tracking-tight">
+            Restablecer contraseña
+          </h1>
+          <p className="mt-1 text-xs text-stone-600 font-sans">
+            Ingresá tu nueva clave para volver a acceder a tu cuenta de Milideas.
+          </p>
+        </div>
 
         {success ? (
-          <div className="space-y-4 text-center py-2">
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400">
-              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          <div className="space-y-4 py-2 text-center animate-in fade-in duration-300">
+            {/* Icono de checkmark limpio y cálido (sin fondos grises oscuros) */}
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-200/70 shadow-2xs">
+              <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2.5}
+                  d="M5 13l4 4L19 7"
+                />
               </svg>
             </div>
-            <div className="space-y-1">
-              <h2 className="text-base font-semibold text-foreground">¡Contraseña actualizada!</h2>
-              <p className="text-xs text-muted">
-                Tu contraseña ha sido modificada con éxito. Ya podés iniciar sesión con tus nuevas credenciales.
+
+            <div className="space-y-2">
+              <h2 className="text-lg font-bold text-stone-900 font-serif">
+                ¡Contraseña actualizada con éxito!
+              </h2>
+              <p className="text-xs text-stone-700 leading-relaxed font-sans">
+                Tu clave ha sido modificada. Ya podés iniciar sesión normalmente con tus nuevas credenciales.
               </p>
             </div>
-            <Button className="w-full mt-4" onClick={() => router.push("/login")}>
-              Iniciar sesión
-            </Button>
+
+            <div className="pt-3">
+              <Button
+                className="w-full rounded-xl bg-chocolate hover:bg-chocolate/90 text-crema-cruda font-semibold py-2.5 shadow-2xs cursor-pointer transition-all active:scale-[0.98]"
+                onClick={() => router.push("/login")}
+              >
+                Iniciar sesión ahora
+              </Button>
+            </div>
           </div>
         ) : (
-          <form action="/restablecer-password" method="POST" onSubmit={handleSubmit} className="space-y-4">
+          <form method="POST" onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <Label htmlFor="password">Nueva contraseña</Label>
+              <Label htmlFor="password" className="text-xs font-semibold text-stone-700">
+                Nueva contraseña
+              </Label>
               <PasswordInput
                 id="password"
                 name="password"
                 required
                 minLength={6}
                 placeholder="Mínimo 6 caracteres"
+                className="mt-1 rounded-xl text-xs bg-[#FAF7F2]/50 border-stone-200 focus:bg-white"
               />
             </div>
 
             <div>
-              <Label htmlFor="confirmPassword">Confirmar nueva contraseña</Label>
+              <Label htmlFor="confirmPassword" className="text-xs font-semibold text-stone-700">
+                Confirmar nueva contraseña
+              </Label>
               <PasswordInput
                 id="confirmPassword"
                 name="confirmPassword"
                 required
                 minLength={6}
                 placeholder="Repetí tu nueva contraseña"
+                className="mt-1 rounded-xl text-xs bg-[#FAF7F2]/50 border-stone-200 focus:bg-white"
               />
             </div>
 
-            {error && <p className="text-sm text-red-600">{error}</p>}
-
-            {!checkingSession && !hasSession && (
-              <p className="text-xs text-amber-600 bg-amber-50 dark:bg-amber-950/40 p-2.5 rounded-md border border-amber-200 dark:border-amber-800">
-                Aviso: Si no abriste este enlace desde tu correo electrónico, es posible que debas solicitar un nuevo enlace de recuperación.
-              </p>
+            {error && (
+              <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs font-medium text-red-800">
+                <p className="font-semibold flex items-center gap-1.5">
+                  <span>⚠️</span> {error}
+                </p>
+              </div>
             )}
 
-            <Button type="submit" className="w-full" isLoading={pending}>
+            {!checkingSession && !hasSession && (
+              <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-3 text-xs text-stone-800 space-y-1">
+                <p className="font-bold text-amber-900 flex items-center gap-1.5">
+                  <span>ℹ️</span> Aviso
+                </p>
+                <p className="text-[11px] text-stone-600 leading-relaxed">
+                  Si no abriste este enlace desde tu correo electrónico, es posible que debas solicitar un nuevo enlace de recuperación.
+                </p>
+              </div>
+            )}
+
+            <Button
+              type="submit"
+              className="w-full cursor-pointer mt-1 rounded-xl bg-chocolate hover:bg-chocolate/90 text-crema-cruda font-semibold py-2.5 shadow-2xs transition-all active:scale-[0.98]"
+              isLoading={pending}
+            >
               Guardar nueva contraseña
             </Button>
+
+            <div className="pt-2 text-center border-t border-stone-100">
+              <Link
+                href="/login"
+                className="text-xs font-semibold text-stone-600 hover:text-chocolate underline underline-offset-2 transition-colors"
+              >
+                ← Volver a iniciar sesión
+              </Link>
+            </div>
           </form>
         )}
       </Card>

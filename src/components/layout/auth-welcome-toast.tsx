@@ -17,13 +17,32 @@ export function AuthWelcomeToast() {
 
     const supabase = createClient();
     supabase.auth.getUser().then(async ({ data: { user } }) => {
+      // Limpiar query param de la URL sin recargar
+      if (typeof window !== "undefined") {
+        const url = new URL(window.location.href);
+        url.searchParams.delete("auth");
+        window.history.replaceState(null, "", url.pathname + (url.search ? url.search : ""));
+      }
+
       if (user) {
-        // Obtener nombre y datos del perfil
+        // Obtener datos del perfil
         const { data: profile } = await supabase
           .from("perfiles")
-          .select("nombre_completo, telefono, direccion_calle")
+          .select("nombre_completo, telefono, whatsapp, dni")
           .eq("id", user.id)
           .single();
+
+        // Verificar si faltan los datos obligatorios marcados con asterisco (*)
+        const hasNombre = Boolean(profile?.nombre_completo?.trim());
+        const hasTelefono = Boolean(profile?.whatsapp?.trim() || profile?.telefono?.trim());
+        const hasDni = Boolean(profile?.dni?.trim());
+
+        const faltaDatos = !hasNombre || !hasTelefono || !hasDni;
+
+        // Si ya tiene todos los datos obligatorios completados, NO mostrar el popup
+        if (!faltaDatos) {
+          return;
+        }
 
         const nombre =
           profile?.nombre_completo ||
@@ -33,24 +52,8 @@ export function AuthWelcomeToast() {
           "Cliente";
 
         setUserName(nombre);
-
-        // Verificar si falta teléfono o dirección
-        const faltaDatos = !profile?.telefono || !profile?.direccion_calle;
-        setPerfilIncompleto(faltaDatos);
+        setPerfilIncompleto(true);
         setVisible(true);
-
-        // Limpiar query param de la URL sin recargar
-        const url = new URL(window.location.href);
-        url.searchParams.delete("auth");
-        window.history.replaceState(null, "", url.pathname + (url.search ? url.search : ""));
-
-        // Auto ocultar a los 4 segundos si los datos están completos
-        if (!faltaDatos) {
-          const timer = setTimeout(() => {
-            setVisible(false);
-          }, 4000);
-          return () => clearTimeout(timer);
-        }
       }
     });
   }, [authSuccess]);

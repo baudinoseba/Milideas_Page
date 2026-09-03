@@ -1541,6 +1541,61 @@ export async function uploadHeroImageAction(
   return { success: true, url: urlData.publicUrl };
 }
 
+export async function uploadLoginImageAction(
+  formData: FormData,
+): Promise<{ success: boolean; error?: string; url?: string }> {
+  const auth = await requireAdmin();
+  if ("error" in auth) return { success: false, error: auth.error };
+  const { supabase } = auth;
+
+  const file = formData.get("loginImage") as File | null;
+  if (!file || file.size === 0) {
+    return { success: false, error: "Seleccioná un archivo de imagen válido" };
+  }
+
+  const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
+  const MAX_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
+  if (!ALLOWED_TYPES.includes(file.type)) {
+    return { success: false, error: "Tipo de archivo no permitido. Usá JPG, PNG o WEBP." };
+  }
+  if (file.size > MAX_SIZE_BYTES) {
+    return { success: false, error: "La imagen supera el tamaño máximo permitido (10MB)." };
+  }
+
+  const ext = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
+  const safeExt = ["jpg", "jpeg", "png", "webp"].includes(ext) ? ext : "jpg";
+  const path = `login_art_${Date.now()}.${safeExt}`;
+
+  const { error: uploadError } = await supabase.storage.from("productos").upload(path, file);
+  if (uploadError) {
+    const { error: fallbackErr } = await supabase.storage.from("sitio").upload(path, file);
+    if (fallbackErr && uploadError) {
+      return { success: false, error: uploadError.message };
+    }
+  }
+
+  const { data: urlData } = supabase.storage.from("productos").getPublicUrl(path);
+
+  try {
+    const { data: existing } = await supabase.from("configuracion_sitio").select("id").limit(1).single();
+
+    if (existing) {
+      await supabase.from("configuracion_sitio").update({ login_imagen_url: urlData.publicUrl }).eq("id", existing.id);
+    } else {
+      await supabase.from("configuracion_sitio").insert({ login_imagen_url: urlData.publicUrl });
+    }
+  } catch (err) {
+    console.warn("DB config update notice (login_imagen_url):", err);
+  }
+
+  revalidatePath("/login");
+  revalidatePath("/registro");
+  revalidatePath("/recuperar");
+  revalidatePath("/restablecer-password");
+  revalidatePath("/admin/personalizacion");
+  return { success: true, url: urlData.publicUrl };
+}
+
 export async function uploadSobreMiFotoAction(
   formData: FormData,
 ): Promise<{ success: boolean; error?: string; url?: string }> {
