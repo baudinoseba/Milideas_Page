@@ -460,7 +460,8 @@ export async function updatePerfilAction(formData: FormData) {
   const direccionCodigoPostal = sanitizeString(formData.get("direccionCodigoPostal"), 20);
   const direccionReferencia = sanitizeString(formData.get("direccionReferencia"), 200);
 
-  const { error } = await supabase
+  const adminClient = createAdminClient();
+  const { error } = await adminClient
     .from("perfiles")
     .upsert({
       id: user.id,

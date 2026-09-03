@@ -643,6 +643,10 @@ DROP POLICY IF EXISTS "perfiles_update_own" ON public.perfiles;
 CREATE POLICY "perfiles_update_own" ON public.perfiles
   FOR UPDATE TO authenticated USING (id = (SELECT auth.uid()) OR public.is_admin());
 
+DROP POLICY IF EXISTS "perfiles_insert_own" ON public.perfiles;
+CREATE POLICY "perfiles_insert_own" ON public.perfiles
+  FOR INSERT TO authenticated WITH CHECK (id = (SELECT auth.uid()) OR public.is_admin());
+
 -- Políticas Públicas de Solo Lectura
 DROP POLICY IF EXISTS "categorias_public_read" ON public.categorias;
 CREATE POLICY "categorias_public_read" ON public.categorias FOR SELECT TO public USING (TRUE);
