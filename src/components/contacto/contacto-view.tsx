@@ -62,10 +62,10 @@ export function ContactoView({
             <span>💌</span> Atención Directa & Personalizada
           </span>
           <h1 className="text-3xl sm:text-4xl md:text-5xl font-medium font-serif text-chocolate tracking-tight">
-            Contacto & Taller
+            Contacto
           </h1>
           <p className="mx-auto max-w-xl text-xs sm:text-sm text-barro font-sans leading-relaxed">
-            ¿Tenés alguna duda sobre una pieza, querés encargar una ilustración personalizada o coordinar el retiro de tu compra? Estamos a tu disposición para ayudarte.
+            ¿Tenés alguna duda sobre una pieza, querés encargar una ilustración personalizada o coordinar el retiro de tu compra? Estoy a tu disposición para ayudarte.
           </p>
         </div>
       </FadeIn>
@@ -118,25 +118,18 @@ export function ContactoView({
                   {contactEmail}
                 </p>
                 <p className="text-[11px] text-muted mt-1 font-sans leading-snug">
-                  Para consultas formales, presupuestos corporativos y compras mayoristas.
+                  Para consultas formales, presupuestos y compras.
                 </p>
               </div>
             </div>
-            <div className="pt-4 mt-2 border-t border-border/60 flex items-center gap-1.5">
-              <a
-                href={`mailto:${contactEmail}`}
-                className="inline-flex flex-1 items-center justify-center gap-1 rounded-full bg-chocolate text-crema-cruda py-2 text-xs font-semibold hover:bg-chocolate/90 transition-all shadow-2xs"
-              >
-                <span>Enviar email</span>
-                <span>↗</span>
-              </a>
+            <div className="pt-4 mt-2 border-t border-border/60">
               <button
                 type="button"
                 onClick={handleCopiarEmail}
-                className="rounded-full border border-border bg-white px-2.5 py-2 text-[11px] font-medium text-stone-700 hover:bg-stone-100 transition-all active:scale-95"
+                className="inline-flex w-full items-center justify-center gap-1.5 rounded-full border border-border/80 bg-white hover:bg-stone-100 text-stone-700 py-2 text-xs font-semibold transition-all active:scale-95 shadow-2xs cursor-pointer"
                 title="Copiar correo al portapapeles"
               >
-                {copiado ? "✓" : "Copiar"}
+                <span>{copiado ? "✓ Correo copiado" : "📋 Copiar correo"}</span>
               </button>
             </div>
           </div>
@@ -155,7 +148,7 @@ export function ContactoView({
                   @{instagramUser}
                 </p>
                 <p className="text-[11px] text-muted mt-1 font-sans leading-snug">
-                  Seguí el proceso diario del taller, fotos de los nuevos lanzamientos e historias.
+                  Seguí el proceso diario de mi taller, fotos de los nuevos lanzamientos e historias.
                 </p>
               </div>
             </div>
@@ -180,7 +173,7 @@ export function ContactoView({
               </div>
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wider text-amber-800 font-sans">
-                  Taller & Retiros
+                  Mi Taller & Retiros
                 </p>
                 <p className="text-sm font-bold text-chocolate font-sans mt-0.5">
                   Sunchales, Santa Fe
@@ -206,7 +199,7 @@ export function ContactoView({
             <div className="text-center space-y-1">
               <span className="text-2xl">✍️</span>
               <h2 className="text-xl sm:text-2xl font-medium font-serif text-chocolate">
-                Escribinos tu consulta
+                Escribime tu consulta
               </h2>
               <p className="text-xs text-muted font-sans">
                 Completá tus datos y envialo directamente por WhatsApp para una respuesta inmediata.
@@ -264,7 +257,7 @@ export function ContactoView({
 
               <div className="space-y-1.5">
                 <Label htmlFor="mensaje" className="text-xs font-semibold text-stone-800">
-                  ¿En qué podemos ayudarte? *
+                  ¿En qué puedo ayudarte? *
                 </Label>
                 <Textarea
                   id="mensaje"
@@ -303,19 +296,19 @@ export function ContactoView({
             <div className="rounded-2xl bg-white/70 p-4 border border-border/40 space-y-1">
               <p className="font-bold text-chocolate">⏱️ Tiempos de Respuesta</p>
               <p className="text-muted leading-relaxed">
-                Respondemos consultas de WhatsApp y email durante el día de lunes a sábados.
+                Respondo consultas de WhatsApp y email durante el día de lunes a sábados.
               </p>
             </div>
             <div className="rounded-2xl bg-white/70 p-4 border border-border/40 space-y-1">
               <p className="font-bold text-chocolate">📦 Envíos Protegidos</p>
               <p className="text-muted leading-relaxed">
-                Despachamos por Vía Cargo u encomiendas a todo el país con embalaje reforzado multicapa.
+                Despacho por Vía Cargo u encomiendas a todo el país con embalaje reforzado multicapa.
               </p>
             </div>
             <div className="rounded-2xl bg-white/70 p-4 border border-border/40 space-y-1">
               <p className="font-bold text-chocolate">🎨 Encargos Especiales</p>
               <p className="text-muted leading-relaxed">
-                Si querés un cuadro o pieza personalizada, podés enviarnos tu foto de referencia directamente por WhatsApp.
+                Si querés un cuadro o pieza personalizada, podés enviarme tu foto de referencia directamente por WhatsApp.
               </p>
             </div>
           </div>

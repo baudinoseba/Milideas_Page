@@ -2,7 +2,7 @@ import { getConfiguracionSitio } from "@/lib/supabase/queries";
 import { ContactoView } from "@/components/contacto/contacto-view";
 
 export const metadata = {
-  title: "Contacto & Taller — Milideas Arte",
+  title: "Contacto — Milideas Arte",
   description:
     "Escribinos por WhatsApp al 3493664420, por correo a contacto@milideasarte.com.ar o por Instagram @milideas_arte. Taller de cerámica de autor e ilustraciones en Sunchales, Santa Fe.",
 };
