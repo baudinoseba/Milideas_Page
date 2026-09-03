@@ -7,6 +7,7 @@ export default async function AuthLayout({
   children: React.ReactNode;
 }) {
   const config = await getConfiguracionSitio().catch(() => null);
+  const logoUrl = config?.logo_url || "/milideas_logo.png";
   const loginImageUrl = config?.login_imagen_url || "/login-art.jpg";
 
   return (
@@ -22,7 +23,7 @@ export default async function AuthLayout({
           >
             <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-full bg-white p-1 ring-1 ring-stone-200 shadow-2xs overflow-hidden flex items-center justify-center shrink-0">
               <img
-                src="/milideas_logo.png"
+                src={logoUrl}
                 alt="Milideas"
                 className="h-full w-full object-contain rounded-full"
               />
