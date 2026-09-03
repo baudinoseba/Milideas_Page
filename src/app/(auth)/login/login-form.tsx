@@ -119,6 +119,18 @@ export default function LoginForm() {
             )}
           </div>
 
+          <div className="flex items-center justify-between pt-1">
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                name="rememberMe"
+                defaultChecked
+                className="h-4 w-4 rounded border-stone-300 text-chocolate focus:ring-chocolate/30 accent-chocolate cursor-pointer"
+              />
+              <span className="text-xs font-medium text-stone-700">Mantener sesión activa</span>
+            </label>
+          </div>
+
           <Button
             type="submit"
             className="w-full cursor-pointer mt-2 rounded-xl bg-chocolate hover:bg-chocolate/90 text-crema-cruda font-semibold py-2.5 shadow-2xs transition-all active:scale-[0.98]"

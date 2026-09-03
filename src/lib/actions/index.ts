@@ -376,14 +376,21 @@ export async function registroAction(formData: FormData) {
     console.log("registroAction: signUp success, user ID:", data.user?.id);
 
     // 2. Sign in to establish session cookies
+    let requiresConfirmation = false;
     if (data.user) {
       if (!data.session) {
         console.log("registroAction: signing in to establish session");
-        const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
         if (signInError) {
           console.error("registroAction: signIn error:", signInError);
-        } else {
-          console.log("registroAction: session established");
+          if (
+            signInError.message?.toLowerCase().includes("email not confirmed") ||
+            !data.user.email_confirmed_at
+          ) {
+            requiresConfirmation = true;
+          }
+        } else if (signInData?.session) {
+          console.log("registroAction: session established successfully");
         }
       }
 
@@ -414,7 +421,7 @@ export async function registroAction(formData: FormData) {
       }
     }
 
-    return { success: true };
+    return { success: true, requiresConfirmation, email };
   } catch (err) {
     console.error("registroAction unhandled exception:", err);
     return { error: err instanceof Error ? err.message : String(err) };
