@@ -27,15 +27,15 @@ export default async function HomePage() {
           />
           {/* Sin sombreados oscuros ni efectos: se muestra la ilustración original limpia y nítida */}
 
-          {/* Botones de acción sobre el banner centrados con estilo translúcido */}
-          <div className="mx-auto w-full max-w-7xl px-3.5 sm:px-6 relative z-10 flex flex-wrap justify-center gap-3 pt-4">
+          {/* Botones de acción sobre el banner compactos y alineados horizontalmente */}
+          <div className="mx-auto w-full max-w-7xl px-2.5 sm:px-6 relative z-10 flex items-center justify-center gap-2 sm:gap-3 pb-2 sm:pb-4">
             <Link href="/ceramica">
-              <Button className="rounded-full border border-stone-300/80 bg-white/85 hover:bg-white text-stone-900 hover:text-chocolate px-6 py-2.5 text-xs sm:text-sm font-bold shadow-lg transition-all hover:scale-105 active:scale-95 cursor-pointer backdrop-blur-md">
+              <Button className="rounded-full border border-stone-300/80 bg-white/90 hover:bg-white text-stone-900 hover:text-chocolate px-3.5 sm:px-5 py-1.5 sm:py-2 text-[11px] sm:text-xs font-bold shadow-md transition-all hover:scale-105 active:scale-95 cursor-pointer backdrop-blur-md min-h-8 sm:min-h-9">
                 🏺 Piezas de Cerámica
               </Button>
             </Link>
             <Link href="/ilustracion">
-              <Button className="rounded-full border border-stone-300/80 bg-white/85 hover:bg-white text-stone-900 hover:text-chocolate px-6 py-2.5 text-xs sm:text-sm font-bold shadow-lg transition-all hover:scale-105 active:scale-95 cursor-pointer backdrop-blur-md">
+              <Button className="rounded-full border border-stone-300/80 bg-white/90 hover:bg-white text-stone-900 hover:text-chocolate px-3.5 sm:px-5 py-1.5 sm:py-2 text-[11px] sm:text-xs font-bold shadow-md transition-all hover:scale-105 active:scale-95 cursor-pointer backdrop-blur-md min-h-8 sm:min-h-9">
                 🎨 Obras & Ilustraciones
               </Button>
             </Link>

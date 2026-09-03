@@ -53,32 +53,6 @@ export function ProductCard({ producto, priority = false }: { producto: Producto
               )}
             </div>
 
-            {/* Quick Zoom Button on Card */}
-            <button
-              type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setLightboxOpen(true);
-              }}
-              title="Ampliar foto con zoom"
-              className="absolute right-2.5 top-2.5 flex h-7 w-7 items-center justify-center rounded-full bg-black/65 hover:bg-black text-white text-xs z-20 backdrop-blur-xs transition-all shadow-md active:scale-95 cursor-pointer opacity-90 sm:opacity-0 sm:group-hover:opacity-100"
-            >
-              🔍
-            </button>
-
-            {/* Stock quantity indicator */}
-            {producto.stock_disponible > 0 && (
-              <div className="absolute bottom-2.5 left-2.5 right-2.5 z-10">
-                <span className="inline-flex w-full items-center justify-center gap-1.5 rounded-full bg-chocolate/90 px-3 py-1.5 text-[11px] font-medium text-crema-cruda shadow-sm backdrop-blur-md">
-                  <span className={`h-1.5 w-1.5 rounded-full ${producto.stock_disponible === 1 ? "bg-amarillo-sol animate-pulse" : "bg-verde-menta"}`} />
-                  {producto.stock_disponible === 1
-                    ? "¡Última unidad disponible!"
-                    : `📦 ${producto.stock_disponible} unidades disponibles`}
-                </span>
-              </div>
-            )}
-
             {stockStatus === "no_disponible" && (
               <div className="absolute inset-0 flex items-center justify-center bg-chocolate/40 backdrop-blur-[2px] z-10">
                 <span className="rounded-full bg-surface/90 px-3 py-1 text-xs font-semibold text-chocolate shadow-sm">
@@ -98,9 +72,33 @@ export function ProductCard({ producto, priority = false }: { producto: Producto
             <h3 className="text-base font-medium font-serif leading-tight text-chocolate transition-colors group-hover:text-terracota line-clamp-2">
               {producto.nombre}
             </h3>
-            <p className="text-sm sm:text-base font-semibold font-sans text-chocolate pt-1">
-              {formatPrecio(producto.precio_base)}
-            </p>
+
+            <div className="flex items-center justify-between gap-1.5 pt-1">
+              <p className="text-sm sm:text-base font-semibold font-sans text-chocolate">
+                {formatPrecio(producto.precio_base)}
+              </p>
+
+              {producto.stock_disponible > 0 ? (
+                <span className="inline-flex items-center gap-1 text-[11px] font-medium text-stone-600 font-sans">
+                  <span
+                    className={`h-1.5 w-1.5 rounded-full ${
+                      producto.stock_disponible === 1
+                        ? "bg-amber-500 animate-pulse"
+                        : "bg-emerald-500"
+                    }`}
+                  />
+                  <span>
+                    {producto.stock_disponible === 1
+                      ? "Disponible: 1"
+                      : `Disponibles: ${producto.stock_disponible}`}
+                  </span>
+                </span>
+              ) : stockStatus === "bajo_pedido" ? (
+                <span className="text-[11px] font-medium text-chocolate/80">A pedido</span>
+              ) : (
+                <span className="text-[11px] font-medium text-stone-400">Agotado</span>
+              )}
+            </div>
           </div>
         </Link>
 

@@ -7,16 +7,17 @@ import { cn } from "@/lib/utils/cn";
 import type { ProductoImagen } from "@/types";
 
 export function ProductGallery({
-  imagenes,
+  imagenes = [],
   nombreProducto,
 }: {
-  imagenes: ProductoImagen[];
+  imagenes?: ProductoImagen[];
   nombreProducto?: string;
 }) {
-  const sorted = [...imagenes].sort((a, b) => a.orden - b.orden);
+  const list = Array.isArray(imagenes) ? imagenes : [];
+  const sorted = [...list].sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0));
   const [active, setActive] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
-  const current = sorted[active];
+  const current = sorted[active] || sorted[0];
 
   if (!current) {
     return (

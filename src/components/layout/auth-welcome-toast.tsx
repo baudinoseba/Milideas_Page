@@ -25,19 +25,19 @@ export function AuthWelcomeToast() {
       }
 
       if (user) {
-        // Obtener datos del perfil
+        // Obtener datos del perfil (columnas reales de la tabla perfiles)
         const { data: profile } = await supabase
           .from("perfiles")
-          .select("nombre_completo, telefono, whatsapp, dni")
+          .select("nombre_completo, whatsapp, dni")
           .eq("id", user.id)
           .single();
 
         // Verificar si faltan los datos obligatorios marcados con asterisco (*)
         const hasNombre = Boolean(profile?.nombre_completo?.trim());
-        const hasTelefono = Boolean(profile?.whatsapp?.trim() || profile?.telefono?.trim());
+        const hasWhatsapp = Boolean(profile?.whatsapp?.trim());
         const hasDni = Boolean(profile?.dni?.trim());
 
-        const faltaDatos = !hasNombre || !hasTelefono || !hasDni;
+        const faltaDatos = !hasNombre || !hasWhatsapp || !hasDni;
 
         // Si ya tiene todos los datos obligatorios completados, NO mostrar el popup
         if (!faltaDatos) {

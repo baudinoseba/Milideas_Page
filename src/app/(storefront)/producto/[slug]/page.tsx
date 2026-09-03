@@ -22,10 +22,10 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const producto = await getProductoBySlug(slug);
+  const producto = await getProductoBySlug(slug).catch(() => null);
   if (!producto) return { title: "Producto no encontrado" };
 
-  const imagen = producto.producto_imagenes[0]?.url_imagen;
+  const imagen = producto.producto_imagenes?.[0]?.url_imagen;
 
   return {
     title: producto.nombre,
@@ -42,7 +42,7 @@ export default async function ProductoPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const producto = await getProductoBySlug(slug);
+  const producto = await getProductoBySlug(slug).catch(() => null);
   if (!producto) notFound();
 
   const stockStatus = getStockStatus(producto.stock_disponible);
@@ -55,12 +55,14 @@ export default async function ProductoPage({
         .catch(() => [])
     : [];
 
+  const imagenes = Array.isArray(producto.producto_imagenes) ? producto.producto_imagenes : [];
+
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Product",
     name: producto.nombre,
     description: producto.descripcion,
-    image: producto.producto_imagenes.map((i) => i.url_imagen),
+    image: imagenes.map((i) => i.url_imagen),
     offers: {
       "@type": "Offer",
       price: producto.precio_base,

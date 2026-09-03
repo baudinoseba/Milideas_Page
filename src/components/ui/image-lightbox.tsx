@@ -204,10 +204,81 @@ export function ImageLightbox({
 
   const handlePointerUp = () => {
     setIsDragging(false);
-    // Dejamos un micro-timeout para que el evento click no se active inmediatamente si hubo drag
     setTimeout(() => {
       // hasDraggedRef se mantendrá para el onClick inmediato
     }, 50);
+  };
+
+  // Multi-touch pinch-to-zoom y paneo táctil en móviles
+  const pinchStartDistRef = useRef<number>(0);
+  const pinchStartScaleRef = useRef<number>(1);
+  const touchStartPosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const lastTapTimeRef = useRef<number>(0);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    const t0 = e.touches[0];
+    const t1 = e.touches[1];
+
+    if (e.touches.length === 2 && t0 && t1) {
+      // Gesto de 2 dedos (Pinch to zoom)
+      e.stopPropagation();
+      const dist = Math.hypot(
+        t0.clientX - t1.clientX,
+        t0.clientY - t1.clientY
+      );
+      pinchStartDistRef.current = dist;
+      pinchStartScaleRef.current = scale;
+      setIsDragging(false);
+    } else if (e.touches.length === 1 && t0) {
+      // Doble toque rápido para hacer zoom / resetear
+      const now = Date.now();
+      if (now - lastTapTimeRef.current < 300) {
+        e.stopPropagation();
+        if (scale > 1) {
+          setScale(1);
+          setPosition({ x: 0, y: 0 });
+        } else {
+          setScale(2.5);
+        }
+      }
+      lastTapTimeRef.current = now;
+
+      touchStartPosRef.current = {
+        x: t0.clientX - position.x,
+        y: t0.clientY - position.y,
+      };
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    const t0 = e.touches[0];
+    const t1 = e.touches[1];
+
+    if (e.touches.length === 2 && pinchStartDistRef.current > 0 && t0 && t1) {
+      e.preventDefault();
+      e.stopPropagation();
+      const dist = Math.hypot(
+        t0.clientX - t1.clientX,
+        t0.clientY - t1.clientY
+      );
+      const ratio = dist / pinchStartDistRef.current;
+      const targetScale = Math.min(Math.max(pinchStartScaleRef.current * ratio, 1), 4);
+      setScale(targetScale);
+      if (targetScale === 1) {
+        setPosition({ x: 0, y: 0 });
+      }
+    } else if (e.touches.length === 1 && scale > 1 && t0) {
+      e.preventDefault();
+      e.stopPropagation();
+      setPosition({
+        x: t0.clientX - touchStartPosRef.current.x,
+        y: t0.clientY - touchStartPosRef.current.y,
+      });
+    }
+  };
+
+  const handleTouchEnd = () => {
+    pinchStartDistRef.current = 0;
   };
 
   if (!isOpen || !currentImage || !mounted) return null;
@@ -276,7 +347,10 @@ export function ImageLightbox({
         {/* Contenedor de Imagen con Zoom y Pan */}
         <div
           onWheel={handleWheel}
-          className="relative aspect-square sm:aspect-[4/3] rounded-2xl overflow-hidden bg-arena/30 flex items-center justify-center touch-none"
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          className="relative aspect-square sm:aspect-[4/3] rounded-2xl overflow-hidden bg-arena/30 flex items-center justify-center touch-none select-none"
           style={{
             cursor: scale > 1 ? (isDragging ? "grabbing" : "grab") : "zoom-in",
           }}
