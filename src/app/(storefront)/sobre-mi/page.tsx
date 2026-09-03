@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { FadeIn } from "@/components/ui/fade-in";
 import { FaqAccordion } from "@/components/faq/faq-accordion";
 import { getConfiguracionSitio } from "@/lib/supabase/queries";
+import { BanderaArgentina } from "@/components/ui/bandera-argentina";
 
 export const metadata = {
   title: "Sobre Mí & Preguntas Frecuentes — Milideas Estudio de Arte",
@@ -80,7 +81,10 @@ export default async function SobreMiPage() {
             <div className="space-y-4 lg:col-span-7">
               <div className="inline-flex items-center gap-2 rounded-full border border-terracota/25 bg-surface/90 px-3.5 py-1 text-xs font-semibold text-terracota shadow-xs backdrop-blur-md font-sans">
                 <span className="h-2 w-2 rounded-full bg-verde-menta animate-pulse" />
-                <span>Estudio de Arte & Cerámica · Sunchales, Santa Fe 🇦🇷</span>
+                <span className="inline-flex items-center gap-1.5">
+                  <span>Estudio de Arte & Cerámica · Sunchales, Santa Fe</span>
+                  <BanderaArgentina className="w-3.5 h-2.5 inline-block" />
+                </span>
               </div>
 
               <h1 className="text-3xl sm:text-5xl font-serif font-medium text-chocolate leading-tight">
@@ -132,8 +136,9 @@ export default async function SobreMiPage() {
                     transform: `scale(${fotoZoom / 100})`,
                   }}
                 />
-                <span className="absolute bottom-3 right-3 rounded-full bg-chocolate/95 backdrop-blur-md px-3.5 py-1 text-xs font-medium text-crema-cruda shadow-lg font-sans">
-                  {titulo} · Taller de Autor 🇦🇷
+                <span className="absolute bottom-3 right-3 rounded-full bg-chocolate/95 backdrop-blur-md px-3.5 py-1 text-xs font-medium text-crema-cruda shadow-lg font-sans inline-flex items-center gap-1.5">
+                  <span>{titulo} · Taller de Autor</span>
+                  <BanderaArgentina className="w-3.5 h-2.5 inline-block" />
                 </span>
               </div>
             </div>

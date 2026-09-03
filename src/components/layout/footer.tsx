@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BanderaArgentina } from "@/components/ui/bandera-argentina";
 
 const PROPOSITOS_VALOR = [
   { emoji: "🎨", titulo: "Arte ilustrado", detalle: "Obras y diseños originales pintados a mano" },
@@ -33,8 +34,9 @@ export function Footer() {
       <div className="py-4">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs font-sans text-muted">
           {/* Copyright a la izquierda */}
-          <p className="text-[11px] sm:text-xs">
-            © {new Date().getFullYear()} Milideas — Sunchales, Santa Fe 🇦🇷
+          <p className="text-[11px] sm:text-xs inline-flex items-center gap-1.5">
+            <span>© {new Date().getFullYear()} Milideas — Sunchales, Santa Fe</span>
+            <BanderaArgentina className="w-3.5 h-2.5 inline-block" />
           </p>
 
           {/* Enlaces de Navegación en el mismo renglón */}

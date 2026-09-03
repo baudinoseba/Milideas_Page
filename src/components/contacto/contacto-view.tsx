@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { BanderaArgentina } from "@/components/ui/bandera-argentina";
 
 const MOTIVOS_CONSULTA = [
   "Consulta sobre piezas de cerámica en stock",
@@ -184,8 +185,9 @@ export function ContactoView({
               </div>
             </div>
             <div className="pt-4 mt-2 border-t border-border/60">
-              <div className="inline-flex w-full items-center justify-center gap-1 rounded-full bg-stone-100 py-2 text-xs font-medium text-stone-600">
-                <span>🇦🇷 Envíos a toda la Argentina</span>
+              <div className="inline-flex w-full items-center justify-center gap-1.5 rounded-full bg-stone-100 py-2 text-xs font-medium text-stone-600">
+                <BanderaArgentina className="w-4 h-2.5 inline-block" />
+                <span>Envíos a toda la Argentina</span>
               </div>
             </div>
           </div>
@@ -302,7 +304,7 @@ export function ContactoView({
             <div className="rounded-2xl bg-white/70 p-4 border border-border/40 space-y-1">
               <p className="font-bold text-chocolate">📦 Envíos Protegidos</p>
               <p className="text-muted leading-relaxed">
-                Despacho por Vía Cargo u encomiendas a todo el país con embalaje reforzado multicapa.
+                Despacho por Vía Cargo u encomiendas a todo el país con embalaje seguro.
               </p>
             </div>
             <div className="rounded-2xl bg-white/70 p-4 border border-border/40 space-y-1">

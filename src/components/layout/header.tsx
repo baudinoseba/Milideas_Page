@@ -110,10 +110,10 @@ export function Header() {
   return (
     <>
       <header className="sticky top-0 z-40 w-full border-b border-[#E5E0D8] bg-white transition-all duration-200 shadow-2xs">
-        <div className="mx-auto flex h-14 sm:h-16 max-w-7xl items-center justify-between px-3 sm:px-6">
+        <div className="relative mx-auto flex h-14 sm:h-16 max-w-7xl items-center justify-between px-3 sm:px-6">
           
           {/* Left: Mobile Hamburger Icon + Brand Logo Circular */}
-          <div className="flex items-center gap-2 sm:gap-3.5 flex-1 justify-start">
+          <div className="flex items-center gap-2 sm:gap-3.5 shrink-0 z-10">
             {/* Hamburger button visible only on mobile/tablets (< md) */}
             <button
               type="button"
@@ -138,7 +138,7 @@ export function Header() {
                   />
                 ) : (
                   <img
-                    src="/milideas_logo.png"
+                    src="/logo-circle.png"
                     alt="Milideas"
                     className="h-full w-full object-contain rounded-full"
                   />
@@ -147,8 +147,8 @@ export function Header() {
             </Link>
           </div>
 
-          {/* Center: Desktop Nav Links (hidden on mobile, strictly centered in the viewport) */}
-          <nav className="hidden md:flex items-center justify-center shrink-0 gap-1 sm:gap-2">
+          {/* Center: Desktop Nav Links (Strictly centered in viewport) */}
+          <nav className="hidden md:flex items-center justify-center gap-1 sm:gap-2 absolute left-1/2 -translate-x-1/2">
             {NAV_LINKS.map((link) => {
               const isActive =
                 pathname === link.href || pathname.startsWith(link.href + "/");
@@ -170,26 +170,27 @@ export function Header() {
             })}
           </nav>
 
-          {/* Right Actions: Mis Compras + Notification Bell + Cart + Profile Popover */}
-          <div className="flex items-center gap-1.5 sm:gap-2 flex-1 justify-end">
-            {/* Direct Mis Compras & Encargos Button */}
+          {/* Right Actions: 4 Symmetrical Circular Buttons */}
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 z-10">
+            {/* Direct Mis Compras & Encargos Circular Button */}
             <Link
               href={isLoggedIn ? "/cuenta/pedidos" : "/login?redirect=/cuenta/pedidos"}
               className={cn(
-                "hidden sm:flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-all duration-200 border",
+                "hidden sm:flex h-9 w-9 items-center justify-center rounded-full border border-stone-200 bg-white text-stone-700 hover:text-chocolate hover:bg-stone-100 active:scale-95 transition-all shadow-xs cursor-pointer",
                 pathname === "/cuenta/pedidos"
                   ? "bg-terracota text-white border-terracota shadow-2xs"
-                  : "border-stone-200 bg-white text-stone-700 hover:text-chocolate hover:bg-stone-100 shadow-2xs",
+                  : "hover:border-stone-300",
               )}
-              title="Ver mis compras de stock y estado de mis encargos"
+              title="Mis Compras & Encargos"
+              aria-label="Mis Compras & Encargos"
             >
-              <span>🛍️</span>
-              <span className="hidden lg:inline">Mis Compras</span>
+              <span className="text-base leading-none">🛍️</span>
             </Link>
 
             {/* Notification Bell */}
             <NotificationBell />
 
+            {/* Cart Button */}
             <CartButton />
 
             {/* Profile & Settings Dropdown Menu */}
@@ -281,6 +282,18 @@ export function Header() {
                         </Link>
                       </>
                     )}
+
+                    {/* Enlace directo a Contacto en el menú */}
+                    <div className="border-t border-stone-100 mt-1.5 pt-1.5">
+                      <Link
+                        href="/contacto"
+                        onClick={() => setMenuOpen(false)}
+                        className="flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-stone-700 hover:text-chocolate hover:bg-stone-100 transition-colors"
+                      >
+                        <span>💌</span>
+                        <span>Contacto</span>
+                      </Link>
+                    </div>
                   </div>
                 </div>
               )}
@@ -348,6 +361,19 @@ export function Header() {
                     </Link>
                   );
                 })}
+                <Link
+                  href="/contacto"
+                  onClick={() => setMobileDrawerOpen(false)}
+                  className={cn(
+                    "flex items-center gap-3 rounded-2xl px-3.5 py-3 text-sm font-semibold transition-all",
+                    pathname === "/contacto"
+                      ? "bg-terracota/15 text-chocolate font-bold"
+                      : "text-stone-700 hover:bg-stone-100 hover:text-chocolate",
+                  )}
+                >
+                  <span className="text-xl leading-none">💌</span>
+                  <span>Contacto</span>
+                </Link>
               </nav>
 
               {/* Acceso a Admin / Cuenta Mobile */}

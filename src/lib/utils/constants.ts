@@ -18,5 +18,4 @@ export const NAV_LINKS = [
   { href: "/ilustracion", label: "Ilustración", emoji: "🎨" },
   { href: "/obras", label: "Obras & Proyectos", emoji: "🌟" },
   { href: "/sobre-mi", label: "Sobre Mí", emoji: "✨" },
-  { href: "/contacto", label: "Contacto", emoji: "💌" },
 ] as const;
