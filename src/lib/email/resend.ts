@@ -12,4 +12,4 @@ export const ADMIN_NOTIFICATION_EMAIL =
   process.env.ADMIN_NOTIFICATION_EMAIL || "baudinoseba@gmail.com";
 
 export const EMAIL_FROM =
-  process.env.EMAIL_FROM || "Milideas Notificaciones <onboarding@resend.dev>";
+  process.env.EMAIL_FROM || "Milideas Arte <notificaciones@milideasarte.com.ar>";
