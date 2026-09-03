@@ -9,12 +9,7 @@ import { BackButton } from "@/components/ui/back-button";
 import { getStockStatus, getStockLabel } from "@/lib/stock";
 import { getProductoBySlug, getProductoSlugs, getProductos, getConfiguracionEncargos } from "@/lib/supabase/queries";
 
-export const revalidate = 60;
-
-export async function generateStaticParams() {
-  const slugs = await getProductoSlugs().catch(() => []);
-  return slugs.map((slug) => ({ slug }));
-}
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata({
   params,

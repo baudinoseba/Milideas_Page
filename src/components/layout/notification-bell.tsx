@@ -250,10 +250,10 @@ export function NotificationBell() {
 
       {/* Popover Dropdown de Notificaciones */}
       {isOpen && (
-        <div className="fixed sm:absolute left-3 right-3 sm:left-auto sm:right-0 top-16 sm:top-full mt-2 w-auto sm:w-96 rounded-3xl border border-[#E5E0D8] bg-white p-3.5 sm:p-4 shadow-2xl animate-in fade-in slide-in-from-top-2 duration-150 z-50">
+        <div className="fixed sm:absolute left-3 right-3 sm:left-auto sm:right-0 top-14 sm:top-full mt-2 w-auto sm:w-96 rounded-3xl border border-[#E5E0D8] bg-white p-3.5 sm:p-4 shadow-2xl animate-in fade-in slide-in-from-top-2 duration-150 z-50 max-h-[calc(100dvh-130px)] sm:max-h-none flex flex-col">
           
           {/* Header */}
-          <div className="flex items-center justify-between border-b border-stone-100 pb-2.5 mb-2.5">
+          <div className="flex items-center justify-between border-b border-stone-100 pb-2 mb-2 shrink-0">
             <div className="flex items-center gap-2">
               <span className="font-serif font-bold text-chocolate text-xs sm:text-sm">
                 🔔 Notificaciones
@@ -276,8 +276,8 @@ export function NotificationBell() {
             )}
           </div>
 
-          {/* Lista de Notificaciones */}
-          <div className="max-h-[65vh] sm:max-h-80 overflow-y-auto space-y-2 pr-1 divide-y divide-stone-100 scrollbar-thin">
+          {/* Lista de Notificaciones con scroll controlado */}
+          <div className="flex-1 max-h-[38vh] sm:max-h-80 overflow-y-auto space-y-2 pr-1 divide-y divide-stone-100 scrollbar-thin">
             {notifications.length === 0 ? (
               <div className="py-6 text-center space-y-1.5 text-xs text-stone-500">
                 <span className="text-2xl block">✨</span>

@@ -108,19 +108,22 @@ export async function getProductos(filters?: {
 }
 
 export async function getProductoBySlug(slug: string): Promise<ProductoConImagenes | null> {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   const { data, error } = await supabase
     .from("productos")
     .select("*, producto_imagenes(*), categorias(*), producciones(*)")
     .eq("slug", slug)
     .eq("activo", true)
     .single();
-  if (error) return null;
+  if (error) {
+    console.error("getProductoBySlug error for slug:", slug, error);
+    return null;
+  }
   return data as ProductoConImagenes;
 }
 
 export async function getProductoSlugs(): Promise<string[]> {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   const { data, error } = await supabase
     .from("productos")
     .select("slug")

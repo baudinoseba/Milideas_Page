@@ -62,10 +62,10 @@ export function ProductCard({ producto, priority = false }: { producto: Producto
             )}
           </div>
 
-          {/* Text info — Clean vertical hierarchy */}
-          <div className="space-y-1 px-1">
+          {/* Text info — Centered aesthetic layout */}
+          <div className="space-y-1 px-1 text-center flex flex-col items-center">
             {producto.categorias && (
-              <p className="text-[10px] sm:text-[11px] font-semibold font-sans uppercase tracking-wider text-terracota/90 truncate">
+              <p className="text-[10px] sm:text-[11px] font-semibold font-sans uppercase tracking-wider text-terracota/90 truncate max-w-full">
                 {producto.categorias.nombre}
               </p>
             )}
@@ -73,15 +73,15 @@ export function ProductCard({ producto, priority = false }: { producto: Producto
               {producto.nombre}
             </h3>
 
-            <div className="flex items-center justify-between gap-1.5 pt-1">
-              <p className="text-sm sm:text-base font-semibold font-sans text-chocolate">
+            <div className="flex flex-col items-center justify-center gap-0.5 pt-1">
+              <p className="text-base sm:text-lg font-bold font-sans text-chocolate">
                 {formatPrecio(producto.precio_base)}
               </p>
 
               {producto.stock_disponible > 0 ? (
-                <span className="inline-flex items-center gap-1 text-[11px] font-medium text-stone-600 font-sans">
+                <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-stone-600 font-sans">
                   <span
-                    className={`h-1.5 w-1.5 rounded-full ${
+                    className={`h-1.5 w-1.5 rounded-full shrink-0 ${
                       producto.stock_disponible === 1
                         ? "bg-amber-500 animate-pulse"
                         : "bg-emerald-500"
