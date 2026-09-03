@@ -1381,7 +1381,7 @@ export async function saveConfiguracionSitioAction(
   const tallerCiudad = String(formData.get("tallerCiudad") || "Sunchales").trim();
   const tallerProvincia = String(formData.get("tallerProvincia") || "Santa Fe").trim();
   const tallerCodigoPostal = String(formData.get("tallerCodigoPostal") || "2322").trim();
-  const vendedorWhatsapp = String(formData.get("vendedorWhatsapp") || "5493493668308").trim();
+  const vendedorWhatsapp = String(formData.get("vendedorWhatsapp") || "5493493664420").trim();
 
   const payload: any = {
     coleccion_destacada_id: coleccionDestacadaId || null,

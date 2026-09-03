@@ -213,6 +213,9 @@ CREATE TABLE IF NOT EXISTS public.configuracion_sitio (
   cuit TEXT DEFAULT '27-00000000-0',
   direccion_taller TEXT DEFAULT 'Sunchales, Santa Fe',
   horarios_taller TEXT DEFAULT 'Lunes a Viernes de 9:00 a 18:00',
+  vendedor_whatsapp TEXT DEFAULT '5493493664420',
+  email_contacto TEXT DEFAULT 'contacto@milideasarte.com.ar',
+  instagram_url TEXT DEFAULT 'https://instagram.com/milideas_arte',
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 

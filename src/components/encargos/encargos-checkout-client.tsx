@@ -322,7 +322,7 @@ ${emailContacto ? `*Email:* ${emailContacto}\n` : ""}${entregaText}
 --------------------------------
 ${closingText}`;
 
-      const vendorWhatsapp = process.env.NEXT_PUBLIC_VENDOR_WHATSAPP || "5493493668308";
+      const vendorWhatsapp = process.env.NEXT_PUBLIC_VENDOR_WHATSAPP || "5493493664420";
       const waUrl = `https://wa.me/${vendorWhatsapp}?text=${encodeURIComponent(text)}`;
 
       clearCart();
@@ -621,7 +621,7 @@ ${closingText}`;
                 <Label htmlFor="whatsappContacto">Número de WhatsApp (con código de área) *</Label>
                 <Input
                   id="whatsappContacto"
-                  placeholder="ej. 3493668308"
+                  placeholder="ej. 3493664420"
                   value={whatsappContacto}
                   onChange={(e) => setWhatsappContacto(e.target.value)}
                   required

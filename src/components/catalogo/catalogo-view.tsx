@@ -149,7 +149,8 @@ export function CatalogoView({
 
 ¿Cómo coordinamos el plazo de entrega y la seña? ¡Muchas gracias!`;
 
-    window.open(`https://wa.me/5493493668308?text=${encodeURIComponent(mensaje)}`, "_blank");
+    const vendorWa = process.env.NEXT_PUBLIC_VENDOR_WHATSAPP || "5493493664420";
+    window.open(`https://wa.me/${vendorWa}?text=${encodeURIComponent(mensaje)}`, "_blank");
     setEncargoModalFormato(null);
     setConfirmandoWhatsapp(false);
   };

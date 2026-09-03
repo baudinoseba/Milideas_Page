@@ -29,7 +29,45 @@ export function Footer() {
         </div>
       </div>
 
-      {/* ─── 2. Renglón Único Minimalista (Copyright + Enlaces en 1 Sola Línea) ─── */}
+      {/* ─── 2. Barra de Contacto Directo Oficial ─── */}
+      <div className="border-b border-border/40 py-3 bg-surface/60">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 flex flex-wrap items-center justify-between gap-y-2 gap-x-6 text-xs font-sans text-stone-700">
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
+            <a
+              href="https://wa.me/5493493664420?text=Hola%20Mili!%20Te%20escribo%20desde%20tu%20sitio%20web."
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 hover:text-[#25D366] transition-colors font-medium"
+            >
+              <span className="text-sm">💬</span>
+              <span>WhatsApp: <strong className="font-semibold text-chocolate">+54 9 3493 66-4420</strong></span>
+            </a>
+
+            <a
+              href="mailto:contacto@milideasarte.com.ar"
+              className="inline-flex items-center gap-1.5 hover:text-chocolate transition-colors"
+            >
+              <span className="text-sm">✉️</span>
+              <span className="font-mono text-[11px] text-stone-600 hover:text-chocolate">contacto@milideasarte.com.ar</span>
+            </a>
+
+            <span className="hidden md:inline-flex items-center gap-1 text-muted text-[11px]">
+              <span>📍</span>
+              <span>Taller en Sunchales, Santa Fe</span>
+            </span>
+          </div>
+
+          <Link
+            href="/contacto"
+            className="inline-flex items-center gap-1 font-semibold text-terracota hover:text-chocolate transition-colors text-[11px] sm:text-xs"
+          >
+            <span>Ver todos los canales de contacto</span>
+            <span>→</span>
+          </Link>
+        </div>
+      </div>
+
+      {/* ─── 3. Renglón Minimalista (Copyright + Enlaces de Navegación) ─── */}
       <div className="py-4">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs font-sans text-muted">
           {/* Copyright a la izquierda */}
@@ -41,6 +79,9 @@ export function Footer() {
           <nav className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1 text-[11px] sm:text-xs">
             <Link href="/sobre-mi" className="hover:text-chocolate transition-colors font-medium">
               Sobre Mí & FAQ
+            </Link>
+            <Link href="/contacto" className="hover:text-chocolate transition-colors font-medium text-chocolate">
+              Contacto
             </Link>
             <Link href="/ceramica" className="hover:text-chocolate transition-colors">
               Cerámica

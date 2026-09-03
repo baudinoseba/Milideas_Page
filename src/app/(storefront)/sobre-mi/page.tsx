@@ -109,7 +109,7 @@ export default async function SobreMiPage() {
                 </a>
 
                 <a
-                  href={`https://wa.me/${config?.vendedor_whatsapp || "5493493668308"}?text=Hola%20Mili!%20Te%20escribo%20desde%20la%20secci%C3%B3n%20Sobre%20M%C3%AD%20de%20tu%20web.`}
+                  href={`https://wa.me/${config?.vendedor_whatsapp || "5493493664420"}?text=Hola%20Mili!%20Te%20escribo%20desde%20la%20secci%C3%B3n%20Sobre%20M%C3%AD%20de%20tu%20web.`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-4 py-2.5 text-xs font-semibold text-chocolate hover:bg-secondary/40 transition-all shadow-2xs"
@@ -161,7 +161,7 @@ export default async function SobreMiPage() {
         </section>
       </FadeIn>
 
-      {/* ─── 3. BANNER DE CONSULTA DIRECTA ─── */}
+      {/* ─── 3. BANNER DE CONSULTA DIRECTA Y CONTACTO ─── */}
       <FadeIn delay={150}>
         <section className="rounded-2xl sm:rounded-3xl border border-border/60 bg-gradient-to-br from-surface via-arena/30 to-rosa-buho/10 p-6 sm:p-8 text-center space-y-4">
           <span className="text-3xl">💌</span>
@@ -171,18 +171,37 @@ export default async function SobreMiPage() {
           <p className="text-xs sm:text-sm text-barro max-w-lg mx-auto font-sans">
             Escribime con total confianza. Estoy a tu disposición para ayudarte a elegir tu pieza o coordinar un encargo especial.
           </p>
+
+          <div className="inline-flex flex-wrap items-center justify-center gap-x-6 gap-y-2 py-2 text-xs font-sans text-stone-700">
+            <span className="inline-flex items-center gap-1.5 font-medium">
+              <span>📧</span>
+              <a href="mailto:contacto@milideasarte.com.ar" className="hover:text-terracota underline underline-offset-2">
+                contacto@milideasarte.com.ar
+              </a>
+            </span>
+            <span className="inline-flex items-center gap-1.5 font-medium">
+              <span>📱</span>
+              <span>+54 9 3493 664420</span>
+            </span>
+            <span className="inline-flex items-center gap-1.5 font-medium">
+              <span>📍</span>
+              <span>Sunchales, Santa Fe</span>
+            </span>
+          </div>
+
           <div className="flex flex-wrap justify-center gap-3 pt-2">
             <a
-              href="https://wa.me/5493493668308?text=Hola%20Mili!%20Tengo%20una%20consulta%20sobre%20tus%20piezas."
+              href={`https://wa.me/${config?.vendedor_whatsapp || "5493493664420"}?text=Hola%20Mili!%20Tengo%20una%20consulta%20sobre%20tus%20piezas.`}
               target="_blank"
               rel="noopener noreferrer"
-              className="rounded-full bg-terracota text-white px-6 py-2.5 text-xs sm:text-sm font-semibold hover:bg-terracota/90 transition-all shadow-xs"
+              className="rounded-full bg-[#25D366] text-white px-6 py-2.5 text-xs sm:text-sm font-semibold hover:bg-[#20ba5a] transition-all shadow-xs inline-flex items-center gap-2"
             >
-              Consultar por WhatsApp ↗
+              <span>Escribir por WhatsApp</span>
+              <span>↗</span>
             </a>
-            <Link href="/ceramica/catalogo">
+            <Link href="/contacto">
               <Button variant="outline" className="rounded-full border-border/80 bg-surface text-chocolate hover:bg-arena px-5 py-2.5 text-xs sm:text-sm font-semibold shadow-xs">
-                Explorar Catálogo →
+                Ver Canales de Contacto →
               </Button>
             </Link>
           </div>

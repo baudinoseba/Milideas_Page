@@ -87,7 +87,7 @@ ${pedido.descuento_aplicado > 0 ? `*Descuento:* -${formatPrecio(pedido.descuento
 --------------------------------
 *PAGO:* Transferencia bancaria a alias *milideasarte* (adjunto comprobante a continuación).`;
 
-    const vendorWhatsapp = process.env.NEXT_PUBLIC_VENDOR_WHATSAPP || "5493493668308";
+    const vendorWhatsapp = process.env.NEXT_PUBLIC_VENDOR_WHATSAPP || "5493493664420";
     const generatedUrl = `https://wa.me/${vendorWhatsapp}?text=${encodeURIComponent(text)}`;
     setWhatsappUrl(generatedUrl);
 

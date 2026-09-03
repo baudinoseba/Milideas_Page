@@ -212,7 +212,7 @@ ${emailContacto ? `*Email:* ${emailContacto}\n` : ""}${entregaText}
 --------------------------------
 ${closingText}`;
 
-      const vendorWhatsapp = process.env.NEXT_PUBLIC_VENDOR_WHATSAPP || "5493493668308";
+      const vendorWhatsapp = process.env.NEXT_PUBLIC_VENDOR_WHATSAPP || "5493493664420";
       const waUrl = `https://wa.me/${vendorWhatsapp}?text=${encodeURIComponent(text)}`;
 
       clearEncargosCart();

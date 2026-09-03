@@ -461,13 +461,13 @@ export function PersonalizacionForm({
 
             <div className="sm:col-span-2 lg:col-span-5">
               <Label htmlFor="vendedorWhatsapp" className="text-xs font-semibold text-stone-800">
-                WhatsApp Oficial de Atención (con código de país ej: 5493493668308)
+                WhatsApp Oficial de Atención (con código de país ej: 5493493664420)
               </Label>
               <Input
                 id="vendedorWhatsapp"
                 name="vendedorWhatsapp"
-                defaultValue={config.vendedor_whatsapp ?? "5493493668308"}
-                placeholder="5493493668308"
+                defaultValue={config.vendedor_whatsapp ?? "5493493664420"}
+                placeholder="5493493664420"
                 className="rounded-xl text-xs bg-white mt-1"
                 required
               />

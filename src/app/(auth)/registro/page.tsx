@@ -107,7 +107,7 @@ export default function RegistroPage() {
                   id="whatsapp"
                   name="whatsapp"
                   required
-                  placeholder="Ej. 3493668308"
+                  placeholder="Ej. 3493664420"
                   className="mt-1 rounded-xl text-xs bg-[#FAF7F2]/50 border-stone-200 focus:bg-white"
                 />
               </div>

@@ -493,7 +493,7 @@ export function CheckoutForm({
                       <Label htmlFor="whatsappContacto">WhatsApp</Label>
                       <Input
                         id="whatsappContacto"
-                        placeholder="Ej. 3493668308"
+                        placeholder="Ej. 3493664420"
                         value={step2Data.whatsappContacto}
                         onChange={(e) => setStep2Data({ ...step2Data, whatsappContacto: e.target.value })}
                         className={step2Errors.whatsappContacto ? "border-red-500" : ""}
@@ -656,7 +656,7 @@ export function CheckoutForm({
                           <Label htmlFor="guest-whatsapp">WhatsApp</Label>
                           <Input
                             id="guest-whatsapp"
-                            placeholder="Ej. 3493668308"
+                            placeholder="Ej. 3493664420"
                             value={step2Data.whatsappContacto}
                             onChange={(e) => setStep2Data({ ...step2Data, whatsappContacto: e.target.value })}
                             className={step2Errors.whatsappContacto ? "border-red-500" : ""}

@@ -9,4 +9,4 @@ ALTER TABLE public.configuracion_sitio
   ADD COLUMN IF NOT EXISTS taller_ciudad TEXT DEFAULT 'Sunchales',
   ADD COLUMN IF NOT EXISTS taller_provincia TEXT DEFAULT 'Santa Fe',
   ADD COLUMN IF NOT EXISTS taller_codigo_postal TEXT DEFAULT '2322',
-  ADD COLUMN IF NOT EXISTS vendedor_whatsapp TEXT DEFAULT '5493493668308';
+  ADD COLUMN IF NOT EXISTS vendedor_whatsapp TEXT DEFAULT '5493493664420';

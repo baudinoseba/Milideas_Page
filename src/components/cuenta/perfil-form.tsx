@@ -193,7 +193,7 @@ export function PerfilForm({ perfil, email }: { perfil: Perfil; email: string })
                 name="whatsapp"
                 defaultValue={perfil.whatsapp ?? ""}
                 required
-                placeholder="Ej. 3493668308"
+                placeholder="Ej. 3493664420"
                 className="rounded-xl text-xs bg-white mt-1"
               />
               <p className="text-[10px] text-stone-500 mt-1">

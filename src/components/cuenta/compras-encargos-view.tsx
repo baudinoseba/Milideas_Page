@@ -608,7 +608,7 @@ export function ComprasEncargosView({ pedidos, encargos }: ComprasEncargosViewPr
 
                       {/* Botón WhatsApp */}
                       <a
-                        href={`https://wa.me/5493493668308?text=${encodeURIComponent(
+                        href={`https://wa.me/5493493664420?text=${encodeURIComponent(
                           `¡Hola Mili! Te escribo por mi compra #${pedido.id.slice(0, 8).toUpperCase()} para consultar el estado.`
                         )}`}
                         target="_blank"
@@ -735,7 +735,7 @@ export function ComprasEncargosView({ pedidos, encargos }: ComprasEncargosViewPr
 
                       {/* Botón WhatsApp de Acción Directa para Encargo */}
                       <a
-                        href={`https://wa.me/5493493668308?text=${encodeURIComponent(
+                        href={`https://wa.me/5493493664420?text=${encodeURIComponent(
                           encargo.estado === "aceptado"
                             ? `¡Hola Mili! Te escribo por mi encargo #${encargo.id.slice(0, 8).toUpperCase()} (${tituloPieza}) para coordinar la seña.`
                             : encargo.estado === "listo"
@@ -933,7 +933,7 @@ export function ComprasEncargosView({ pedidos, encargos }: ComprasEncargosViewPr
 
             <div className="pt-2 space-y-2">
               <a
-                href={`https://wa.me/5493493668308?text=${encodeURIComponent(
+                href={`https://wa.me/5493493664420?text=${encodeURIComponent(
                   `¡Hola Mili! Te adjunto el comprobante de transferencia para mi ${itemParaPagar.tipo === "pedido" ? "compra" : "encargo"} #${itemParaPagar.data.id.slice(0, 8).toUpperCase()}.`
                 )}`}
                 target="_blank"
@@ -1081,7 +1081,7 @@ export function ComprasEncargosView({ pedidos, encargos }: ComprasEncargosViewPr
                     </Button>
                   )}
                   <a
-                    href={`https://wa.me/5493493668308?text=${encodeURIComponent(
+                    href={`https://wa.me/5493493664420?text=${encodeURIComponent(
                       `¡Hola Mili! Te consulto por mi compra #${itemSeleccionado.data.id.slice(0, 8).toUpperCase()}.`
                     )}`}
                     target="_blank"
@@ -1134,7 +1134,7 @@ export function ComprasEncargosView({ pedidos, encargos }: ComprasEncargosViewPr
                     </Button>
                   )}
                   <a
-                    href={`https://wa.me/5493493668308?text=${encodeURIComponent(
+                    href={`https://wa.me/5493493664420?text=${encodeURIComponent(
                       `¡Hola Mili! Te consulto por mi encargo #${itemSeleccionado.data.id.slice(0, 8).toUpperCase()}.`
                     )}`}
                     target="_blank"
