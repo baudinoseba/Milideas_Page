@@ -53,14 +53,6 @@ export function ContactoView({
     window.open(url, "_blank");
   };
 
-  const handleEnviarEmail = () => {
-    const subject = encodeURIComponent(`[Consulta Web] ${motivo} - ${nombre || "Cliente"}`);
-    const body = encodeURIComponent(
-      `Hola Mili,\n\nTe escribo con la siguiente consulta:\n\nNombre: ${nombre}\nTeléfono/WhatsApp: ${telefono}\nMotivo: ${motivo}\n\nMensaje:\n${mensaje}\n\n¡Muchas gracias!`
-    );
-    window.open(`mailto:${contactEmail}?subject=${subject}&body=${body}`, "_blank");
-  };
-
   return (
     <div className="mx-auto max-w-5xl space-y-12 pb-16">
       {/* ─── 1. Header Principal ─── */}
@@ -217,7 +209,7 @@ export function ContactoView({
                 Escribinos tu consulta
               </h2>
               <p className="text-xs text-muted font-sans">
-                Completá tus datos y envialo directamente por WhatsApp para una respuesta inmediata, o por correo electrónico.
+                Completá tus datos y envialo directamente por WhatsApp para una respuesta inmediata.
               </p>
             </div>
 
@@ -285,23 +277,15 @@ export function ContactoView({
                 />
               </div>
 
-              <div className="pt-2 flex flex-col sm:flex-row items-center gap-3">
+              <div className="pt-2">
                 <Button
                   type="submit"
-                  className="w-full sm:flex-1 rounded-full bg-[#25D366] hover:bg-[#20ba59] text-white font-bold text-xs py-2.5 shadow-xs flex items-center justify-center gap-2 cursor-pointer"
+                  className="w-full rounded-full bg-[#25D366] hover:bg-[#20ba59] text-white font-bold text-xs sm:text-sm py-3 shadow-sm flex items-center justify-center gap-2 cursor-pointer transition-all"
                 >
                   <WhatsAppIcon className="w-4 h-4 text-white" />
                   <span>Enviar por WhatsApp</span>
                   <span>↗</span>
                 </Button>
-
-                <button
-                  type="button"
-                  onClick={handleEnviarEmail}
-                  className="w-full sm:w-auto rounded-full border border-border/80 bg-white hover:bg-stone-50 text-stone-700 font-semibold text-xs py-2.5 px-5 shadow-2xs flex items-center justify-center gap-1.5 transition-all cursor-pointer"
-                >
-                  <span>✉️ Enviar por Email</span>
-                </button>
               </div>
             </form>
           </div>
