@@ -15,8 +15,10 @@ function getSupabaseAdmin() {
   return createSupabaseClient(supabaseUrl, serviceKey);
 }
 
+import { getBaseUrl } from "@/lib/urls";
+
 function getAppUrl(): string {
-  return process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  return getBaseUrl();
 }
 
 /**

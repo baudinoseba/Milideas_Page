@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
+import { getBaseUrl } from "@/lib/urls";
 
 interface GoogleButtonProps {
   redirectTo?: string;
@@ -24,7 +25,7 @@ export function GoogleButton({
     setLoading(true);
     try {
       const supabase = createClient();
-      let origin = typeof window !== "undefined" ? window.location.origin : "http://localhost:3000";
+      let origin = typeof window !== "undefined" ? window.location.origin : getBaseUrl();
       if (origin.includes("0.0.0.0")) {
         origin = origin.replace("0.0.0.0", "localhost");
       }
