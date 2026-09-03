@@ -58,6 +58,13 @@ export const metadata: Metadata = {
   authors: [{ name: "Milagros Baudino", url: "https://instagram.com/milideas_arte" }],
   creator: "Milagros Baudino",
   publisher: "Milideas Arte",
+  icons: {
+    icon: [
+      { url: "/icon.png", type: "image/png" },
+      { url: "/logo-trimmed.png", type: "image/png" },
+    ],
+    apple: "/apple-icon.png",
+  },
   openGraph: {
     type: "website",
     locale: "es_AR",
