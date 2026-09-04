@@ -74,27 +74,6 @@ export function ContactoView({
         </div>
       </FadeIn>
 
-      {/* ─── Derivación a Soporte Técnico Web ─── */}
-      <FadeIn delay={50}>
-        <div className="rounded-2xl border border-stone-200/90 bg-stone-50/90 p-4 sm:p-5 text-xs text-stone-800 font-sans flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-2xs">
-          <div className="flex items-start gap-2.5">
-            <span className="text-xl">🛠️</span>
-            <div>
-              <p className="font-bold text-chocolate">¿Tenés algún inconveniente técnico con la web?</p>
-              <p className="text-stone-600 mt-0.5">
-                Si tenés problemas para iniciar sesión, pagar, subir comprobantes o errores en la pantalla, abrí un ticket directo con el área técnica.
-              </p>
-            </div>
-          </div>
-          <Link
-            href="/soporte"
-            className="shrink-0 rounded-full bg-chocolate text-white px-4 py-1.5 text-xs font-semibold hover:bg-chocolate/90 transition-all"
-          >
-            Ir a Soporte Técnico →
-          </Link>
-        </div>
-      </FadeIn>
-
       {/* ─── 2. Tarjetas de Canales Oficiales ─── */}
       <FadeIn delay={100}>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -337,6 +316,27 @@ export function ContactoView({
                 Si querés un cuadro o pieza personalizada, podés enviarme tu foto de referencia directamente por WhatsApp.
               </p>
             </div>
+          </div>
+
+          {/* Derivación Técnica al final de la sección */}
+          <div className="pt-4 border-t border-border/60 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-white/80 rounded-2xl p-4 border border-stone-200/80 shadow-2xs">
+            <div className="flex items-start gap-2.5">
+              <span className="text-xl shrink-0">🛠️</span>
+              <div>
+                <p className="font-bold text-chocolate text-xs sm:text-sm">
+                  ¿Tenés algún inconveniente técnico con la web?
+                </p>
+                <p className="text-stone-600 text-[11px] sm:text-xs mt-0.5 leading-relaxed">
+                  Si tenés problemas para iniciar sesión, recuperar tu contraseña, fallas visuales o inconvenientes con tu encargo, abrí un ticket directo con el área técnica.
+                </p>
+              </div>
+            </div>
+            <Link
+              href="/soporte"
+              className="shrink-0 rounded-full bg-chocolate text-white px-4 py-2 text-xs font-semibold hover:bg-chocolate/90 transition-all cursor-pointer shadow-2xs"
+            >
+              Ir a Soporte Técnico →
+            </Link>
           </div>
         </div>
       </FadeIn>
