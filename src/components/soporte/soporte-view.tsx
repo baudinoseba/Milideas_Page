@@ -23,6 +23,29 @@ export function SoporteView() {
   const [cargando, setCargando] = useState(false);
   const [ticketEnviado, setTicketEnviado] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [archivoCaptura, setArchivoCaptura] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+  const handleArchivoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 10 * 1024 * 1024) {
+        setErrorMsg("La imagen seleccionada supera los 10MB permitidos.");
+        return;
+      }
+      setArchivoCaptura(file);
+      setPreviewUrl(URL.createObjectURL(file));
+      setErrorMsg(null);
+    }
+  };
+
+  const removerArchivo = () => {
+    setArchivoCaptura(null);
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+      setPreviewUrl(null);
+    }
+  };
 
   const handleCopiar = async () => {
     try {
@@ -40,11 +63,15 @@ export function SoporteView() {
     setErrorMsg(null);
 
     const formData = new FormData(e.currentTarget);
+    if (archivoCaptura) {
+      formData.set("captura", archivoCaptura);
+    }
     const res = await enviarTicketSoporteAction(formData);
 
     setCargando(false);
     if (res.success && res.ticketId) {
       setTicketEnviado(res.ticketId);
+      removerArchivo();
     } else {
       setErrorMsg(res.error || "Ocurrió un error al enviar tu consulta. Por favor reintentá.");
     }
@@ -266,6 +293,72 @@ export function SoporteView() {
                     placeholder="Detallanos qué estabas intentando hacer, qué mensaje de error apareció o cómo podemos ayudarte..."
                     className="rounded-2xl text-xs bg-white resize-none"
                   />
+                </div>
+
+                {/* 📸 Campo para adjuntar captura de pantalla o foto del error */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="captura" className="text-xs font-semibold text-stone-800 flex items-center gap-1.5">
+                      <span>📸</span> Captura de pantalla o foto del error (Opcional)
+                    </Label>
+                    {archivoCaptura && (
+                      <button
+                        type="button"
+                        onClick={removerArchivo}
+                        className="text-[11px] text-rose-600 hover:underline font-medium cursor-pointer"
+                      >
+                        Quitar imagen
+                      </button>
+                    )}
+                  </div>
+
+                  {!previewUrl ? (
+                    <label
+                      htmlFor="captura"
+                      className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-stone-200 bg-stone-50/70 hover:bg-stone-100/70 p-4 transition-colors cursor-pointer text-center group"
+                    >
+                      <span className="text-xl mb-1 group-hover:scale-110 transition-transform">📷</span>
+                      <span className="text-xs font-medium text-stone-700">
+                        Hacé clic para seleccionar o subir una captura
+                      </span>
+                      <span className="text-[10px] text-stone-400 mt-0.5">
+                        Formatos soportados: JPG, PNG, WEBP (hasta 10MB)
+                      </span>
+                      <input
+                        id="captura"
+                        name="captura"
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp,image/gif"
+                        onChange={handleArchivoChange}
+                        className="sr-only"
+                      />
+                    </label>
+                  ) : (
+                    <div className="relative rounded-2xl border border-stone-200 bg-white p-3 flex items-center gap-3">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={previewUrl}
+                        alt="Vista previa de captura"
+                        className="h-16 w-16 rounded-xl object-cover border border-stone-200"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold text-stone-800 truncate">
+                          {archivoCaptura?.name}
+                        </p>
+                        <p className="text-[11px] text-stone-400">
+                          {((archivoCaptura?.size || 0) / 1024 / 1024).toFixed(2)} MB · Imagen adjunta
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={removerArchivo}
+                        className="p-1.5 text-stone-400 hover:text-rose-600 rounded-full hover:bg-stone-100 transition-colors cursor-pointer"
+                        title="Eliminar imagen"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 <div className="pt-2">

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { FadeIn } from "@/components/ui/fade-in";
 import { WhatsAppIcon } from "@/components/ui/whatsapp-icon";
 import { Input } from "@/components/ui/input";
@@ -11,9 +12,11 @@ import { BanderaArgentina } from "@/components/ui/bandera-argentina";
 
 const MOTIVOS_CONSULTA = [
   "Consulta sobre piezas de cerámica en stock",
-  "Encargo de ilustración personalizada a medida",
-  "Estado de un pedido o comprobante de pago",
-  "Ventas mayoristas o regalos empresariales",
+  "Encargo personalizado de cerámica",
+  "Encargo de ilustración personalizada",
+  "Proyecto especial, mural o diseño a medida",
+  "Consulta sobre mi pedido o comprobante de pago",
+  "Ventas mayoristas o compras por cantidad",
   "Otra consulta general",
 ];
 
@@ -68,6 +71,27 @@ export function ContactoView({
           <p className="mx-auto max-w-xl text-xs sm:text-sm text-barro font-sans leading-relaxed">
             ¿Tenés alguna duda sobre una pieza, querés encargar una ilustración personalizada o coordinar el retiro de tu compra? Estoy a tu disposición para ayudarte.
           </p>
+        </div>
+      </FadeIn>
+
+      {/* ─── Derivación a Soporte Técnico Web ─── */}
+      <FadeIn delay={50}>
+        <div className="rounded-2xl border border-stone-200/90 bg-stone-50/90 p-4 sm:p-5 text-xs text-stone-800 font-sans flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-2xs">
+          <div className="flex items-start gap-2.5">
+            <span className="text-xl">🛠️</span>
+            <div>
+              <p className="font-bold text-chocolate">¿Tenés algún inconveniente técnico con la web?</p>
+              <p className="text-stone-600 mt-0.5">
+                Si tenés problemas para iniciar sesión, pagar, subir comprobantes o errores en la pantalla, abrí un ticket directo con el área técnica.
+              </p>
+            </div>
+          </div>
+          <Link
+            href="/soporte"
+            className="shrink-0 rounded-full bg-chocolate text-white px-4 py-1.5 text-xs font-semibold hover:bg-chocolate/90 transition-all"
+          >
+            Ir a Soporte Técnico →
+          </Link>
         </div>
       </FadeIn>
 

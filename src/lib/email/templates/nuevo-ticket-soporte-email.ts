@@ -5,6 +5,7 @@ export interface TicketSoporteEmailProps {
   telefono?: string;
   tipoProblema: string;
   mensaje: string;
+  capturaUrl?: string;
   fecha: string;
 }
 
@@ -92,6 +93,29 @@ export function renderTicketSoporteAdminHtml(props: TicketSoporteEmailProps): st
                   </h3>
                   <div style="background-color: #FFFFFF; border: 1px solid #EAE5DE; border-left: 4px solid #C26D53; border-radius: 8px; padding: 14px 16px; font-size: 14px; line-height: 1.6; color: #2C2523; white-space: pre-wrap;">${props.mensaje}</div>
                 </div>
+
+                ${
+                  props.capturaUrl
+                    ? `
+                <!-- Captura de Pantalla Adjunta -->
+                <div style="margin-bottom: 24px; background-color: #FAF7F2; border: 1px solid #EAE5DE; border-radius: 12px; padding: 16px;">
+                  <h3 style="font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; color: #6E6259; margin: 0 0 10px 0;">
+                    📷 Captura del error adjuntada por el usuario:
+                  </h3>
+                  <div style="margin-bottom: 12px;">
+                    <a href="${props.capturaUrl}" target="_blank" style="display: inline-block; background-color: #C26D53; color: #FFFFFF; font-size: 12px; font-weight: 600; padding: 8px 16px; border-radius: 8px; text-decoration: none;">
+                      🔍 Abrir imagen completa en Supabase Storage ↗
+                    </a>
+                  </div>
+                  <div style="background-color: #FFFFFF; border: 1px solid #EAE5DE; border-radius: 8px; padding: 8px; text-align: center; overflow: hidden;">
+                    <a href="${props.capturaUrl}" target="_blank">
+                      <img src="${props.capturaUrl}" alt="Captura del problema técnico" style="max-width: 100%; max-height: 380px; object-fit: contain; border-radius: 4px; display: block; margin: 0 auto;" />
+                    </a>
+                  </div>
+                </div>
+                `
+                    : ""
+                }
 
                 <!-- Botones de Acción Rápida -->
                 <table width="100%" cellpadding="0" cellspacing="0">
