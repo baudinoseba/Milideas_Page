@@ -20,9 +20,16 @@ export const SOPORTE_NOTIFICATION_EMAIL =
 export const ADMIN_NOTIFICATION_EMAIL = ARTISTA_NOTIFICATION_EMAIL;
 
 // Remitentes oficiales con dominio verificado milideasarte.com.ar
+// Si en Vercel quedó configurado 'onboarding@resend.dev', se ignora y se fuerza el dominio verificado
+const rawEmailFrom = process.env.EMAIL_FROM;
 export const EMAIL_FROM =
-  process.env.EMAIL_FROM || "Milideas Arte <notificaciones@milideasarte.com.ar>";
+  rawEmailFrom && !rawEmailFrom.includes("resend.dev")
+    ? rawEmailFrom
+    : "Milideas Arte <notificaciones@milideasarte.com.ar>";
 
+const rawEmailFromSoporte = process.env.EMAIL_FROM_SOPORTE;
 export const EMAIL_FROM_SOPORTE =
-  process.env.EMAIL_FROM_SOPORTE || "Milideas Soporte <soporte@milideasarte.com.ar>";
+  rawEmailFromSoporte && !rawEmailFromSoporte.includes("resend.dev")
+    ? rawEmailFromSoporte
+    : "Milideas Soporte <soporte@milideasarte.com.ar>";
 
