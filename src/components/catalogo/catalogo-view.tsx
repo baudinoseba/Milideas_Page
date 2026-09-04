@@ -72,11 +72,6 @@ export function CatalogoView({
     new Set(formatos.map((f) => f.categoria).filter(Boolean)),
   ) as string[];
 
-  // Diseños disponibles en portfolio
-  const todosLosDisenos = Array.from(
-    new Set(portfolio.flatMap((c) => (Array.isArray(c.disenos_disponibles) ? c.disenos_disponibles : []))),
-  );
-
   // Filtrado de formatos
   const formatosFiltrados = formatos.filter((f) => {
     const matchCat = selectedCategoria === "todas" || f.categoria === selectedCategoria;

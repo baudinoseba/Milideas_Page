@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { resend, ADMIN_NOTIFICATION_EMAIL, EMAIL_FROM } from "./resend";
 import { renderNuevoPedidoHtml, NuevoPedidoItemData } from "./templates/nuevo-pedido-email";

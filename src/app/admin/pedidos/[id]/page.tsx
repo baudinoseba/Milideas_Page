@@ -13,7 +13,6 @@ export default async function AdminPedidoDetallePage({
   const pedido = await getPedidoById(id);
   if (!pedido) notFound();
 
-  // eslint-disable-next-line react-hooks/purity
   const nowMs = Date.now();
   const proximoAVencer = isPedidoProximoAVencer(
     pedido.estado,
@@ -29,7 +28,6 @@ export default async function AdminPedidoDetallePage({
       <h1 className="mb-6 text-2xl font-semibold">
         Pedido <span className="text-muted">#{pedido.id.slice(0, 8)}</span>
       </h1>
-      {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
       <PedidoAdminActions pedido={pedido as any} proximoAVencer={proximoAVencer} />
     </div>
   );

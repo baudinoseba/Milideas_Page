@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { formatPrecio } from "@/lib/pricing";
 import { Badge } from "@/components/ui/badge";
@@ -498,18 +499,18 @@ export function ComprasEncargosView({ pedidos, encargos }: ComprasEncargosViewPr
             </p>
           </div>
           <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
-            <a
+            <Link
               href="/ceramica/stock"
               className="rounded-full bg-chocolate text-crema-cruda px-5 py-2 text-xs font-bold shadow-xs hover:bg-chocolate/90 transition-transform active:scale-95"
             >
               Ver Stock Disponible →
-            </a>
-            <a
+            </Link>
+            <Link
               href="/ceramica/catalogo"
               className="rounded-full border border-stone-300 bg-surface px-5 py-2 text-xs font-semibold text-chocolate hover:bg-stone-100 transition-colors"
             >
               Ver Catálogo de Encargos →
-            </a>
+            </Link>
             {cantidadOcultos > 0 && !mostrarOcultos && (
               <button
                 type="button"

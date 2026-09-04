@@ -28,7 +28,7 @@ export function CheckoutExitoClient({ pedido }: { pedido: PedidoConItems }) {
     if (typeof pedido.direccion_envio === "string") {
       try {
         dir = JSON.parse(pedido.direccion_envio);
-      } catch (_e) {}
+      } catch {}
     }
 
     const dateFormatted = new Date(pedido.created_at).toLocaleDateString("es-AR", {

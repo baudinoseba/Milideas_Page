@@ -16,7 +16,6 @@ export async function enviarTicketSoporteAction(formData: FormData): Promise<Tic
   const telefono = String(formData.get("telefono") || "").trim();
   const tipoProblema = String(formData.get("tipoProblema") || "Consulta técnica general").trim();
   const mensaje = String(formData.get("mensaje") || "").trim();
-  const capturaFile = formData.get("captura") as File | null;
 
   if (!nombre || !email || !mensaje) {
     return { success: false, error: "Por favor completá los campos obligatorios (nombre, email y mensaje)." };

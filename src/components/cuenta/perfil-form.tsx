@@ -7,14 +7,11 @@ import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
 import { toast } from "@/stores/toast-store";
 import {
   updatePerfilAction,
-  updateEmailAction,
   updatePasswordAction,
 } from "@/lib/actions";
-import { cn } from "@/lib/utils/cn";
 import type { Perfil } from "@/types";
 
 const PROVINCIAS = [

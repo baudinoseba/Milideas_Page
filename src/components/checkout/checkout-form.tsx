@@ -137,7 +137,6 @@ export function CheckoutForm({
   // Sync profile values if they change (e.g. after login)
   useEffect(() => {
     if (perfilState) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setStep2Data((prev) => ({
         ...prev,
         nombreContacto: perfilState.nombre_completo?.split(" ")[0] ?? prev.nombreContacto,

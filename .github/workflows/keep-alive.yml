@@ -1,18 +1,77 @@
-name: Supabase Keep-Alive Ping
+name: Supabase Keep-Alive (Producción & Test)
+
+# Workflow diario para mantener activos los proyectos gratuitos de Supabase
+# evitando que se pausen por inactividad luego de 7 días.
 
 on:
   schedule:
-    # Se ejecuta cada 3 días a las 00:00 UTC
-    - cron: '0 0 */3 * *'
-  workflow_dispatch: # Permite ejecución manual desde la pestaña Actions en GitHub
+    # Se ejecuta todos los días a las 05:00 UTC (02:00 AM Argentina)
+    - cron: '0 5 * * *'
+  workflow_dispatch: # Permite ejecución manual bajo demanda desde GitHub Actions
 
 jobs:
-  ping:
+  keep-alive:
+    name: Keep-Alive Ping
     runs-on: ubuntu-latest
     steps:
-      - name: Ping Supabase REST API
+      - name: Ping Supabase PRODUCCIÓN
         run: |
-          API_KEY="${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}"
-          curl -s -f "${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}/rest/v1/categorias?select=id&limit=1" \
-            -H "apikey: ${API_KEY}" > /dev/null
+          echo "=================================================="
+          echo "🚀 INICIANDO PING: SUPABASE PRODUCCIÓN"
+          echo "=================================================="
+          
+          PROD_URL="${{ secrets.SUPABASE_PROD_URL || secrets.NEXT_PUBLIC_SUPABASE_URL || 'https://brcbvqmuiphtxmvjbmqs.supabase.co' }}"
+          PROD_KEY="${{ secrets.SUPABASE_PROD_ANON_KEY || secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'sb_publishable_raAS3NqiOZKOMygmnjjDOg__yP9Zgju' }}"
+          
+          # 1. DB Query a tabla 'categorias'
+          STATUS_CAT=$(curl -s -o /dev/null -w "%{http_code}" "$PROD_URL/rest/v1/categorias?select=id&limit=1" \
+            -H "apikey: $PROD_KEY" -H "Authorization: Bearer $PROD_KEY")
+          echo "📦 [Prod] Query DB 'categorias': HTTP $STATUS_CAT"
+          
+          # 2. DB Query a tabla 'productos'
+          STATUS_PROD=$(curl -s -o /dev/null -w "%{http_code}" "$PROD_URL/rest/v1/productos?select=id&limit=1" \
+            -H "apikey: $PROD_KEY" -H "Authorization: Bearer $PROD_KEY")
+          echo "🛍️ [Prod] Query DB 'productos':  HTTP $STATUS_PROD"
+          
+          # 3. Auth Healthcheck
+          STATUS_AUTH=$(curl -s -o /dev/null -w "%{http_code}" "$PROD_URL/auth/v1/health" \
+            -H "apikey: $PROD_KEY")
+          echo "🔐 [Prod] Auth API Healthcheck: HTTP $STATUS_AUTH"
 
+          if [ "$STATUS_CAT" -eq 200 ] || [ "$STATUS_PROD" -eq 200 ] || [ "$STATUS_AUTH" -eq 200 ]; then
+            echo "✅ Proyecto Producción activo y verificado exitosamente."
+          else
+            echo "⚠️ Advertencia: Ningún endpoint de Producción respondió 200 OK."
+            exit 1
+          fi
+
+      - name: Ping Supabase TEST / STAGING
+        run: |
+          echo "=================================================="
+          echo "🧪 INICIANDO PING: SUPABASE TEST / STAGING"
+          echo "=================================================="
+          
+          TEST_URL="${{ secrets.SUPABASE_TEST_URL || 'https://ollrhpcpwurcpjktljbd.supabase.co' }}"
+          TEST_KEY="${{ secrets.SUPABASE_TEST_ANON_KEY || 'sb_publishable_TU1Bp6-5sNLkd1kW3BldOg_s-I2alL4' }}"
+          
+          # 1. DB Query a tabla 'categorias'
+          STATUS_CAT=$(curl -s -o /dev/null -w "%{http_code}" "$TEST_URL/rest/v1/categorias?select=id&limit=1" \
+            -H "apikey: $TEST_KEY" -H "Authorization: Bearer $TEST_KEY")
+          echo "📦 [Test] Query DB 'categorias': HTTP $STATUS_CAT"
+          
+          # 2. DB Query a tabla 'productos'
+          STATUS_PROD=$(curl -s -o /dev/null -w "%{http_code}" "$TEST_URL/rest/v1/productos?select=id&limit=1" \
+            -H "apikey: $TEST_KEY" -H "Authorization: Bearer $TEST_KEY")
+          echo "🛍️ [Test] Query DB 'productos':  HTTP $STATUS_PROD"
+          
+          # 3. Auth Healthcheck
+          STATUS_AUTH=$(curl -s -o /dev/null -w "%{http_code}" "$TEST_URL/auth/v1/health" \
+            -H "apikey: $TEST_KEY")
+          echo "🔐 [Test] Auth API Healthcheck: HTTP $STATUS_AUTH"
+
+          if [ "$STATUS_CAT" -eq 200 ] || [ "$STATUS_PROD" -eq 200 ] || [ "$STATUS_AUTH" -eq 200 ]; then
+            echo "✅ Proyecto Test/Staging activo y verificado exitosamente."
+          else
+            echo "⚠️ Advertencia: Ningún endpoint de Test respondió 200 OK."
+            exit 1
+          fi

@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { logoutAction } from "@/lib/actions";
 
 const navItems = [
   {
@@ -78,7 +77,6 @@ export function AdminSidebar({
       {/* Mobile top bar */}
       <header className="flex items-center justify-between border-b border-border bg-admin-sidebar px-4 py-3 lg:hidden">
         <MobileMenu
-          pathname={pathname}
           isActive={isActive}
           pedidosPendientes={pedidosPendientes}
           handleLogout={handleLogout}
@@ -157,12 +155,10 @@ export function AdminSidebar({
 
 /* ─── Mobile hamburger menu ─── */
 function MobileMenu({
-  pathname,
   isActive,
   pedidosPendientes,
   handleLogout,
 }: {
-  pathname: string;
   isActive: (href: string, exact?: boolean) => boolean;
   pedidosPendientes: number;
   handleLogout: () => void;

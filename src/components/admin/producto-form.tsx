@@ -87,7 +87,6 @@ export function ProductoForm({
   // Sync state if producto prop changes
   useEffect(() => {
     if (producto) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setPrecioVal(producto.precio_base != null ? String(producto.precio_base) : "");
       setSelectedTipoCatalogo((producto as Record<string, unknown>)?.tipo_catalogo ? String((producto as Record<string, unknown>).tipo_catalogo) : "ceramica");
       setSelectedCategoriaId(producto.categoria_id ?? categoriaIdInicial ?? "");

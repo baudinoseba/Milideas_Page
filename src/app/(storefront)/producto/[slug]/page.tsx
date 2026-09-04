@@ -7,7 +7,7 @@ import { ProductCard } from "@/components/product/product-card";
 import { Badge } from "@/components/ui/badge";
 import { BackButton } from "@/components/ui/back-button";
 import { getStockStatus, getStockLabel } from "@/lib/stock";
-import { getProductoBySlug, getProductoSlugs, getProductos, getConfiguracionEncargos } from "@/lib/supabase/queries";
+import { getProductoBySlug, getProductos, getConfiguracionEncargos } from "@/lib/supabase/queries";
 
 export const dynamic = "force-dynamic";
 
