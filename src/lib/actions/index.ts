@@ -1841,7 +1841,10 @@ export async function crearEncargoAction(formData: FormData): Promise<{
     data: { user: currentUser },
   } = await supabase.auth.getUser();
 
-  const { data, error } = await supabase
+  // Use admin client for the insert to bypass RLS restrictions on public submissions
+  const dbClient = process.env.SUPABASE_SECRET_KEY ? createAdminClient() : supabase;
+
+  const { data, error } = await dbClient
     .from("encargos")
     .insert({
       usuario_id: currentUser?.id || null,
@@ -1890,7 +1893,7 @@ export async function crearEncargoAction(formData: FormData): Promise<{
       subtotal: (it.precioUnitarioFinal || 0) * (it.cantidad || 1),
     }));
 
-    await supabase.from("items_encargo").insert(itemsPayload);
+    await dbClient.from("items_encargo").insert(itemsPayload);
   }
 
   revalidatePath("/admin/encargos");

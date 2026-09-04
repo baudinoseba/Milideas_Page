@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { WhatsAppIcon } from "@/components/ui/whatsapp-icon";
+import { cleanPhoneNumber } from "@/lib/utils/encargos-whatsapp";
 
 interface CrossSellProduct {
   id: string;
@@ -211,13 +212,18 @@ ${emailContacto ? `*Email:* ${emailContacto}\n` : ""}${entregaText}
 --------------------------------
 ${closingText}`;
 
-      const vendorWhatsapp = process.env.NEXT_PUBLIC_VENDOR_WHATSAPP || "5493493664420";
+      const rawVendorWhatsapp = process.env.NEXT_PUBLIC_VENDOR_WHATSAPP || "5493493664420";
+      const vendorWhatsapp = cleanPhoneNumber(rawVendorWhatsapp) || "5493493664420";
       const waUrl = `https://wa.me/${vendorWhatsapp}?text=${encodeURIComponent(text)}`;
 
       clearEncargosCart();
       setIsEncargosFormOpen(false);
       closeCart();
-      window.open(waUrl, "_blank");
+      try {
+        window.open(waUrl, "_blank");
+      } catch (err) {
+        console.warn("Popup blocked by browser:", err);
+      }
     });
   };
 

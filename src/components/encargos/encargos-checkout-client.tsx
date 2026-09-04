@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { WhatsAppIcon } from "@/components/ui/whatsapp-icon";
+import { cleanPhoneNumber } from "@/lib/utils/encargos-whatsapp";
 import type { Perfil } from "@/types";
 
 const subscribeEmpty = () => () => {};
@@ -77,6 +78,7 @@ export function EncargosCheckoutClient({
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [isPending, startTransition] = useTransition();
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [whatsappUrl, setWhatsappUrl] = useState<string>("");
 
   // Step 2 Form State (Initialized with profile if provided)
   const [nombreContacto, setNombreContacto] = useState(perfil?.nombre_completo ?? "");
@@ -322,12 +324,18 @@ ${emailContacto ? `*Email:* ${emailContacto}\n` : ""}${entregaText}
 --------------------------------
 ${closingText}`;
 
-      const vendorWhatsapp = process.env.NEXT_PUBLIC_VENDOR_WHATSAPP || "5493493664420";
+      const rawVendorWhatsapp = process.env.NEXT_PUBLIC_VENDOR_WHATSAPP || "5493493664420";
+      const vendorWhatsapp = cleanPhoneNumber(rawVendorWhatsapp) || "5493493664420";
       const waUrl = `https://wa.me/${vendorWhatsapp}?text=${encodeURIComponent(text)}`;
 
+      setWhatsappUrl(waUrl);
       clearCart();
       setStep(4);
-      window.open(waUrl, "_blank");
+      try {
+        window.open(waUrl, "_blank");
+      } catch (err) {
+        console.warn("Popup blocked by browser:", err);
+      }
     });
   };
 
@@ -502,8 +510,13 @@ ${closingText}`;
                           </Label>
                           <Textarea
                             id={`detalle-${it.id}`}
-                            placeholder="ej. Inscribir 'M&S - 15/09' en la base de la pieza"
-                            value={it.detallePersonalizacion}
+                            placeholder="Contanos tu idea: grabado de nombres, iniciales, fechas, dedicatoria o motivo especial a mano..."
+                            value={
+                              it.detallePersonalizacion === "Personalizado a medida (+15%) (te cuento mi idea)" ||
+                              it.detallePersonalizacion === "Colección existente (te paso captura del que me gustó)"
+                                ? ""
+                                : (it.detallePersonalizacion || "")
+                            }
                             onChange={(e) =>
                               handleEditItemFields(it, { detallePersonalizacion: e.target.value })
                             }
@@ -951,15 +964,29 @@ ${closingText}`;
           <Card className="p-8 rounded-3xl border-emerald-500/30 bg-emerald-500/5 shadow-md space-y-5">
             <span className="text-6xl block">✨</span>
             <h2 className="text-2xl font-serif font-semibold text-chocolate">
-              ¡Solicitud de Encargo Enviada!
+              ¡Solicitud de Encargo Registrada!
             </h2>
             <p className="text-xs text-muted leading-relaxed">
-              Tu encargo fue registrado exitosamente. Se ha abierto una ventana de WhatsApp para conversar con <strong>Mili Ferrero</strong> y coordinar la producción, entrega y sucursal.
+              Tu encargo fue registrado con éxito en nuestro sistema. Si no se abrió WhatsApp automáticamente, hacé clic en el botón verde a continuación para enviarle el mensaje ya preparado a <strong>Mili</strong>:
             </p>
+
+            {whatsappUrl && (
+              <div className="pt-2">
+                <a
+                  href={whatsappUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full inline-flex items-center justify-center gap-2.5 rounded-full bg-[#25D366] hover:bg-[#20bd5a] text-white py-3.5 px-6 text-sm font-bold shadow-md transition-transform active:scale-98"
+                >
+                  <WhatsAppIcon className="h-5 w-5 fill-current" />
+                  <span>💬 Enviar Solicitud por WhatsApp a Mili</span>
+                </a>
+              </div>
+            )}
 
             <div className="pt-4 border-t border-border/60 space-y-3">
               <Link href="/ceramica/catalogo">
-                <Button className="w-full rounded-full bg-chocolate text-crema-cruda hover:bg-chocolate/90 py-3 text-xs font-semibold cursor-pointer">
+                <Button variant="outline" className="w-full rounded-full border-border bg-surface text-chocolate hover:bg-stone-100 py-3 text-xs font-semibold cursor-pointer">
                   Volver al Catálogo
                 </Button>
               </Link>

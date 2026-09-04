@@ -100,7 +100,6 @@ export function CatalogoView({
   const handleAgregarAlCarrito = () => {
     if (!encargoModalFormato) return;
     const esCustom = disenoTipo === "personalizado";
-    const disenoTexto = getDisenoTexto();
 
     addEncargoItem({
       productoId: encargoModalFormato.id,
@@ -110,7 +109,7 @@ export function CatalogoView({
       tipoCatalogo: rubro === "ceramica" ? "ceramica" : "ilustraciones",
       precioBase: encargoModalFormato.precio_base,
       esPersonalizado: esCustom,
-      detallePersonalizacion: disenoTexto,
+      detallePersonalizacion: "",
       medidaSeleccionada: encargoModalFormato.medidas,
       adicionalMedida: 0,
       conMarco: false,
