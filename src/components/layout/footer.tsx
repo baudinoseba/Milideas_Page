@@ -56,6 +56,9 @@ export function Footer() {
             <Link href="/obras" className="hover:text-chocolate transition-colors">
               Obras & Proyectos
             </Link>
+            <Link href="/soporte" className="hover:text-chocolate transition-colors text-stone-500">
+              Soporte
+            </Link>
             <a
               href="https://instagram.com/milideas_arte"
               target="_blank"

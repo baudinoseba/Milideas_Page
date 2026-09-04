@@ -781,12 +781,12 @@ INSERT INTO public.categorias (nombre, tipo_catalogo) VALUES
   ('Cuadros Enmarcados', 'ilustracion')
 ON CONFLICT DO NOTHING;
 
--- Zonas de logística por defecto
+-- Zonas de logística por defecto (Tarifas Reales Vía Cargo)
 INSERT INTO public.configuracion_logistica (zona_nombre, precio_agencia, precio_domicilio, activa) VALUES
   ('Retiro en Taller (Sunchales, Santa Fe)', 0, 0, TRUE),
-  ('Santa Fe & Córdoba (Vía Cargo)', 6500, 9500, TRUE),
-  ('Buenos Aires & CABA (Vía Cargo)', 7500, 11500, TRUE),
-  ('Resto del País (Vía Cargo)', 8900, 13900, TRUE)
+  ('Santa Fe & Córdoba (Vía Cargo)', 17000, 25000, TRUE),
+  ('Buenos Aires & CABA (Vía Cargo)', 17000, 25000, TRUE),
+  ('Resto del País (Vía Cargo)', 22000, 28000, TRUE)
 ON CONFLICT DO NOTHING;
 
 -- Formatos del Catálogo Oficial de Cerámica para encargos a medida
