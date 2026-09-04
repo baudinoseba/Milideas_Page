@@ -5,7 +5,7 @@ export interface TicketSoporteEmailProps {
   telefono?: string;
   tipoProblema: string;
   mensaje: string;
-  capturaUrl?: string;
+  capturasUrls?: string[];
   fecha: string;
 }
 
@@ -95,23 +95,28 @@ export function renderTicketSoporteAdminHtml(props: TicketSoporteEmailProps): st
                 </div>
 
                 ${
-                  props.capturaUrl
+                  props.capturasUrls && props.capturasUrls.length > 0
                     ? `
-                <!-- Captura de Pantalla Adjunta -->
-                <div style="margin-bottom: 24px; background-color: #FAF7F2; border: 1px solid #EAE5DE; border-radius: 12px; padding: 16px;">
-                  <h3 style="font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; color: #6E6259; margin: 0 0 10px 0;">
-                    📷 Captura del error adjuntada por el usuario:
+                <!-- Capturas Adjuntas del Error -->
+                <div style="margin-bottom: 24px; background-color: #FAF7F2; border: 1px solid #EAE5DE; border-radius: 12px; padding: 16px 20px;">
+                  <h3 style="font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; color: #6E6259; margin: 0 0 12px 0;">
+                    📷 Capturas adjuntas del error (${props.capturasUrls.length}):
                   </h3>
-                  <div style="margin-bottom: 12px;">
-                    <a href="${props.capturaUrl}" target="_blank" style="display: inline-block; background-color: #C26D53; color: #FFFFFF; font-size: 12px; font-weight: 600; padding: 8px 16px; border-radius: 8px; text-decoration: none;">
-                      🔍 Abrir imagen completa en Supabase Storage ↗
-                    </a>
-                  </div>
-                  <div style="background-color: #FFFFFF; border: 1px solid #EAE5DE; border-radius: 8px; padding: 8px; text-align: center; overflow: hidden;">
-                    <a href="${props.capturaUrl}" target="_blank">
-                      <img src="${props.capturaUrl}" alt="Captura del problema técnico" style="max-width: 100%; max-height: 380px; object-fit: contain; border-radius: 4px; display: block; margin: 0 auto;" />
-                    </a>
-                  </div>
+                  <table cellpadding="0" cellspacing="0" width="100%">
+                    ${props.capturasUrls
+                      .map(
+                        (url, idx) => `
+                    <tr>
+                      <td style="padding: 5px 0;">
+                        <a href="${url}" target="_blank" style="display: inline-block; background-color: #FFFFFF; border: 1px solid #D9D2C9; color: #8A3826; font-size: 13px; font-weight: 600; padding: 8px 16px; border-radius: 8px; text-decoration: none;">
+                          🔗 Captura del problema técnico #${idx + 1} ↗
+                        </a>
+                      </td>
+                    </tr>
+                    `
+                      )
+                      .join("")}
+                  </table>
                 </div>
                 `
                     : ""

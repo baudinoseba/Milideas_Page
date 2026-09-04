@@ -10,41 +10,69 @@ import { Button } from "@/components/ui/button";
 import { enviarTicketSoporteAction } from "@/lib/actions/soporte";
 
 const TIPOS_PROBLEMA = [
-  "Problema al iniciar sesión o con mi contraseña",
-  "Error durante el pago o en el checkout",
-  "No recibí el email de confirmación de mi pedido",
-  "Inconveniente al adjuntar comprobante de transferencia",
+  "Problema al iniciar sesión o con mi cuenta",
+  "No puedo restablecer o recuperar mi contraseña",
+  "Inconveniente durante el proceso de encargo o compra",
   "Reporte de error o falla visual en la web",
   "Otra consulta técnica sobre la plataforma",
 ];
+
+const MAX_CAPTURAS = 4;
+
+interface CapturaItem {
+  id: string;
+  file: File;
+  previewUrl: string;
+}
 
 export function SoporteView() {
   const [copiado, setCopiado] = useState(false);
   const [cargando, setCargando] = useState(false);
   const [ticketEnviado, setTicketEnviado] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [archivoCaptura, setArchivoCaptura] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [capturas, setCapturas] = useState<CapturaItem[]>([]);
 
-  const handleArchivoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 10 * 1024 * 1024) {
-        setErrorMsg("La imagen seleccionada supera los 10MB permitidos.");
-        return;
+  const handleArchivosChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+
+    const nuevasCapturas: CapturaItem[] = [];
+    let errorAlerta: string | null = null;
+
+    for (const file of files) {
+      if (capturas.length + nuevasCapturas.length >= MAX_CAPTURAS) {
+        errorAlerta = `Podés adjuntar hasta un máximo de ${MAX_CAPTURAS} capturas.`;
+        break;
       }
-      setArchivoCaptura(file);
-      setPreviewUrl(URL.createObjectURL(file));
-      setErrorMsg(null);
+      if (file.size > 10 * 1024 * 1024) {
+        errorAlerta = `El archivo "${file.name}" supera los 10MB permitidos.`;
+        continue;
+      }
+      nuevasCapturas.push({
+        id: `${file.name}-${Date.now()}-${Math.random()}`,
+        file,
+        previewUrl: URL.createObjectURL(file),
+      });
     }
+
+    if (errorAlerta) setErrorMsg(errorAlerta);
+    if (nuevasCapturas.length) {
+      setCapturas((prev) => [...prev, ...nuevasCapturas]);
+    }
+    e.target.value = "";
   };
 
-  const removerArchivo = () => {
-    setArchivoCaptura(null);
-    if (previewUrl) {
-      URL.revokeObjectURL(previewUrl);
-      setPreviewUrl(null);
-    }
+  const removerCaptura = (id: string) => {
+    setCapturas((prev) => {
+      const item = prev.find((c) => c.id === id);
+      if (item) URL.revokeObjectURL(item.previewUrl);
+      return prev.filter((c) => c.id !== id);
+    });
+  };
+
+  const limpiarTodasCapturas = () => {
+    capturas.forEach((c) => URL.revokeObjectURL(c.previewUrl));
+    setCapturas([]);
   };
 
   const handleCopiar = async () => {
@@ -63,15 +91,16 @@ export function SoporteView() {
     setErrorMsg(null);
 
     const formData = new FormData(e.currentTarget);
-    if (archivoCaptura) {
-      formData.set("captura", archivoCaptura);
-    }
+    formData.delete("captura");
+    capturas.forEach((c) => {
+      formData.append("captura", c.file);
+    });
     const res = await enviarTicketSoporteAction(formData);
 
     setCargando(false);
     if (res.success && res.ticketId) {
       setTicketEnviado(res.ticketId);
-      removerArchivo();
+      limpiarTodasCapturas();
     } else {
       setErrorMsg(res.error || "Ocurrió un error al enviar tu consulta. Por favor reintentá.");
     }
@@ -295,69 +324,82 @@ export function SoporteView() {
                   />
                 </div>
 
-                {/* 📸 Campo para adjuntar captura de pantalla o foto del error */}
-                <div className="space-y-2">
+                {/* 📸 Campo para adjuntar hasta 4 capturas de pantalla */}
+                <div className="space-y-2.5">
                   <div className="flex items-center justify-between">
-                    <Label htmlFor="captura" className="text-xs font-semibold text-stone-800 flex items-center gap-1.5">
-                      <span>📸</span> Captura de pantalla o foto del error (Opcional)
+                    <Label htmlFor="capturas-input" className="text-xs font-semibold text-stone-800 flex items-center gap-1.5">
+                      <span>📸</span> Capturas de pantalla o fotos del error ({capturas.length}/{MAX_CAPTURAS})
                     </Label>
-                    {archivoCaptura && (
+                    {capturas.length > 0 && (
                       <button
                         type="button"
-                        onClick={removerArchivo}
+                        onClick={limpiarTodasCapturas}
                         className="text-[11px] text-rose-600 hover:underline font-medium cursor-pointer"
                       >
-                        Quitar imagen
+                        Quitar todas
                       </button>
                     )}
                   </div>
 
-                  {!previewUrl ? (
+                  {/* Lista de capturas seleccionadas */}
+                  {capturas.length > 0 && (
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {capturas.map((item, idx) => (
+                        <div
+                          key={item.id}
+                          className="relative rounded-2xl border border-stone-200 bg-white p-2.5 flex items-center gap-3 shadow-2xs"
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={item.previewUrl}
+                            alt={`Captura #${idx + 1}`}
+                            className="h-14 w-14 rounded-xl object-cover border border-stone-200 shrink-0"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-semibold text-stone-800 truncate">
+                              #{idx + 1} {item.file.name}
+                            </p>
+                            <p className="text-[10px] text-stone-400">
+                              {(item.file.size / 1024 / 1024).toFixed(2)} MB · Lista para enviar
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => removerCaptura(item.id)}
+                            className="p-1 text-stone-400 hover:text-rose-600 rounded-full hover:bg-stone-100 transition-colors cursor-pointer shrink-0"
+                            title="Eliminar esta captura"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Dropzone para agregar capturas */}
+                  {capturas.length < MAX_CAPTURAS && (
                     <label
-                      htmlFor="captura"
+                      htmlFor="capturas-input"
                       className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-stone-200 bg-stone-50/70 hover:bg-stone-100/70 p-4 transition-colors cursor-pointer text-center group"
                     >
                       <span className="text-xl mb-1 group-hover:scale-110 transition-transform">📷</span>
                       <span className="text-xs font-medium text-stone-700">
-                        Hacé clic para seleccionar o subir una captura
+                        {capturas.length === 0
+                          ? "Hacé clic para seleccionar o subir capturas (podés elegir más de una)"
+                          : "+ Agregar otra captura de pantalla"}
                       </span>
                       <span className="text-[10px] text-stone-400 mt-0.5">
-                        Formatos soportados: JPG, PNG, WEBP (hasta 10MB)
+                        JPG, PNG, WEBP (hasta {MAX_CAPTURAS} imágenes, máx. 10MB c/u)
                       </span>
                       <input
-                        id="captura"
-                        name="captura"
+                        id="capturas-input"
                         type="file"
+                        multiple
                         accept="image/png,image/jpeg,image/webp,image/gif"
-                        onChange={handleArchivoChange}
+                        onChange={handleArchivosChange}
                         className="sr-only"
                       />
                     </label>
-                  ) : (
-                    <div className="relative rounded-2xl border border-stone-200 bg-white p-3 flex items-center gap-3">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={previewUrl}
-                        alt="Vista previa de captura"
-                        className="h-16 w-16 rounded-xl object-cover border border-stone-200"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-semibold text-stone-800 truncate">
-                          {archivoCaptura?.name}
-                        </p>
-                        <p className="text-[11px] text-stone-400">
-                          {((archivoCaptura?.size || 0) / 1024 / 1024).toFixed(2)} MB · Imagen adjunta
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={removerArchivo}
-                        className="p-1.5 text-stone-400 hover:text-rose-600 rounded-full hover:bg-stone-100 transition-colors cursor-pointer"
-                        title="Eliminar imagen"
-                      >
-                        ✕
-                      </button>
-                    </div>
                   )}
                 </div>
 

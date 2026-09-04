@@ -740,17 +740,18 @@ INSERT INTO storage.buckets (id, name, public) VALUES
   ('productos', 'productos', TRUE),
   ('comprobantes', 'comprobantes', TRUE),
   ('configuracion', 'configuracion', TRUE),
-  ('obras', 'obras', TRUE)
+  ('obras', 'obras', TRUE),
+  ('soporte', 'soporte', TRUE)
 ON CONFLICT (id) DO UPDATE SET public = EXCLUDED.public;
 
 -- Políticas de Storage (Acceso y Carga)
 DROP POLICY IF EXISTS "Acceso publico lectura storage" ON storage.objects;
 CREATE POLICY "Acceso publico lectura storage" ON storage.objects
-  FOR SELECT TO public USING (bucket_id IN ('productos', 'configuracion', 'obras', 'comprobantes'));
+  FOR SELECT TO public USING (bucket_id IN ('productos', 'configuracion', 'obras', 'comprobantes', 'soporte'));
 
 DROP POLICY IF EXISTS "Carga publica comprobantes" ON storage.objects;
 CREATE POLICY "Carga publica comprobantes" ON storage.objects
-  FOR INSERT TO public WITH CHECK (bucket_id = 'comprobantes');
+  FOR INSERT TO public WITH CHECK (bucket_id IN ('comprobantes', 'soporte'));
 
 DROP POLICY IF EXISTS "Admin control total storage" ON storage.objects;
 CREATE POLICY "Admin control total storage" ON storage.objects

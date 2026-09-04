@@ -41,10 +41,10 @@ export function Footer() {
 
           {/* Enlaces de Navegación en el mismo renglón */}
           <nav className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1 text-[11px] sm:text-xs">
-            <Link href="/sobre-mi" className="hover:text-chocolate transition-colors font-medium">
+            <Link href="/sobre-mi" className="hover:text-chocolate transition-colors">
               Sobre Mí & FAQ
             </Link>
-            <Link href="/contacto" className="hover:text-chocolate transition-colors font-medium text-chocolate">
+            <Link href="/contacto" className="hover:text-chocolate transition-colors">
               Contacto
             </Link>
             <Link href="/ceramica" className="hover:text-chocolate transition-colors">
@@ -56,7 +56,7 @@ export function Footer() {
             <Link href="/obras" className="hover:text-chocolate transition-colors">
               Obras & Proyectos
             </Link>
-            <Link href="/soporte" className="hover:text-chocolate transition-colors text-stone-500">
+            <Link href="/soporte" className="hover:text-chocolate transition-colors">
               Soporte
             </Link>
             <a
