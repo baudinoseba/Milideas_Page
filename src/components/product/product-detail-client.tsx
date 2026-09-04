@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { formatPrecio, calcularPrecioUnitario } from "@/lib/pricing";
 import { useCartStore } from "@/stores/cart-store";
+import { useStockStore } from "@/stores/stock-store";
 import { EncargoModal } from "@/components/product/encargo-modal";
 import type { ProductoConImagenes, ConfiguracionEncargos } from "@/types";
 
@@ -19,9 +20,17 @@ export function ProductDetailClient({ producto, configEncargos }: ProductDetailP
   const [isEncargoOpen, setIsEncargoOpen] = useState(false);
   const addItem = useCartStore((s) => s.addItem);
 
+  const liveStock = useStockStore((s) => s.stocks[producto.id]);
+  const stockDisponible = typeof liveStock === "number" ? liveStock : producto.stock_disponible;
+
+  useEffect(() => {
+    if (stockDisponible > 0 && cantidad > stockDisponible) {
+      setCantidad(stockDisponible);
+    }
+  }, [stockDisponible, cantidad]);
+
   const precioBase = producto.precio_base;
   const esPersonalizable = producto.es_personalizable;
-  const stockDisponible = producto.stock_disponible;
 
   const primerImagen = producto.producto_imagenes?.[0]?.url_imagen ?? null;
 

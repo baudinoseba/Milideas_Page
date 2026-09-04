@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { cn } from "@/lib/utils/cn";
 import { ImageLightbox, type LightboxImage } from "@/components/ui/image-lightbox";
+import { useVendedorWhatsapp } from "@/lib/hooks/use-vendedor-whatsapp";
 import type { ObraProyecto } from "@/types";
 
 interface ObrasGalleryProps {
@@ -20,6 +21,7 @@ const CATEGORIAS_CONFIG: Array<{ id: string; label: string; emoji: string }> = [
 ];
 
 export function ObrasGallery({ obras, categoriaInicial }: ObrasGalleryProps) {
+  const vendorWhatsapp = useVendedorWhatsapp();
   const [categoriaActiva, setCategoriaActiva] = useState<string>(categoriaInicial || "todas");
   const [lightboxImages, setLightboxImages] = useState<LightboxImage[]>([]);
   const [lightboxIndex, setLightboxIndex] = useState(0);
@@ -128,7 +130,7 @@ export function ObrasGallery({ obras, categoriaInicial }: ObrasGalleryProps) {
             Mili está digitalizando y cargando fotos de nuevos proyectos. Podés consultarle directamente por WhatsApp sobre este tipo de trabajos.
           </p>
           <a
-            href={`https://wa.me/${process.env.NEXT_PUBLIC_VENDOR_WHATSAPP || "5493493664420"}?text=Hola%20Mili!%20Me%20gustar%C3%ADa%20consultarte%20por%20un%20proyecto%20especial%20a%20medida.`}
+            href={`https://wa.me/${vendorWhatsapp}?text=Hola%20Mili!%20Me%20gustar%C3%ADa%20consultarte%20por%20un%20proyecto%20especial%20a%20medida.`}
             target="_blank"
             rel="noopener noreferrer"
             className="rounded-full bg-terracota text-white px-5 py-2 text-xs font-semibold hover:bg-terracota/90 transition-all shadow-xs"
@@ -220,7 +222,7 @@ export function ObrasGallery({ obras, categoriaInicial }: ObrasGalleryProps) {
 
                 <div className="pt-2 border-t border-border/40 space-y-2">
                   <a
-                    href={`https://wa.me/${process.env.NEXT_PUBLIC_VENDOR_WHATSAPP || "5493493664420"}?text=${encodeURIComponent(waText)}`}
+                    href={`https://wa.me/${vendorWhatsapp}?text=${encodeURIComponent(waText)}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex w-full items-center justify-center gap-1.5 rounded-full bg-terracota text-white px-4 py-2 text-xs font-semibold shadow-xs hover:bg-terracota/90 transition-all cursor-pointer"

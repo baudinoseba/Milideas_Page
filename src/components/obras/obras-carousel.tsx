@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { ImageLightbox, type LightboxImage } from "@/components/ui/image-lightbox";
+import { useVendedorWhatsapp } from "@/lib/hooks/use-vendedor-whatsapp";
 import type { ObraProyecto } from "@/types";
 
 interface ObrasCarouselProps {
@@ -18,6 +19,7 @@ const CATEGORIAS_MAP: Record<string, { label: string; emoji: string }> = {
 };
 
 export function ObrasCarousel({ obras }: ObrasCarouselProps) {
+  const vendorWhatsapp = useVendedorWhatsapp();
   const [activeIdx, setActiveIdx] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [lightboxImages, setLightboxImages] = useState<LightboxImage[]>([]);
@@ -258,7 +260,7 @@ export function ObrasCarousel({ obras }: ObrasCarouselProps) {
             {/* Botón de Cotización por WhatsApp */}
             <div className="pt-2 flex items-center justify-between gap-3 border-t border-border/40">
               <a
-                href={`https://wa.me/${process.env.NEXT_PUBLIC_VENDOR_WHATSAPP || "5493493664420"}?text=${encodeURIComponent(waText)}`}
+                href={`https://wa.me/${vendorWhatsapp}?text=${encodeURIComponent(waText)}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center justify-center gap-1.5 rounded-full bg-terracota text-white px-5 py-2 text-xs font-semibold hover:bg-terracota/90 transition-all shadow-xs"

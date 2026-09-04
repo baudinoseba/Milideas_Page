@@ -10,10 +10,7 @@ export const metadata = {
 export default async function ContactoPage() {
   const config = await getConfiguracionSitio().catch(() => null);
 
-  const vendorWhatsapp =
-    config?.vendedor_whatsapp ||
-    process.env.NEXT_PUBLIC_VENDOR_WHATSAPP ||
-    "5493493664420";
+  const vendorWhatsapp = config?.vendedor_whatsapp || "5493493664420";
 
   return (
     <div className="py-6 sm:py-10">

@@ -1,5 +1,5 @@
 import { EncargosCheckoutClient } from "@/components/encargos/encargos-checkout-client";
-import { getPerfil } from "@/lib/supabase/queries";
+import { getPerfil, getConfiguracionSitio } from "@/lib/supabase/queries";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata = {
@@ -13,7 +13,16 @@ export default async function EncargosPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const perfil = user ? await getPerfil(user.id).catch(() => null) : null;
+  const [perfil, config] = await Promise.all([
+    user ? getPerfil(user.id).catch(() => null) : null,
+    getConfiguracionSitio().catch(() => null),
+  ]);
 
-  return <EncargosCheckoutClient perfil={perfil} userEmail={user?.email} />;
+  return (
+    <EncargosCheckoutClient
+      perfil={perfil}
+      userEmail={user?.email}
+      vendedorWhatsapp={config?.vendedor_whatsapp}
+    />
+  );
 }

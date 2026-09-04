@@ -37,6 +37,7 @@ interface CartState {
   ) => void;
   removeItem: (productoId: string) => void;
   updateQty: (productoId: string, cantidad: number) => void;
+  syncProductStock: (productoId: string, nuevoStock: number) => void;
   togglePersonalizacion: (productoId: string) => void;
   clearCart: () => void;
   checkExpiration: () => boolean;
@@ -138,6 +139,22 @@ export const useCartStore = create<CartState>()(
             return i;
           }),
         }));
+      },
+
+      syncProductStock: (productoId, nuevoStock) => {
+        set((state) => {
+          const existing = state.items.find((i) => i.productoId === productoId);
+          if (!existing) return state;
+
+          const clampedQty = Math.max(0, Math.min(existing.cantidad, nuevoStock));
+          return {
+            items: state.items.map((i) =>
+              i.productoId === productoId
+                ? { ...i, stockDisponible: nuevoStock, cantidad: clampedQty }
+                : i,
+            ),
+          };
+        });
       },
 
       togglePersonalizacion: (productoId) =>

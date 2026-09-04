@@ -63,6 +63,14 @@ export function cleanPhoneNumber(phone: string): string {
   return digits;
 }
 
+export const VENDOR_WHATSAPP_DEFAULT = "5493493664420";
+
+export function formatVendorWhatsapp(rawPhone?: string | null): string {
+  if (!rawPhone || !rawPhone.trim()) return VENDOR_WHATSAPP_DEFAULT;
+  const cleaned = cleanPhoneNumber(rawPhone);
+  return cleaned || VENDOR_WHATSAPP_DEFAULT;
+}
+
 export function buildWhatsAppLink(phone: string, message: string): string {
   const cleaned = cleanPhoneNumber(phone);
   return `https://wa.me/${cleaned}?text=${encodeURIComponent(message)}`;

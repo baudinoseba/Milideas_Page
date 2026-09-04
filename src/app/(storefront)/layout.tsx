@@ -5,6 +5,7 @@ import { CartHydration } from "@/hooks/use-cart-hydration";
 import { CartDrawer } from "@/components/cart/cart-drawer";
 import { CartToast } from "@/components/cart/cart-toast";
 import { AuthWelcomeToast } from "@/components/layout/auth-welcome-toast";
+import { RealtimeStockSync } from "@/components/providers/realtime-stock-sync";
 
 import { StorefrontMain } from "@/components/layout/storefront-main";
 
@@ -24,6 +25,7 @@ export default function StorefrontLayout({
       <Footer />
       <CartDrawer />
       <CartToast />
+      <RealtimeStockSync />
     </>
   );
 }

@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { useCartStore } from "@/stores/cart-store";
+import { useStockStore } from "@/stores/stock-store";
 import { getStockStatus } from "@/lib/stock";
 import type { ProductoConImagenes } from "@/types";
 
@@ -9,7 +10,8 @@ export function QuickAddToCartButton({ producto }: { producto: ProductoConImagen
   const [added, setAdded] = useState(false);
   const addItem = useCartStore((s) => s.addItem);
 
-  const stock = producto.stock_disponible;
+  const liveStock = useStockStore((s) => s.stocks[producto.id]);
+  const stock = typeof liveStock === "number" ? liveStock : producto.stock_disponible;
   const stockStatus = getStockStatus(stock);
   const imagen = producto.producto_imagenes?.sort((a, b) => a.orden - b.orden)[0]?.url_imagen ?? null;
 
@@ -26,14 +28,14 @@ export function QuickAddToCartButton({ producto }: { producto: ProductoConImagen
         precioBase: producto.precio_base,
         esPersonalizable: producto.es_personalizable,
         personalizado: false,
-        stockDisponible: producto.stock_disponible,
+        stockDisponible: stock,
         cantidad: 1,
       }, false);
 
       setAdded(true);
       setTimeout(() => setAdded(false), 1800);
     },
-    [addItem, producto, imagen],
+    [addItem, producto, imagen, stock],
   );
 
   const handleBuyNow = useCallback(
@@ -49,13 +51,13 @@ export function QuickAddToCartButton({ producto }: { producto: ProductoConImagen
         precioBase: producto.precio_base,
         esPersonalizable: producto.es_personalizable,
         personalizado: false,
-        stockDisponible: producto.stock_disponible,
+        stockDisponible: stock,
         cantidad: 1,
       }, false);
 
       window.location.href = "/carrito";
     },
-    [addItem, producto, imagen],
+    [addItem, producto, imagen, stock],
   );
 
   const handleEncargo = useCallback(

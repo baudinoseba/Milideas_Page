@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { WhatsAppIcon } from "@/components/ui/whatsapp-icon";
-import { cleanPhoneNumber } from "@/lib/utils/encargos-whatsapp";
+import { useVendedorWhatsapp } from "@/lib/hooks/use-vendedor-whatsapp";
 import type { Perfil } from "@/types";
 
 const subscribeEmpty = () => () => {};
@@ -60,10 +60,14 @@ const PROVINCIAS_ARGENTINA = [
 export function EncargosCheckoutClient({
   perfil,
   userEmail,
+  vendedorWhatsapp: propVendedorWhatsapp,
 }: {
   perfil?: Perfil | null;
   userEmail?: string;
+  vendedorWhatsapp?: string | null;
 }) {
+  const vendorWhatsapp = useVendedorWhatsapp(propVendedorWhatsapp);
+
   const isClient = useSyncExternalStore(
     subscribeEmpty,
     () => true,
@@ -324,8 +328,6 @@ ${emailContacto ? `*Email:* ${emailContacto}\n` : ""}${entregaText}
 --------------------------------
 ${closingText}`;
 
-      const rawVendorWhatsapp = process.env.NEXT_PUBLIC_VENDOR_WHATSAPP || "5493493664420";
-      const vendorWhatsapp = cleanPhoneNumber(rawVendorWhatsapp) || "5493493664420";
       const waUrl = `https://wa.me/${vendorWhatsapp}?text=${encodeURIComponent(text)}`;
 
       setWhatsappUrl(waUrl);
@@ -508,20 +510,17 @@ ${closingText}`;
                           <Label htmlFor={`detalle-${it.id}`} className="text-[11px] text-muted block mb-1">
                             Detalle exacto del grabado o inscripción
                           </Label>
-                          <Textarea
+                          <EncargoDetalleInput
                             id={`detalle-${it.id}`}
-                            placeholder="Contanos tu idea: grabado de nombres, iniciales, fechas, dedicatoria o motivo especial a mano..."
-                            value={
+                            initialValue={
                               it.detallePersonalizacion === "Personalizado a medida (+15%) (te cuento mi idea)" ||
                               it.detallePersonalizacion === "Colección existente (te paso captura del que me gustó)"
                                 ? ""
                                 : (it.detallePersonalizacion || "")
                             }
-                            onChange={(e) =>
-                              handleEditItemFields(it, { detallePersonalizacion: e.target.value })
+                            onSave={(newVal) =>
+                              handleEditItemFields(it, { detallePersonalizacion: newVal })
                             }
-                            rows={2}
-                            className="bg-surface text-xs"
                           />
                         </div>
                       )}
@@ -995,5 +994,36 @@ ${closingText}`;
         </div>
       )}
     </div>
+  );
+}
+
+function EncargoDetalleInput({
+  id,
+  initialValue,
+  onSave,
+}: {
+  id: string;
+  initialValue: string;
+  onSave: (val: string) => void;
+}) {
+  const [val, setVal] = useState(initialValue);
+
+  useEffect(() => {
+    setVal(initialValue);
+  }, [initialValue]);
+
+  return (
+    <Textarea
+      id={id}
+      placeholder="Contanos tu idea: grabado de nombres, iniciales, fechas, dedicatoria o motivo especial a mano..."
+      value={val}
+      onChange={(e) => {
+        const next = e.target.value;
+        setVal(next);
+        onSave(next);
+      }}
+      rows={2}
+      className="bg-surface text-xs"
+    />
   );
 }

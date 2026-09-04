@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils/cn";
 import { ImageLightbox } from "@/components/ui/image-lightbox";
 import { PortfolioCarouselCard } from "./portfolio-carousel-card";
 import { useEncargosCartStore } from "@/stores/encargos-cart-store";
+import { useVendedorWhatsapp } from "@/lib/hooks/use-vendedor-whatsapp";
 import type { FormatoCatalogo, ProductoConImagenes, PortfolioColeccion, TipoRubro } from "@/types";
 
 interface CatalogoViewProps {
@@ -24,6 +25,7 @@ export function CatalogoView({
   portfolio,
   tabInicial = "stock",
 }: CatalogoViewProps) {
+  const vendorWa = useVendedorWhatsapp();
   const [activeTab, setActiveTab] = useState<"stock" | "catalogo" | "portfolio">(tabInicial);
   const [selectedCategoria, setSelectedCategoria] = useState<string>("todas");
   const [searchQuery, setSearchQuery] = useState<string>("");
@@ -143,7 +145,6 @@ export function CatalogoView({
 
 ¿Cómo coordinamos el plazo de entrega y la seña? ¡Muchas gracias!`;
 
-    const vendorWa = process.env.NEXT_PUBLIC_VENDOR_WHATSAPP || "5493493664420";
     window.open(`https://wa.me/${vendorWa}?text=${encodeURIComponent(mensaje)}`, "_blank");
     setEncargoModalFormato(null);
     setConfirmandoWhatsapp(false);

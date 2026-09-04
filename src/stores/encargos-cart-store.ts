@@ -46,21 +46,9 @@ export const useEncargosCartStore = create<EncargosCartState>()(
       isOpen: false,
 
       addEncargoItem: (newItem) => {
-        const itemKey = `${newItem.productoId}-${newItem.medidaSeleccionada || ""}-${newItem.conMarco ? "marco" : "nomarco"}-${newItem.esPersonalizado ? "custom" : "std"}-${newItem.detallePersonalizacion || ""}`;
+        const itemKey = `${newItem.productoId}-${newItem.medidaSeleccionada || ""}-${newItem.conMarco ? "marco" : "nomarco"}-${newItem.esPersonalizado ? "custom" : "std"}-${Date.now()}`;
 
         set((state) => {
-          const existingIndex = state.items.findIndex((i) => i.id === itemKey);
-
-          if (existingIndex > -1) {
-            const updated = [...state.items];
-            const currentItem = updated[existingIndex]!;
-            updated[existingIndex] = {
-              ...currentItem,
-              cantidad: currentItem.cantidad + newItem.cantidad,
-            };
-            return { items: updated, isOpen: true };
-          }
-
           return {
             items: [...state.items, { ...newItem, id: itemKey }],
             isOpen: true,
@@ -80,11 +68,10 @@ export const useEncargosCartStore = create<EncargosCartState>()(
             : state.items.map((i) => (i.id === id ? { ...i, cantidad } : i)),
         })),
 
-      updateItem: (oldId, newItem) => {
-        const itemKey = `${newItem.productoId}-${newItem.medidaSeleccionada || ""}-${newItem.conMarco ? "marco" : "nomarco"}-${newItem.esPersonalizado ? "custom" : "std"}-${newItem.detallePersonalizacion || ""}`;
+      updateItem: (id, newItem) => {
         set((state) => ({
           items: state.items.map((i) =>
-            i.id === oldId ? { ...newItem, id: itemKey } : i,
+            i.id === id ? { ...newItem, id } : i,
           ),
         }));
       },

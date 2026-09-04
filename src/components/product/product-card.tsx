@@ -8,12 +8,15 @@ import { Badge } from "@/components/ui/badge";
 import { formatPrecio } from "@/lib/pricing";
 import { getStockStatus } from "@/lib/stock";
 import { QuickAddToCartButton } from "@/components/product/quick-add-cart-button";
+import { useStockStore } from "@/stores/stock-store";
 import type { ProductoConImagenes } from "@/types";
 
 export function ProductCard({ producto, priority = false }: { producto: ProductoConImagenes; priority?: boolean }) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const imagen = producto.producto_imagenes?.sort((a, b) => a.orden - b.orden)[0];
-  const stockStatus = getStockStatus(producto.stock_disponible);
+  const liveStock = useStockStore((s) => s.stocks[producto.id]);
+  const stockDisponible = typeof liveStock === "number" ? liveStock : producto.stock_disponible;
+  const stockStatus = getStockStatus(stockDisponible);
 
   return (
     <>
@@ -36,7 +39,7 @@ export function ProductCard({ producto, priority = false }: { producto: Producto
 
             {/* Badges overlay */}
             <div className="absolute left-2.5 top-2.5 flex flex-col gap-1.5 z-10">
-              {producto.stock_disponible === 1 && (
+              {stockDisponible === 1 && (
                 <Badge variant="default" className="shadow-sm bg-terracota text-white border border-terracota/20 backdrop-blur-md text-[11px] font-medium">
                   🎨 Pieza Única
                 </Badge>
@@ -78,19 +81,19 @@ export function ProductCard({ producto, priority = false }: { producto: Producto
                 {formatPrecio(producto.precio_base)}
               </p>
 
-              {producto.stock_disponible > 0 ? (
+              {stockDisponible > 0 ? (
                 <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-stone-600 font-sans">
                   <span
                     className={`h-1.5 w-1.5 rounded-full shrink-0 ${
-                      producto.stock_disponible === 1
+                      stockDisponible === 1
                         ? "bg-amber-500 animate-pulse"
                         : "bg-emerald-500"
                     }`}
                   />
                   <span>
-                    {producto.stock_disponible === 1
+                    {stockDisponible === 1
                       ? "Disponible: 1"
-                      : `Disponibles: ${producto.stock_disponible}`}
+                      : `Disponibles: ${stockDisponible}`}
                   </span>
                 </span>
               ) : stockStatus === "bajo_pedido" ? (

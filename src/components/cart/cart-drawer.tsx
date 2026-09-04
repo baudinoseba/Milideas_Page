@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { WhatsAppIcon } from "@/components/ui/whatsapp-icon";
-import { cleanPhoneNumber } from "@/lib/utils/encargos-whatsapp";
+import { useVendedorWhatsapp } from "@/lib/hooks/use-vendedor-whatsapp";
 
 interface CrossSellProduct {
   id: string;
@@ -29,6 +29,7 @@ interface CrossSellProduct {
 export function CartDrawer() {
   const isOpen = useCartStore((s) => s.isOpen);
   const closeCart = useCartStore((s) => s.closeCart);
+  const vendorWhatsapp = useVendedorWhatsapp();
 
   // Stock Cart Store
   const items = useCartStore((s) => s.items);
@@ -212,8 +213,6 @@ ${emailContacto ? `*Email:* ${emailContacto}\n` : ""}${entregaText}
 --------------------------------
 ${closingText}`;
 
-      const rawVendorWhatsapp = process.env.NEXT_PUBLIC_VENDOR_WHATSAPP || "5493493664420";
-      const vendorWhatsapp = cleanPhoneNumber(rawVendorWhatsapp) || "5493493664420";
       const waUrl = `https://wa.me/${vendorWhatsapp}?text=${encodeURIComponent(text)}`;
 
       clearEncargosCart();
@@ -335,6 +334,7 @@ ${closingText}`;
                           item.esPersonalizable,
                           item.personalizado
                         );
+                        const isOutOfStock = typeof item.stockDisponible === "number" && (item.stockDisponible <= 0 || item.cantidad <= 0);
                         const isMaxStock = typeof item.stockDisponible === "number" && item.cantidad >= item.stockDisponible;
 
                         return (
@@ -378,11 +378,15 @@ ${closingText}`;
                                 </span>
 
                                 <div className="flex items-center gap-1">
-                                  {isMaxStock && (
+                                  {isOutOfStock ? (
+                                    <span className="text-[10px] font-semibold text-red-600 bg-red-100 dark:bg-red-950/40 px-2 py-0.5 rounded-md">
+                                      Agotado
+                                    </span>
+                                  ) : isMaxStock ? (
                                     <span className="text-[10px] font-semibold text-terracota">
                                       Máx ({item.stockDisponible})
                                     </span>
-                                  )}
+                                  ) : null}
                                   <div className="flex items-center rounded-lg border border-border bg-arena/40">
                                     <button
                                       type="button"
@@ -762,10 +766,17 @@ ${closingText}`;
                   </span>
                 </div>
 
+                {items.some((it) => typeof it.stockDisponible === "number" && (it.stockDisponible <= 0 || it.cantidad <= 0)) && (
+                  <p className="text-[11px] font-medium text-red-600 text-center">
+                    Hay piezas agotadas por otra compra en tu bolsa. Quitalas para poder continuar.
+                  </p>
+                )}
+
                 <button
                   type="button"
                   onClick={handleCheckoutStock}
-                  className="w-full rounded-full bg-terracota py-3.5 text-center text-sm font-semibold text-white shadow-xs transition-all hover:bg-terracota/90 hover:-translate-y-0.5 active:scale-[0.98]"
+                  disabled={items.some((it) => typeof it.stockDisponible === "number" && (it.stockDisponible <= 0 || it.cantidad <= 0))}
+                  className="w-full rounded-full bg-terracota py-3.5 text-center text-sm font-semibold text-white shadow-xs transition-all hover:bg-terracota/90 hover:-translate-y-0.5 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none"
                 >
                   Proceder con la compra →
                 </button>

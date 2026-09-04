@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { WhatsAppIcon } from "@/components/ui/whatsapp-icon";
-import { cleanPhoneNumber } from "@/lib/utils/encargos-whatsapp";
+import { useVendedorWhatsapp } from "@/lib/hooks/use-vendedor-whatsapp";
 
 export function EncargosCartDrawer() {
   const {
@@ -24,6 +24,8 @@ export function EncargosCartDrawer() {
     getTotalPrice,
     getTotalItems,
   } = useEncargosCartStore();
+
+  const vendorWhatsapp = useVendedorWhatsapp();
 
   const [isCheckoutFormOpen, setIsCheckoutFormOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -159,8 +161,6 @@ ${emailContacto ? `*Email:* ${emailContacto}\n` : ""}${entregaText}
 --------------------------------
 ${closingText}`;
 
-      const rawVendorWhatsapp = process.env.NEXT_PUBLIC_VENDOR_WHATSAPP || "5493493664420";
-      const vendorWhatsapp = cleanPhoneNumber(rawVendorWhatsapp) || "5493493664420";
       const waUrl = `https://wa.me/${vendorWhatsapp}?text=${encodeURIComponent(text)}`;
 
       clearCart();

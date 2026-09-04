@@ -7,10 +7,18 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { WhatsAppIcon } from "@/components/ui/whatsapp-icon";
 import { useEncargosCartStore } from "@/stores/encargos-cart-store";
+import { useVendedorWhatsapp } from "@/lib/hooks/use-vendedor-whatsapp";
 import type { PedidoConItems } from "@/types";
 
-export function CheckoutExitoClient({ pedido }: { pedido: PedidoConItems }) {
+export function CheckoutExitoClient({
+  pedido,
+  vendedorWhatsapp: propVendedorWhatsapp,
+}: {
+  pedido: PedidoConItems;
+  vendedorWhatsapp?: string | null;
+}) {
   const limite = new Date(new Date(pedido.created_at).getTime() + 24 * 60 * 60 * 1000);
+  const vendorWhatsapp = useVendedorWhatsapp(propVendedorWhatsapp);
   const [whatsappUrl, setWhatsappUrl] = useState<string>("#");
   const [aliasCopiado, setAliasCopiado] = useState(false);
 
@@ -87,7 +95,6 @@ ${pedido.descuento_aplicado > 0 ? `*Descuento:* -${formatPrecio(pedido.descuento
 --------------------------------
 *PAGO:* Transferencia bancaria a alias *milideasarte* (adjunto comprobante a continuación).`;
 
-    const vendorWhatsapp = process.env.NEXT_PUBLIC_VENDOR_WHATSAPP || "5493493664420";
     const generatedUrl = `https://wa.me/${vendorWhatsapp}?text=${encodeURIComponent(text)}`;
     setWhatsappUrl(generatedUrl);
 
@@ -100,7 +107,7 @@ ${pedido.descuento_aplicado > 0 ? `*Descuento:* -${formatPrecio(pedido.descuento
         console.warn("Popup blocked by browser:", err);
       }
     }
-  }, [pedido]);
+  }, [pedido, vendorWhatsapp]);
 
   return (
     <div className="mx-auto max-w-xl space-y-5 pb-12">
