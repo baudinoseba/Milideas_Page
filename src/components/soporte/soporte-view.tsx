@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { enviarTicketSoporteAction } from "@/lib/actions/soporte";
+import { comprimirCapturaSoporte } from "@/lib/utils/image-compression";
 
 const TIPOS_PROBLEMA = [
   "Problema al iniciar sesión o con mi cuenta",
@@ -28,26 +29,33 @@ interface CapturaItem {
 export function SoporteView() {
   const [copiado, setCopiado] = useState(false);
   const [cargando, setCargando] = useState(false);
+  const [comprimiendo, setComprimiendo] = useState(false);
   const [ticketEnviado, setTicketEnviado] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [capturas, setCapturas] = useState<CapturaItem[]>([]);
 
-  const handleArchivosChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleArchivosChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
 
+    setComprimiendo(true);
+    setErrorMsg(null);
     const nuevasCapturas: CapturaItem[] = [];
     let errorAlerta: string | null = null;
 
-    for (const file of files) {
+    for (const rawFile of files) {
       if (capturas.length + nuevasCapturas.length >= MAX_CAPTURAS) {
         errorAlerta = `Podés adjuntar hasta un máximo de ${MAX_CAPTURAS} capturas.`;
         break;
       }
-      if (file.size > 10 * 1024 * 1024) {
-        errorAlerta = `El archivo "${file.name}" supera los 10MB permitidos.`;
+      if (rawFile.size > 25 * 1024 * 1024) {
+        errorAlerta = `El archivo "${rawFile.name}" supera el tamaño permitido (25MB).`;
         continue;
       }
+
+      // Optimizar en el navegador del usuario a ~200-300KB
+      const file = await comprimirCapturaSoporte(rawFile);
+
       nuevasCapturas.push({
         id: `${file.name}-${Date.now()}-${Math.random()}`,
         file,
@@ -55,6 +63,7 @@ export function SoporteView() {
       });
     }
 
+    setComprimiendo(false);
     if (errorAlerta) setErrorMsg(errorAlerta);
     if (nuevasCapturas.length) {
       setCapturas((prev) => [...prev, ...nuevasCapturas]);
@@ -406,10 +415,14 @@ export function SoporteView() {
                 <div className="pt-2">
                   <Button
                     type="submit"
-                    disabled={cargando}
+                    disabled={cargando || comprimiendo}
                     className="w-full rounded-full bg-chocolate hover:bg-chocolate/90 text-white font-bold text-xs sm:text-sm py-3 shadow-xs cursor-pointer transition-all"
                   >
-                    {cargando ? "Enviando ticket..." : "Enviar Ticket de Soporte →"}
+                    {cargando
+                      ? "Enviando ticket..."
+                      : comprimiendo
+                      ? "Optimizando imágenes..."
+                      : "Enviar Ticket de Soporte →"}
                   </Button>
                 </div>
               </form>

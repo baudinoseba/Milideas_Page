@@ -41,6 +41,16 @@ export async function enviarTicketSoporteAction(formData: FormData): Promise<Tic
     const MAX_SIZE_BYTES = 10 * 1024 * 1024; // 10MB por imagen
     const adminSupabase = createAdminClient();
 
+    // Asegurar que el bucket 'soporte' exista con acceso público
+    try {
+      const { data: buckets } = await adminSupabase.storage.listBuckets();
+      if (!buckets?.some((b) => b.name === "soporte")) {
+        await adminSupabase.storage.createBucket("soporte", { public: true });
+      }
+    } catch (bucketErr) {
+      console.warn("Aviso al verificar/crear bucket soporte:", bucketErr);
+    }
+
     const filesToUpload = capturaFiles.slice(0, 5);
     for (let i = 0; i < filesToUpload.length; i++) {
       const file = filesToUpload[i];
