@@ -1,6 +1,6 @@
 "use server";
 
-import { resend, ADMIN_NOTIFICATION_EMAIL, EMAIL_FROM } from "@/lib/email/resend";
+import { resend, SOPORTE_NOTIFICATION_EMAIL, EMAIL_FROM_SOPORTE } from "@/lib/email/resend";
 import { renderTicketSoporteAdminHtml } from "@/lib/email/templates/nuevo-ticket-soporte-email";
 import { createAdminClient } from "@/lib/supabase/server";
 
@@ -115,14 +115,10 @@ export async function enviarTicketSoporteAction(formData: FormData): Promise<Tic
       fecha,
     });
 
-    const remitenteSoporte = EMAIL_FROM.includes("<")
-      ? EMAIL_FROM.replace(/<.*>/, "<notificaciones@milideasarte.com.ar>")
-      : "Milideas Soporte <notificaciones@milideasarte.com.ar>";
-
     // Envío del email al administrador técnico (Seba)
     await resend.emails.send({
-      from: remitenteSoporte,
-      to: ADMIN_NOTIFICATION_EMAIL,
+      from: EMAIL_FROM_SOPORTE,
+      to: SOPORTE_NOTIFICATION_EMAIL,
       replyTo: email,
       subject: `[Soporte Web #${ticketId}] ${tipoProblema} - ${nombre}`,
       html,

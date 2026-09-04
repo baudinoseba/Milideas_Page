@@ -22,18 +22,18 @@ describe("Realtime Stock Stores", () => {
       cantidad: 3,
     });
 
-    expect(useCartStore.getState().items[0].cantidad).toBe(3);
+    expect(useCartStore.getState().items[0]!.cantidad).toBe(3);
 
     // Supongamos que otro usuario compró 4 y ahora el stock es 1
     useCartStore.getState().syncProductStock("prod-1", 1);
 
-    expect(useCartStore.getState().items[0].stockDisponible).toBe(1);
-    expect(useCartStore.getState().items[0].cantidad).toBe(1);
+    expect(useCartStore.getState().items[0]!.stockDisponible).toBe(1);
+    expect(useCartStore.getState().items[0]!.cantidad).toBe(1);
 
     // Si se agota a 0
     useCartStore.getState().syncProductStock("prod-1", 0);
-    expect(useCartStore.getState().items[0].stockDisponible).toBe(0);
-    expect(useCartStore.getState().items[0].cantidad).toBe(0);
+    expect(useCartStore.getState().items[0]!.stockDisponible).toBe(0);
+    expect(useCartStore.getState().items[0]!.cantidad).toBe(0);
   });
 
   it("useStockStore actualiza los stocks reactivamente", () => {

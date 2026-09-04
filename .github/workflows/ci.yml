@@ -32,7 +32,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps chromium
@@ -41,8 +41,10 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
           NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-key
           NEXT_PUBLIC_APP_URL: http://localhost:3000
+          CI: "true"
       - run: npm run test:e2e
         env:
           NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
           NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-key
           NEXT_PUBLIC_APP_URL: http://localhost:3000
+          CI: "true"

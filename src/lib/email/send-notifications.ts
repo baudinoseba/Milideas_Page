@@ -1,5 +1,5 @@
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
-import { resend, ADMIN_NOTIFICATION_EMAIL, EMAIL_FROM } from "./resend";
+import { resend, ARTISTA_NOTIFICATION_EMAIL, EMAIL_FROM } from "./resend";
 import { renderNuevoPedidoHtml, NuevoPedidoItemData } from "./templates/nuevo-pedido-email";
 import { renderNuevoEncargoHtml, NuevoEncargoItemData } from "./templates/nuevo-encargo-email";
 import { renderRecordatorioPagoHtml } from "./templates/recordatorio-pago-email";
@@ -66,7 +66,7 @@ export async function notificarNuevoPedidoAdmin(pedidoId: string): Promise<boole
 
     const result = await resend.emails.send({
       from: EMAIL_FROM,
-      to: ADMIN_NOTIFICATION_EMAIL,
+      to: ARTISTA_NOTIFICATION_EMAIL,
       subject: `🏺 ¡Nueva venta de stock #${shortId}! ($${Number(pedido.total).toLocaleString("es-AR")})`,
       html,
     });
@@ -135,7 +135,7 @@ export async function notificarNuevoEncargoAdmin(encargoId: string): Promise<boo
 
     const result = await resend.emails.send({
       from: EMAIL_FROM,
-      to: ADMIN_NOTIFICATION_EMAIL,
+      to: ARTISTA_NOTIFICATION_EMAIL,
       subject: `🎨 ¡Nueva solicitud de encargo de ${encargo.nombre_contacto}! (#${shortId})`,
       html,
     });
@@ -180,7 +180,7 @@ export async function notificarRecordatorioPagoAdmin(pedido: any): Promise<boole
 
     const result = await resend.emails.send({
       from: EMAIL_FROM,
-      to: ADMIN_NOTIFICATION_EMAIL,
+      to: ARTISTA_NOTIFICATION_EMAIL,
       subject: `⏳ Alerta: Pedido #${shortId} lleva 24h sin pago ($${Number(pedido.total).toLocaleString("es-AR")})`,
       html,
     });

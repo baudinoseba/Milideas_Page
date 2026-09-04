@@ -26,11 +26,24 @@ export async function updateSession(request: NextRequest) {
     },
   );
 
+  const pathname = request.nextUrl.pathname;
+  const isPlaceholder =
+    !process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder");
+
+  if (isPlaceholder) {
+    if (pathname.startsWith("/admin") || pathname.startsWith("/cuenta")) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/login";
+      url.searchParams.set("redirect", pathname);
+      return NextResponse.redirect(url);
+    }
+    return supabaseResponse;
+  }
+
   const {
     data: { user },
   } = await supabase.auth.getUser();
-
-  const pathname = request.nextUrl.pathname;
 
   if (pathname.startsWith("/admin") || pathname.startsWith("/cuenta")) {
     if (!user) {
