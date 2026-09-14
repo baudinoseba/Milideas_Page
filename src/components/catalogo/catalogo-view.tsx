@@ -1,12 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { ProductCard } from "@/components/product/product-card";
 import { formatPrecio } from "@/lib/pricing";
 import { cn } from "@/lib/utils/cn";
 import { ImageLightbox } from "@/components/ui/image-lightbox";
 import { PortfolioCarouselCard } from "./portfolio-carousel-card";
 import { useEncargosCartStore } from "@/stores/encargos-cart-store";
+import { useTiendaStatusStore } from "@/stores/tienda-status-store";
 import { useVendedorWhatsapp } from "@/lib/hooks/use-vendedor-whatsapp";
 import type { FormatoCatalogo, ProductoConImagenes, PortfolioColeccion, TipoRubro } from "@/types";
 
@@ -68,6 +70,15 @@ export function CatalogoView({
   const [lightboxImage, setLightboxImage] = useState<{ url: string; titulo: string; descripcion?: string } | null>(null);
 
   const addEncargoItem = useEncargosCartStore((s) => s.addEncargoItem);
+
+  const stockCeramicaAbierto = useTiendaStatusStore((s) => s.stockCeramicaAbierto);
+  const encargosCeramicaAbiertos = useTiendaStatusStore((s) => s.encargosCeramicaAbiertos);
+  const stockIlustracionAbierto = useTiendaStatusStore((s) => s.stockIlustracionAbierto);
+  const encargosIlustracionAbiertos = useTiendaStatusStore((s) => s.encargosIlustracionAbiertos);
+
+  const esCeramica = rubro === "ceramica";
+  const stockAbierto = esCeramica ? stockCeramicaAbierto : stockIlustracionAbierto;
+  const encargosAbiertos = esCeramica ? encargosCeramicaAbiertos : encargosIlustracionAbiertos;
 
   // Categorías únicas
   const categoriasUnicas = Array.from(
@@ -229,6 +240,60 @@ export function CatalogoView({
       ═══════════════════════════════════════════════════════════════════════ */}
       {activeTab === "stock" && (
         <div className="space-y-6">
+          {!stockAbierto && (
+            <div className="rounded-2xl border border-amber-300 bg-amber-50/85 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-2xs animate-in fade-in">
+              <div className="flex items-start gap-2.5">
+                <span className="text-xl shrink-0">{esCeramica ? "🏺" : "🎨"}</span>
+                <div>
+                  <p className="font-serif font-bold text-amber-950 text-sm">
+                    Stock en pausa temporal
+                  </p>
+                  <p className="text-stone-700 font-sans mt-0.5 leading-relaxed">
+                    El stock se encuentra en pausa mientras preparo nuevas piezas en el taller. Te invito a conocer{" "}
+                    <Link href="/sobre-mi" className="text-terracota underline font-medium hover:text-chocolate">
+                      mi historia
+                    </Link>
+                    , ver mi{" "}
+                    <button
+                      type="button"
+                      onClick={() => handleTabChange("portfolio")}
+                      className="text-terracota underline font-medium hover:text-chocolate cursor-pointer"
+                    >
+                      portfolio de obras
+                    </button>{" "}
+                    y seguirme en{" "}
+                    <a
+                      href="https://instagram.com/milideas_arte"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-terracota underline font-medium hover:text-chocolate"
+                    >
+                      @milideas_arte
+                    </a>{" "}
+                    ✨
+                  </p>
+                </div>
+              </div>
+              {encargosAbiertos ? (
+                <button
+                  type="button"
+                  onClick={() => handleTabChange("catalogo")}
+                  className="rounded-full bg-terracota text-white px-4 py-2 font-semibold hover:bg-terracota/90 shrink-0 self-start sm:self-auto cursor-pointer transition-colors shadow-2xs"
+                >
+                  Consultar Encargos a Medida →
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => handleTabChange("portfolio")}
+                  className="rounded-full bg-chocolate text-white px-4 py-2 font-semibold hover:bg-chocolate/90 shrink-0 self-start sm:self-auto cursor-pointer transition-colors shadow-2xs"
+                >
+                  Explorar Portfolio de Obras →
+                </button>
+              )}
+            </div>
+          )}
+
           <div className="bg-arena/25 border border-border/50 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
               <p className="text-xs sm:text-sm font-semibold text-chocolate">
@@ -280,7 +345,60 @@ export function CatalogoView({
       ═══════════════════════════════════════════════════════════════════════ */}
       {activeTab === "catalogo" && (
         <div className="space-y-6">
-          
+          {!encargosAbiertos && (
+            <div className="rounded-2xl border border-amber-300 bg-amber-50/85 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-2xs animate-in fade-in">
+              <div className="flex items-start gap-2.5">
+                <span className="text-xl shrink-0">📝</span>
+                <div>
+                  <p className="font-serif font-bold text-amber-950 text-sm">
+                    ¡Llegué al límite de producción mensual! ✨
+                  </p>
+                  <p className="text-stone-700 font-sans mt-0.5 leading-relaxed">
+                    Para cuidar cada detalle y la calidad artesanal de cada pieza, la agenda de encargos está en pausa temporal por 30 días mientras creo piezas nuevas en el taller. Te invito a conocer{" "}
+                    <Link href="/sobre-mi" className="text-terracota underline font-medium hover:text-chocolate">
+                      mi historia
+                    </Link>
+                    , ver mi{" "}
+                    <button
+                      type="button"
+                      onClick={() => handleTabChange("portfolio")}
+                      className="text-terracota underline font-medium hover:text-chocolate cursor-pointer"
+                    >
+                      portfolio de obras
+                    </button>{" "}
+                    y seguirme en{" "}
+                    <a
+                      href="https://instagram.com/milideas_arte"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-terracota underline font-medium hover:text-chocolate"
+                    >
+                      @milideas_arte
+                    </a>{" "}
+                    para enterarte de la reapertura de cupos 🌿
+                  </p>
+                </div>
+              </div>
+              {stockAbierto ? (
+                <button
+                  type="button"
+                  onClick={() => handleTabChange("stock")}
+                  className="rounded-full bg-terracota text-white px-4 py-2 font-semibold hover:bg-terracota/90 shrink-0 self-start sm:self-auto cursor-pointer transition-colors shadow-2xs"
+                >
+                  Ver Piezas en Stock Disponible →
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => handleTabChange("portfolio")}
+                  className="rounded-full bg-chocolate text-white px-4 py-2 font-semibold hover:bg-chocolate/90 shrink-0 self-start sm:self-auto cursor-pointer transition-colors shadow-2xs"
+                >
+                  Explorar Portfolio de Obras →
+                </button>
+              )}
+            </div>
+          )}
+
           {/* Micro-Tips Contextuales del PDF */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3.5">
             <div className="rounded-xl border border-border/60 bg-arena/30 p-3 text-left">
@@ -330,10 +448,10 @@ export function CatalogoView({
                   type="button"
                   onClick={() => setSelectedCategoria("todas")}
                   className={cn(
-                    "rounded-full px-3 py-1 text-xs font-medium font-sans transition-colors shrink-0 cursor-pointer shadow-2xs",
+                    "rounded-full px-3 py-1 text-xs font-medium transition-all shrink-0 cursor-pointer shadow-2xs",
                     selectedCategoria === "todas"
-                      ? "bg-chocolate text-crema-cruda font-semibold"
-                      : "bg-surface text-muted border border-border/60 hover:bg-secondary/40",
+                      ? "bg-chocolate text-white"
+                      : "bg-surface text-stone-600 border border-border/80 hover:bg-arena/50",
                   )}
                 >
                   Todas
@@ -344,10 +462,10 @@ export function CatalogoView({
                     type="button"
                     onClick={() => setSelectedCategoria(cat)}
                     className={cn(
-                      "rounded-full px-3 py-1 text-xs font-medium font-sans transition-colors shrink-0 cursor-pointer shadow-2xs",
+                      "rounded-full px-3 py-1 text-xs font-medium transition-all shrink-0 cursor-pointer shadow-2xs",
                       selectedCategoria === cat
-                        ? "bg-chocolate text-crema-cruda font-semibold"
-                        : "bg-surface text-muted border border-border/60 hover:bg-secondary/40",
+                        ? "bg-chocolate text-white"
+                        : "bg-surface text-stone-600 border border-border/80 hover:bg-arena/50",
                     )}
                   >
                     {cat}
@@ -418,14 +536,20 @@ export function CatalogoView({
                     {formatPrecio(formato.precio_base)}
                   </span>
 
-                  <button
-                    type="button"
-                    onClick={() => abrirModalEncargo(formato)}
-                    className="rounded-full bg-terracota text-white hover:bg-terracota/90 px-3.5 py-1.5 text-xs font-semibold shadow-xs transition-all hover:scale-105 active:scale-95 cursor-pointer flex items-center gap-1"
-                  >
-                    <span>Encargar</span>
-                    <span>+</span>
-                  </button>
+                  {encargosAbiertos ? (
+                    <button
+                      type="button"
+                      onClick={() => abrirModalEncargo(formato)}
+                      className="rounded-full bg-terracota text-white hover:bg-terracota/90 px-3.5 py-1.5 text-xs font-semibold shadow-xs transition-all hover:scale-105 active:scale-95 cursor-pointer flex items-center gap-1"
+                    >
+                      <span>Encargar</span>
+                      <span>+</span>
+                    </button>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 text-amber-900 px-3 py-1.5 text-[11px] font-medium border border-amber-300 shadow-2xs">
+                      <span>⏸️</span> Cupo alcanzado
+                    </span>
+                  )}
                 </div>
               </div>
             ))}

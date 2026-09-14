@@ -15,6 +15,7 @@ import { formatPrecio } from "@/lib/pricing";
 import { obtenerCostoAutomaticoProximidad } from "@/lib/shipping";
 import { crearPedidoAction } from "@/lib/actions";
 import { useCartStore } from "@/stores/cart-store";
+import { useTiendaStatusStore } from "@/stores/tienda-status-store";
 import { CheckoutSteps } from "@/components/checkout/checkout-steps";
 import { TerminosModal } from "@/components/checkout/terminos-modal";
 import { CartReservationTimer } from "@/components/cart/cart-reservation-timer";
@@ -108,6 +109,7 @@ export function CheckoutForm({
   const [step3Errors, setStep3Errors] = useState<Record<string, string>>({});
 
   const items = useCartStore((s) => s.items);
+  const tiendaStockAbierta = useTiendaStatusStore((s) => s.tiendaStockAbierta);
   const isClient = useSyncExternalStore(
     () => () => {},
     () => true,
@@ -361,6 +363,12 @@ export function CheckoutForm({
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
+
+    // Validate if store stock is open
+    if (!tiendaStockAbierta) {
+      setError("El stock se encuentra en pausa mientras preparo nuevas piezas en el taller 🏺 Te invito a seguirme en @milideas_arte para enterarte del próximo lanzamiento.");
+      return;
+    }
 
     // Validate stock levels
     for (const item of items) {
@@ -1264,7 +1272,7 @@ export function CheckoutForm({
 
               {pricing.descuentoTransferencia > 0 && (
                 <div className="flex justify-between text-emerald-700 font-medium">
-                  <span>Transferencia (-20%)</span>
+                  <span>Descuento transferencia</span>
                   <span>-{formatPrecio(pricing.descuentoTransferencia)}</span>
                 </div>
               )}

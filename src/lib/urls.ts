@@ -72,6 +72,7 @@ export const ROUTES = {
     ILUSTRACION: "/admin/ilustracion",
     OBRAS: "/admin/obras",
     LOGISTICA: "/admin/logistica",
+    DISPONIBILIDAD: "/admin/disponibilidad",
     PORTADA: "/admin/personalizacion",
   },
 } as const;

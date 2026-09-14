@@ -3,12 +3,21 @@
 import { useState, useCallback } from "react";
 import { useCartStore } from "@/stores/cart-store";
 import { useStockStore } from "@/stores/stock-store";
+import { useTiendaStatusStore } from "@/stores/tienda-status-store";
 import { getStockStatus } from "@/lib/stock";
 import type { ProductoConImagenes } from "@/types";
 
 export function QuickAddToCartButton({ producto }: { producto: ProductoConImagenes }) {
   const [added, setAdded] = useState(false);
   const addItem = useCartStore((s) => s.addItem);
+  const stockCeramicaAbierto = useTiendaStatusStore((s) => s.stockCeramicaAbierto);
+  const encargosCeramicaAbiertos = useTiendaStatusStore((s) => s.encargosCeramicaAbiertos);
+  const stockIlustracionAbierto = useTiendaStatusStore((s) => s.stockIlustracionAbierto);
+  const encargosIlustracionAbiertos = useTiendaStatusStore((s) => s.encargosIlustracionAbiertos);
+
+  const esCeramica = producto.tipo_catalogo === "ceramica";
+  const stockAbierto = esCeramica ? stockCeramicaAbierto : stockIlustracionAbierto;
+  const encargosAbiertos = esCeramica ? encargosCeramicaAbiertos : encargosIlustracionAbiertos;
 
   const liveStock = useStockStore((s) => s.stocks[producto.id]);
   const stock = typeof liveStock === "number" ? liveStock : producto.stock_disponible;
@@ -70,6 +79,14 @@ export function QuickAddToCartButton({ producto }: { producto: ProductoConImagen
   );
 
   if (stockStatus === "bajo_pedido" || stock <= 0) {
+    if (!encargosAbiertos) {
+      return (
+        <div className="w-full py-2 px-2 text-center rounded-xl bg-stone-100 border border-stone-200 text-stone-500 text-[11px] font-medium">
+          <span>📝 Agenda llena</span>
+        </div>
+      );
+    }
+
     return (
       <button
         type="button"
@@ -79,6 +96,14 @@ export function QuickAddToCartButton({ producto }: { producto: ProductoConImagen
         <span>✨</span>
         <span>Encargar esta pieza</span>
       </button>
+    );
+  }
+
+  if (!stockAbierto) {
+    return (
+      <div className="w-full py-2 px-2 text-center rounded-xl bg-amber-50 border border-amber-200 text-stone-600 text-[11px] font-medium">
+        <span>{esCeramica ? "🏺" : "🎨"} Stock en pausa</span>
+      </div>
     );
   }
 

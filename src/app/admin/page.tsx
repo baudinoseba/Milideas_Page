@@ -4,7 +4,10 @@ import {
   getFormatosCatalogo,
   getEncargos,
   getAdminPedidos,
+  getConfiguracionSitio,
+  getEstadisticasDisponibilidad,
 } from "@/lib/supabase/queries";
+import { AdminDisponibilidadResumen } from "@/components/admin/admin-disponibilidad-resumen";
 import type { Encargo } from "@/types";
 
 export const metadata = { title: "Panel de Control · Milideas" };
@@ -28,12 +31,16 @@ export default async function AdminDashboardPage() {
     formatosIlustracion,
     encargos,
     pedidos,
+    config,
+    estadisticas,
   ] = await Promise.all([
     getProductos({ includeInactive: true }).catch(() => []),
     getFormatosCatalogo("ceramica").catch(() => []),
     getFormatosCatalogo("ilustracion").catch(() => []),
     getEncargos().catch(() => []),
     getAdminPedidos().catch(() => []),
+    getConfiguracionSitio().catch(() => null),
+    getEstadisticasDisponibilidad().catch(() => undefined),
   ]);
 
   // ─── 1. MÉTRICAS DE ENCARGOS ───
@@ -108,6 +115,9 @@ export default async function AdminDashboardPage() {
           </p>
         </div>
       </div>
+
+      {/* ─── Resumen de Disponibilidad & Cupo Mensual del Taller ─── */}
+      {config && <AdminDisponibilidadResumen config={config} estadisticas={estadisticas} />}
 
       <div className="space-y-3.5">
         {/* ═══════════════════════════════════════════════════════════════════════ */}

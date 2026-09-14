@@ -3,6 +3,8 @@ import { resend, ARTISTA_NOTIFICATION_EMAIL, EMAIL_FROM } from "./resend";
 import { renderNuevoPedidoHtml, NuevoPedidoItemData } from "./templates/nuevo-pedido-email";
 import { renderNuevoEncargoHtml, NuevoEncargoItemData } from "./templates/nuevo-encargo-email";
 import { renderRecordatorioPagoHtml } from "./templates/recordatorio-pago-email";
+import { renderConfirmacionCompradorHtml } from "./templates/confirmacion-comprador-email";
+import { renderArrepentimientoEmailHtml, ArrepentimientoEmailProps } from "./templates/arrepentimiento-email";
 
 // Initialize Supabase Admin client for reliable background reads without session constraints
 function getSupabaseAdmin() {
@@ -197,3 +199,104 @@ export async function notificarRecordatorioPagoAdmin(pedido: any): Promise<boole
     return false;
   }
 }
+
+/**
+ * CASO 4: Notifica al comprador confirmando la reserva de su pedido con las instrucciones de transferencia y marco legal.
+ */
+export async function notificarConfirmacionPedidoComprador(pedidoId: string): Promise<boolean> {
+  try {
+    const supabase = getSupabaseAdmin();
+
+    const { data: pedido, error: pedidoErr } = await supabase
+      .from("pedidos")
+      .select("*, items_pedido(*, productos(nombre))")
+      .eq("id", pedidoId)
+      .single();
+
+    if (pedidoErr || !pedido || !pedido.email_contacto) {
+      // Si no hay email o falla búsqueda, se omite silenciosamente
+      return false;
+    }
+
+    const emailDestino = pedido.email_contacto.trim();
+    if (!emailDestino.includes("@")) {
+      return false;
+    }
+
+    const items: NuevoPedidoItemData[] = (pedido.items_pedido || []).map((it: any) => ({
+      nombre: it.productos?.nombre || "Pieza de autor",
+      cantidad: it.cantidad,
+      precioUnitario: Number(it.precio_unitario_final),
+      esPersonalizado: Boolean(it.es_personalizado),
+    }));
+
+    const appUrl = getAppUrl();
+    const shortId = pedidoId.slice(0, 8).toUpperCase();
+
+    const html = renderConfirmacionCompradorHtml({
+      pedidoId,
+      nombreContacto: pedido.nombre_contacto,
+      whatsappContacto: pedido.whatsapp_contacto,
+      items,
+      subtotal: Number(pedido.subtotal),
+      descuentoAplicado: Number(pedido.descuento_aplicado),
+      costoEnvio: Number(pedido.costo_envio),
+      total: Number(pedido.total),
+      tipoEnvio: pedido.tipo_envio,
+      direccionEnvio: pedido.direccion_envio as any,
+      appUrl,
+    });
+
+    const result = await resend.emails.send({
+      from: EMAIL_FROM,
+      to: emailDestino,
+      subject: `🏺 ¡Tu pedido en Milideas Arte está reservado! #${shortId}`,
+      html,
+    });
+
+    if (result.error) {
+      console.error("[Email Notification] Error enviando confirmación al comprador:", result.error);
+      return false;
+    }
+
+    console.log(`[Email Notification] Email de confirmación para pedido #${shortId} enviado al comprador (${emailDestino}).`);
+    return true;
+  } catch (err) {
+    console.error("[Email Notification] Excepción inesperada en notificarConfirmacionPedidoComprador:", err);
+    return false;
+  }
+}
+
+/**
+ * CASO 5: Notifica a la administradora cuando un cliente registra una solicitud de revocación (Botón de Arrepentimiento).
+ */
+export async function notificarArrepentimientoAdmin(
+  props: Omit<ArrepentimientoEmailProps, "appUrl">
+): Promise<boolean> {
+  try {
+    const appUrl = getAppUrl();
+    const html = renderArrepentimientoEmailHtml({
+      ...props,
+      appUrl,
+    });
+
+    const result = await resend.emails.send({
+      from: EMAIL_FROM,
+      to: ARTISTA_NOTIFICATION_EMAIL,
+      subject: `🔄 Solicitud de Arrepentimiento recibida: ${props.codigoTramite} (${props.nombre})`,
+      html,
+    });
+
+    if (result.error) {
+      console.error("[Email Notification] Error enviando alerta de arrepentimiento:", result.error);
+      return false;
+    }
+
+    console.log(`[Email Notification] Alerta de revocación ${props.codigoTramite} enviada a la administradora.`);
+    return true;
+  } catch (err) {
+    console.error("[Email Notification] Excepción en notificarArrepentimientoAdmin:", err);
+    return false;
+  }
+}
+

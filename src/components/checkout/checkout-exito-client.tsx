@@ -192,7 +192,7 @@ ${pedido.descuento_aplicado > 0 ? `*Descuento:* -${formatPrecio(pedido.descuento
               <span className="text-chocolate font-semibold">Brubank</span>
             </p>
             <p>
-              <span className="font-medium text-foreground block text-[11px]">CUIT:</span>
+              <span className="font-medium text-foreground block text-[11px]">CUIL:</span>
               <span className="font-mono text-chocolate font-semibold">27-43717260-4</span>
             </p>
             <p>

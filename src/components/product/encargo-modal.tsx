@@ -3,8 +3,8 @@
 import { useState } from "react";
 import type { ProductoConImagenes, ConfiguracionEncargos, TipoCatalogo } from "@/types";
 import { formatPrecio } from "@/lib/pricing";
-import { useCartStore } from "@/stores/cart-store";
 import { useEncargosCartStore } from "@/stores/encargos-cart-store";
+import { useTiendaStatusStore } from "@/stores/tienda-status-store";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -23,8 +23,11 @@ export function EncargoModal({
   onClose,
 }: EncargoModalProps) {
   const addEncargoItem = useEncargosCartStore((s) => s.addEncargoItem);
+  const encargosCeramicaAbiertos = useTiendaStatusStore((s) => s.encargosCeramicaAbiertos);
+  const encargosIlustracionAbiertos = useTiendaStatusStore((s) => s.encargosIlustracionAbiertos);
 
   const tipoCatalogo: TipoCatalogo = (((producto as Record<string, unknown>).tipo_catalogo as TipoCatalogo) || "ceramica");
+  const encargosAbiertos = tipoCatalogo === "ceramica" ? encargosCeramicaAbiertos : encargosIlustracionAbiertos;
   const precioBase = producto.precio_base;
 
   // Customization state
@@ -57,33 +60,31 @@ export function EncargoModal({
   const handleAddToCart = (e: React.FormEvent) => {
     e.preventDefault();
 
-    const imagenUrl = producto.producto_imagenes?.[0]?.url_imagen ?? null;
-
     addEncargoItem({
       productoId: producto.id,
       slug: producto.slug,
       nombre: producto.nombre,
-      imagenUrl,
-      tipoCatalogo,
-      precioBase,
-      esPersonalizado,
+      tipoCatalogo: tipoCatalogo,
+      imagenUrl: producto.producto_imagenes?.[0]?.url_imagen ?? null,
+      precioBase: precioBase,
+      precioUnitarioFinal: precioUnitarioFinal,
+      cantidad: cantidad,
+      esPersonalizado: esPersonalizado,
       detallePersonalizacion: esPersonalizado ? detallePersonalizacion : "",
+      recargoPersonalizado: recargoPersonalizadoCalculado,
       medidaSeleccionada: tipoCatalogo === "ilustraciones" ? medidaSeleccionada : null,
       adicionalMedida: adicionalMedidaCalculado,
-      conMarco: tipoCatalogo === "ilustraciones" && conMarco,
+      conMarco: tipoCatalogo === "ilustraciones" ? conMarco : false,
       adicionalMarco: adicionalMarcoCalculado,
-      recargoPersonalizado: recargoPersonalizadoCalculado,
-      precioUnitarioFinal,
-      cantidad,
     });
 
-    useCartStore.getState().openCart();
     onClose();
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-      <div className="relative w-full max-w-lg overflow-hidden rounded-2xl border border-border bg-surface shadow-2xl animate-in fade-in zoom-in duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-chocolate/40 p-4 backdrop-blur-xs animate-in fade-in duration-200">
+      <div className="relative w-full max-w-lg rounded-3xl bg-surface border border-border/80 shadow-2xl overflow-hidden">
+        {/* Header */}
         <div className="flex items-center justify-between border-b border-border/80 bg-surface/90 px-6 py-4">
           <div>
             <span className="text-[10px] font-bold uppercase tracking-wider text-admin-accent">
@@ -102,7 +103,36 @@ export function EncargoModal({
           </button>
         </div>
 
-        <form onSubmit={handleAddToCart} className="max-h-[80vh] overflow-y-auto p-6 space-y-5">
+        {!encargosAbiertos ? (
+          <div className="p-6 space-y-4 text-center">
+            <span className="text-4xl block">📝</span>
+            <h4 className="text-base font-serif font-bold text-chocolate">
+              Agenda de encargos completa por este mes
+            </h4>
+            <p className="text-xs text-stone-700 leading-relaxed">
+              La agenda de encargos personalizados se encuentra completa por el momento 📝 ¡Te invito a seguirme en{" "}
+              <a
+                href="https://instagram.com/milideas_arte"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-terracota underline font-medium hover:text-chocolate"
+              >
+                @milideas_arte
+              </a>{" "}
+              para enterarte de la próxima apertura de cupos! ✨
+            </p>
+            <div className="pt-2">
+              <Button
+                type="button"
+                onClick={onClose}
+                className="w-full bg-chocolate text-white rounded-full text-xs font-semibold py-2.5 cursor-pointer"
+              >
+                Entendido
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <form onSubmit={handleAddToCart} className="max-h-[80vh] overflow-y-auto p-6 space-y-5">
           {/* Catalog specific configuration */}
           {tipoCatalogo === "ilustraciones" && (
             <div className="rounded-xl border border-rose-500/20 bg-rose-500/5 p-4 space-y-3">
@@ -230,6 +260,7 @@ export function EncargoModal({
             <span>🛍️ Agregar al Carrito de Encargos</span>
           </Button>
         </form>
+        )}
       </div>
     </div>
   );

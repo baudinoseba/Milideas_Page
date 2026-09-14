@@ -3,9 +3,11 @@
 import { useState, useEffect, useTransition } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import Image from "next/image";
 import { useCartStore } from "@/stores/cart-store";
 import { useEncargosCartStore } from "@/stores/encargos-cart-store";
+import { useTiendaStatusStore } from "@/stores/tienda-status-store";
 import { formatPrecio, calcularSubtotal, calcularPrecioUnitario } from "@/lib/pricing";
 import { createClient } from "@/lib/supabase/client";
 import { crearEncargoAction } from "@/lib/actions";
@@ -45,6 +47,9 @@ export function CartDrawer() {
   const clearEncargosCart = useEncargosCartStore((s) => s.clearCart);
   const getEncargosTotalPrice = useEncargosCartStore((s) => s.getTotalPrice);
   const getEncargosTotalItems = useEncargosCartStore((s) => s.getTotalItems);
+
+  const tiendaStockAbierta = useTiendaStatusStore((s) => s.tiendaStockAbierta);
+  const encargosAbiertos = useTiendaStatusStore((s) => s.encargosAbiertos);
 
   // Tab State: "stock" | "encargos"
   const [activeTab, setActiveTab] = useState<"stock" | "encargos">("stock");
@@ -766,19 +771,39 @@ ${closingText}`;
                   </span>
                 </div>
 
-                {items.some((it) => typeof it.stockDisponible === "number" && (it.stockDisponible <= 0 || it.cantidad <= 0)) && (
+                {!tiendaStockAbierta ? (
+                  <div className="rounded-xl border border-amber-300 bg-amber-50 p-2.5 text-[11px] text-stone-700 leading-snug space-y-1">
+                    <strong className="text-amber-900 font-semibold block">⚠️ Venta de stock en pausa:</strong>
+                    <p>
+                      El stock se encuentra en pausa temporal mientras preparo nuevas piezas en el taller 🏺 Te invito a conocer{" "}
+                      <Link href="/sobre-mi" onClick={closeCart} className="text-terracota underline font-medium hover:text-chocolate">
+                        mi historia
+                      </Link>{" "}
+                      y seguirme en{" "}
+                      <a
+                        href="https://instagram.com/milideas_arte"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-terracota underline font-medium hover:text-chocolate"
+                      >
+                        @milideas_arte
+                      </a>{" "}
+                      ✨
+                    </p>
+                  </div>
+                ) : items.some((it) => typeof it.stockDisponible === "number" && (it.stockDisponible <= 0 || it.cantidad <= 0)) ? (
                   <p className="text-[11px] font-medium text-red-600 text-center">
                     Hay piezas agotadas por otra compra en tu bolsa. Quitalas para poder continuar.
                   </p>
-                )}
+                ) : null}
 
                 <button
                   type="button"
                   onClick={handleCheckoutStock}
-                  disabled={items.some((it) => typeof it.stockDisponible === "number" && (it.stockDisponible <= 0 || it.cantidad <= 0))}
-                  className="w-full rounded-full bg-terracota py-3.5 text-center text-sm font-semibold text-white shadow-xs transition-all hover:bg-terracota/90 hover:-translate-y-0.5 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none"
+                  disabled={!tiendaStockAbierta || items.some((it) => typeof it.stockDisponible === "number" && (it.stockDisponible <= 0 || it.cantidad <= 0))}
+                  className="w-full rounded-full bg-terracota py-3.5 text-center text-sm font-semibold text-white shadow-xs transition-all hover:bg-terracota/90 hover:-translate-y-0.5 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
                 >
-                  Proceder con la compra →
+                  {!tiendaStockAbierta ? "Stock online en pausa temporal" : "Proceder con la compra →"}
                 </button>
               </div>
             )}
@@ -792,15 +817,34 @@ ${closingText}`;
                   </span>
                 </div>
 
+                {!encargosAbiertos && (
+                  <div className="rounded-xl border border-amber-300 bg-amber-50 p-2.5 text-[11px] text-stone-700 leading-snug space-y-1">
+                    <strong className="text-amber-900 font-semibold block">⚠️ Agenda de encargos completa:</strong>
+                    <p>
+                      La agenda de encargos personalizados se encuentra completa por el momento 📝 ¡Te invito a seguirme en{" "}
+                      <a
+                        href="https://instagram.com/milideas_arte"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-terracota underline font-medium hover:text-chocolate"
+                      >
+                        @milideas_arte
+                      </a>{" "}
+                      para enterarte de la próxima apertura de cupos! ✨
+                    </p>
+                  </div>
+                )}
+
                 <button
                   type="button"
                   onClick={() => {
                     closeCart();
                     router.push("/encargos");
                   }}
-                  className="w-full rounded-full bg-admin-accent py-3.5 text-center text-sm font-semibold text-white shadow-xs transition-all hover:bg-admin-accent-hover hover:-translate-y-0.5 active:scale-[0.98]"
+                  disabled={!encargosAbiertos}
+                  className="w-full rounded-full bg-admin-accent py-3.5 text-center text-sm font-semibold text-white shadow-xs transition-all hover:bg-admin-accent-hover hover:-translate-y-0.5 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
                 >
-                  Proceder al encargo →
+                  {!encargosAbiertos ? "Agenda de encargos completa" : "Proceder al encargo →"}
                 </button>
               </div>
             )}

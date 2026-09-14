@@ -10,11 +10,13 @@ import { formatPrecio, calcularSubtotal, calcularPricing } from "@/lib/pricing";
 import { CheckoutSteps } from "@/components/checkout/checkout-steps";
 import { CartReservationTimer } from "@/components/cart/cart-reservation-timer";
 import { useCartStore } from "@/stores/cart-store";
+import { useTiendaStatusStore } from "@/stores/tienda-status-store";
 
 const subscribeEmpty = () => () => {};
 
 export default function CarritoPage() {
   const items = useCartStore((s) => s.items);
+  const tiendaStockAbierta = useTiendaStatusStore((s) => s.tiendaStockAbierta);
   const isClient = useSyncExternalStore(
     subscribeEmpty,
     () => true,
@@ -84,11 +86,39 @@ export default function CarritoPage() {
               </div>
             </div>
 
-            <Link href="/checkout" className="block pt-2">
-              <Button className="w-full py-3.5 text-base font-semibold rounded-full bg-terracota text-white hover:bg-terracota/90 shadow-sm transition-all hover:-translate-y-0.5">
-                Iniciar Compra Segura →
+            {!tiendaStockAbierta ? (
+              <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs text-stone-700 leading-snug space-y-1">
+                <strong className="text-amber-900 font-semibold block">⚠️ Venta de stock en pausa:</strong>
+                <p>
+                  El stock se encuentra en pausa temporal mientras preparo nuevas piezas en el taller 🏺 Te invito a conocer{" "}
+                  <Link href="/sobre-mi" className="text-terracota underline font-medium hover:text-chocolate">
+                    mi historia
+                  </Link>{" "}
+                  y seguirme en{" "}
+                  <a
+                    href="https://instagram.com/milideas_arte"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-terracota underline font-medium hover:text-chocolate"
+                  >
+                    @milideas_arte
+                  </a>{" "}
+                  ✨
+                </p>
+              </div>
+            ) : null}
+
+            {tiendaStockAbierta ? (
+              <Link href="/checkout" className="block pt-2">
+                <Button className="w-full py-3.5 text-base font-semibold rounded-full bg-terracota text-white hover:bg-terracota/90 shadow-sm transition-all hover:-translate-y-0.5">
+                  Iniciar Compra Segura →
+                </Button>
+              </Link>
+            ) : (
+              <Button disabled className="w-full py-3.5 text-sm font-semibold rounded-full bg-stone-200 text-stone-500 cursor-not-allowed">
+                Venta de stock online en pausa
               </Button>
-            </Link>
+            )}
 
             <div className="space-y-2 pt-2 border-t border-border/40 text-center">
               <Link href="/ceramica" className="inline-block text-xs font-semibold text-barro hover:text-chocolate transition-colors">

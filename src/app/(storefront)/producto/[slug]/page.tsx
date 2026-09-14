@@ -6,6 +6,7 @@ import { ProductDetailClient } from "@/components/product/product-detail-client"
 import { ProductCard } from "@/components/product/product-card";
 import { Badge } from "@/components/ui/badge";
 import { BackButton } from "@/components/ui/back-button";
+import { ShareButton } from "@/components/ui/share-button";
 import { getStockStatus, getStockLabel } from "@/lib/stock";
 import { getProductoBySlug, getProductos, getConfiguracionEncargos } from "@/lib/supabase/queries";
 
@@ -104,8 +105,12 @@ export default async function ProductoPage({
         <span className="font-semibold text-chocolate truncate max-w-[180px]">{producto.nombre}</span>
       </nav>
 
-      <div className="mb-6">
+      <div className="mb-6 flex items-center justify-between gap-3">
         <BackButton fallbackHref={baseHref}>Volver a {baseLabel.toLowerCase()}</BackButton>
+        <ShareButton
+          title={`${producto.nombre} — Milideas Arte`}
+          text={`Mirá esta pieza única de autor en Milideas: ${producto.nombre}`}
+        />
       </div>
 
       {/* Mobile Title & Badge (Shown above image on mobile) */}

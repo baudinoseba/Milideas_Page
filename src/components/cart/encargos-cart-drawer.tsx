@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { formatPrecio } from "@/lib/pricing";
 import { crearEncargoAction } from "@/lib/actions";
 import { useEncargosCartStore } from "@/stores/encargos-cart-store";
+import { useTiendaStatusStore } from "@/stores/tienda-status-store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,6 +25,16 @@ export function EncargosCartDrawer() {
     getTotalPrice,
     getTotalItems,
   } = useEncargosCartStore();
+
+  const encargosCeramicaAbiertos = useTiendaStatusStore((s) => s.encargosCeramicaAbiertos);
+  const encargosIlustracionAbiertos = useTiendaStatusStore((s) => s.encargosIlustracionAbiertos);
+
+  const tieneCeramica = items.some((i) => i.tipoCatalogo === "ceramica");
+  const tieneIlustracion = items.some((i) => i.tipoCatalogo === "ilustraciones");
+  const encargosBloqueados =
+    (!encargosCeramicaAbiertos && !encargosIlustracionAbiertos) ||
+    (tieneCeramica && !encargosCeramicaAbiertos) ||
+    (tieneIlustracion && !encargosIlustracionAbiertos);
 
   const vendorWhatsapp = useVendedorWhatsapp();
 
@@ -427,14 +438,26 @@ ${closingText}`;
                     )}
                   </div>
 
-                  <Button
-                    type="submit"
-                    disabled={isPending}
-                    className="w-full bg-[#25D366] text-white hover:bg-[#20bd5a] flex items-center justify-center gap-2 py-3.5 rounded-full font-semibold shadow-sm mt-4"
-                  >
-                    <WhatsAppIcon className="h-5 w-5 fill-current" />
-                    <span>{isPending ? "Enviando encargos..." : "Solicitar por WhatsApp"}</span>
-                  </Button>
+                  {encargosBloqueados ? (
+                    <div className="rounded-2xl border border-amber-300 bg-amber-50/90 p-3.5 text-xs text-stone-700 space-y-1.5 mt-4">
+                      <p className="font-serif font-bold text-amber-950">¡Llegué al límite de producción mensual! ✨</p>
+                      <p className="text-[11px] leading-relaxed">
+                        Para cuidar cada detalle y la calidad artesanal, la agenda de encargos está en pausa temporal por 30 días mientras creo piezas nuevas en el taller.
+                      </p>
+                      <span className="inline-block mt-1 font-semibold text-amber-900 bg-amber-100/80 px-2.5 py-1 rounded-full text-[10px] border border-amber-300">
+                        ⏸️ Agenda pausada temporalmente
+                      </span>
+                    </div>
+                  ) : (
+                    <Button
+                      type="submit"
+                      disabled={isPending}
+                      className="w-full bg-[#25D366] text-white hover:bg-[#20bd5a] flex items-center justify-center gap-2 py-3.5 rounded-full font-semibold shadow-sm mt-4 cursor-pointer"
+                    >
+                      <WhatsAppIcon className="h-5 w-5 fill-current" />
+                      <span>{isPending ? "Enviando encargos..." : "Solicitar por WhatsApp"}</span>
+                    </Button>
+                  )}
                 </form>
               )}
             </div>
@@ -449,13 +472,28 @@ ${closingText}`;
                   </span>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => setIsCheckoutFormOpen(true)}
-                  className="w-full rounded-full bg-terracota py-3.5 text-center text-sm font-semibold text-white shadow-sm transition-all hover:bg-terracota/90 hover:-translate-y-0.5 active:scale-[0.98]"
-                >
-                  Finalizar Solicitud de Encargos →
-                </button>
+                {encargosBloqueados ? (
+                  <div className="space-y-2">
+                    <div className="rounded-xl border border-amber-300 bg-amber-50/90 p-2.5 text-center text-xs text-amber-950 font-medium">
+                      ⏸️ Agenda en pausa por cupo mensual alcanzado (30 días)
+                    </div>
+                    <button
+                      type="button"
+                      disabled
+                      className="w-full rounded-full bg-stone-300 py-3.5 text-center text-sm font-semibold text-stone-500 cursor-not-allowed"
+                    >
+                      Agenda en Pausa Temporal
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setIsCheckoutFormOpen(true)}
+                    className="w-full rounded-full bg-terracota py-3.5 text-center text-sm font-semibold text-white shadow-sm transition-all hover:bg-terracota/90 hover:-translate-y-0.5 active:scale-[0.98] cursor-pointer"
+                  >
+                    Finalizar Solicitud de Encargos →
+                  </button>
+                )}
               </div>
             )}
           </motion.div>

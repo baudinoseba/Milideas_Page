@@ -36,11 +36,12 @@ export const metadata: Metadata = {
     template: "%s | Milideas Arte",
   },
   description:
-    "Estudio de arte y cerámica artesanal por Milagros Baudino en Sunchales, Santa Fe, Argentina. Mates, vajilla ilustrada, obras únicas y encargos personalizados a todo el país.",
+    "Estudio de arte y cerámica artesanal por Milagros Anita Ferrero en Sunchales, Santa Fe, Argentina. Mates, vajilla ilustrada, obras únicas y encargos personalizados a todo el país.",
   keywords: [
     "Milideas",
     "Milideas Arte",
-    "Milagros Baudino",
+    "Milagros Anita Ferrero",
+    "Mili Ferrero",
     "cerámica de autor",
     "cerámica ilustrada",
     "cerámica artesanal",
@@ -54,8 +55,8 @@ export const metadata: Metadata = {
     "mates artesanales",
     "encargos personalizados cerámica",
   ],
-  authors: [{ name: "Milagros Baudino", url: "https://instagram.com/milideas_arte" }],
-  creator: "Milagros Baudino",
+  authors: [{ name: "Milagros Anita Ferrero", url: "https://instagram.com/milideas_arte" }],
+  creator: "Milagros Anita Ferrero",
   publisher: "Milideas Arte",
   icons: {
     icon: [
@@ -79,30 +80,43 @@ export const metadata: Metadata = {
     description:
       "Estudio de arte y cerámica artesanal en Sunchales, Santa Fe, Argentina. Piezas únicas y encargos a medida.",
   },
+  verification: {
+    google: process.env.NEXT_PUBLIC_GSC_VERIFICATION || undefined,
+  },
   robots: { index: true, follow: true },
 };
 
 import { ToastContainer } from "@/components/ui/toast";
+import { CookieConsentBanner } from "@/components/ui/cookie-banner";
+import Script from "next/script";
 
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const gaId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
+
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": ["Store", "ArtGallery"],
     name: "Milideas Arte",
-    alternateName: "Milideas",
+    alternateName: ["Milideas", "Milideas Estudio de Arte"],
+    legalName: "Milagros Anita Ferrero",
+    taxID: "27-43717260-4",
     url: getBaseUrl(),
     description:
-      "Estudio de arte y cerámica artesanal por Milagros Baudino en Sunchales, Santa Fe, Argentina. Piezas de autor, vajilla ilustrada y obras personalizadas.",
+      "Estudio de arte y cerámica artesanal por Milagros Anita Ferrero (Mili Ferrero) en Sunchales, Santa Fe, Argentina. Piezas de autor, vajilla ilustrada y obras personalizadas.",
     address: {
       "@type": "PostalAddress",
+      streetAddress: "Florentino Ameghino 1576",
       addressLocality: "Sunchales",
       addressRegion: "Santa Fe",
+      postalCode: "S2322",
       addressCountry: "AR",
     },
+    telephone: "+5493493664420",
+    email: "contacto@milideasarte.com.ar",
     sameAs: ["https://instagram.com/milideas_arte"],
     priceRange: "$$",
   };
@@ -130,9 +144,28 @@ export default function RootLayout({
             `,
           }}
         />
+        {gaId && (
+          <>
+            <Script
+              src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`}
+              strategy="afterInteractive"
+            />
+            <Script id="google-analytics" strategy="afterInteractive">
+              {`
+                window.dataLayer = window.dataLayer || [];
+                function gtag(){dataLayer.push(arguments);}
+                gtag('js', new Date());
+                gtag('config', '${gaId}', {
+                  page_path: window.location.pathname,
+                });
+              `}
+            </Script>
+          </>
+        )}
       </head>
       <body className="min-h-full flex flex-col antialiased bg-background text-foreground transition-colors duration-300">
         {children}
+        <CookieConsentBanner />
         <ToastContainer />
       </body>
     </html>

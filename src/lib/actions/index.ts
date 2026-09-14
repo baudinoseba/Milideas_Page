@@ -7,7 +7,12 @@ import { createClient } from "@/lib/supabase/server";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { checkoutSchema } from "@/lib/validations/schemas";
 import type { CrearPedidoItem, TipoCatalogo } from "@/types";
-import { notificarNuevoPedidoAdmin, notificarNuevoEncargoAdmin } from "@/lib/email/send-notifications";
+import {
+  notificarNuevoPedidoAdmin,
+  notificarNuevoEncargoAdmin,
+  notificarConfirmacionPedidoComprador,
+  notificarArrepentimientoAdmin,
+} from "@/lib/email/send-notifications";
 
 export type CheckoutResult =
   | { success: true; pedidoId: string }
@@ -56,16 +61,40 @@ export async function crearPedidoAction(
 
   const supabase = await createClient();
 
+  // Guard: Verificar si el stock de cerámica o ilustración se encuentra abierto
+  const { data: configSitio } = await supabase
+    .from("configuracion_sitio")
+    .select("stock_ceramica_abierto, stock_ilustracion_abierto, auto_pausar_stock_agotado")
+    .limit(1)
+    .single();
+
+  const stockCeramicaOk = configSitio?.stock_ceramica_abierto ?? true;
+  const stockIlustracionOk = configSitio?.stock_ilustracion_abierto ?? true;
+
   // ── SECURITY: Recalculate pricing server-side ──────────────────────────────
   // Fetch authoritative prices from DB to prevent client-side price manipulation.
   const productoIds = [...new Set(items.map((i) => i.producto_id))];
   const { data: productosDB, error: prodErr } = await supabase
     .from("productos")
-    .select("id, precio_base, es_personalizable, stock_disponible, activo")
+    .select("id, precio_base, es_personalizable, stock_disponible, activo, tipo_catalogo")
     .in("id", productoIds);
 
   if (prodErr || !productosDB) {
     return { success: false, error: "Error al verificar los productos del carrito." };
+  }
+
+  if (!stockCeramicaOk && productosDB.some((p) => p.tipo_catalogo === "ceramica")) {
+    return {
+      success: false,
+      error: "El stock de cerámica se encuentra en pausa mientras preparo nuevas piezas en el taller. Te invito a conocer mi portfolio de obras y seguirme en Instagram como @milideas_arte.",
+    };
+  }
+
+  if (!stockIlustracionOk && productosDB.some((p) => p.tipo_catalogo === "ilustraciones")) {
+    return {
+      success: false,
+      error: "El stock de ilustraciones se encuentra en pausa mientras preparo nuevas láminas en el taller. Te invito a conocer mi portfolio de obras y seguirme en Instagram como @milideas_arte.",
+    };
   }
 
   // Build a map of DB prices for fast lookup
@@ -171,11 +200,64 @@ export async function crearPedidoAction(
   revalidatePath("/ceramica");
   revalidatePath("/ilustracion");
 
-  // Notificación de nueva venta de stock para la administradora (en segundo plano, no bloqueante)
   if (data) {
+    // Registrar aceptación formal de Términos y Condiciones en la base de datos
+    try {
+      await (supabase.from("pedidos") as any)
+        .update({
+          terminos_version: "2026-v1",
+          terminos_aceptados_at: new Date().toISOString(),
+        })
+        .eq("id", data);
+    } catch (err) {
+      console.error("[crearPedidoAction] Error al registrar términos:", err);
+    }
+
+    // Notificación de nueva venta de stock para la administradora (en segundo plano, no bloqueante)
     notificarNuevoPedidoAdmin(data).catch((err) => {
       console.error("[crearPedidoAction] Error al notificar nuevo pedido por email:", err);
     });
+
+    // Notificación de confirmación de reserva para el comprador (en segundo plano, no bloqueante)
+    notificarConfirmacionPedidoComprador(data).catch((err) => {
+      console.error("[crearPedidoAction] Error al notificar al comprador por email:", err);
+    });
+
+    // Auto-pausa inteligente si se agotó el stock físico disponible
+    if (configSitio?.auto_pausar_stock_agotado ?? true) {
+      try {
+        const catalogoTipos = new Set(productosDB.map((p) => p.tipo_catalogo || "ceramica"));
+        for (const tipo of catalogoTipos) {
+          let stockRestante: number | null = null;
+          try {
+            const { data: rpcStock } = await supabase.rpc("calcular_stock_total_disponible", { p_tipo: tipo });
+            if (typeof rpcStock === "number") stockRestante = rpcStock;
+          } catch {}
+
+          if (stockRestante === null) {
+            const { data: prodsActivos } = await supabase
+              .from("productos")
+              .select("stock_disponible")
+              .eq("activo", true)
+              .eq("tipo_catalogo", tipo);
+            stockRestante = prodsActivos?.reduce((acc, p) => acc + (Number(p.stock_disponible) || 0), 0) ?? 0;
+          }
+
+          if (stockRestante <= 0) {
+            const campo = tipo === "ilustraciones" || tipo === "ilustracion"
+              ? "stock_ilustracion_abierto"
+              : "stock_ceramica_abierto";
+            const adminClient = process.env.SUPABASE_SECRET_KEY ? createAdminClient() : supabase;
+            const { data: cfg } = await adminClient.from("configuracion_sitio").select("id").limit(1).single();
+            if (cfg?.id) {
+              await adminClient.from("configuracion_sitio").update({ [campo]: false }).eq("id", cfg.id);
+            }
+          }
+        }
+      } catch (err) {
+        console.error("[crearPedidoAction] Error al verificar auto-pausa por stock agotado:", err);
+      }
+    }
   }
 
   return { success: true, pedidoId: data };
@@ -668,6 +750,30 @@ export async function saveProductoAction(
           });
         }
       }
+    }
+  }
+
+  // Auto-reactivar la venta de stock del rubro si se cargó inventario y estaba en pausa
+  if (payload.stock_disponible > 0 && payload.activo) {
+    const rubro = (tipoCatalogo === "ilustraciones" || tipoCatalogo === "ilustracion") ? "ilustracion" : "ceramica";
+    const campoStock = rubro === "ilustracion" ? "stock_ilustracion_abierto" : "stock_ceramica_abierto";
+    try {
+      const { data: cfg } = await supabase
+        .from("configuracion_sitio")
+        .select(`id, ${campoStock}`)
+        .limit(1)
+        .single();
+      if (cfg && (cfg as any)[campoStock] === false) {
+        await supabase
+          .from("configuracion_sitio")
+          .update({ [campoStock]: true })
+          .eq("id", cfg.id);
+        revalidatePath("/", "layout");
+        revalidatePath("/ceramica");
+        revalidatePath("/ilustracion");
+      }
+    } catch (e) {
+      console.warn("Auto-reapertura de stock al guardar producto:", e);
     }
   }
 
@@ -1405,6 +1511,19 @@ export async function saveConfiguracionSitioAction(
     updated_at: new Date().toISOString(),
   };
 
+  if (formData.has("tiendaStockAbierta")) {
+    payload.tienda_stock_abierta = formData.get("tiendaStockAbierta") === "true";
+  }
+  if (formData.has("tiendaStockMensaje")) {
+    payload.tienda_stock_mensaje = String(formData.get("tiendaStockMensaje") || "").trim();
+  }
+  if (formData.has("encargosAbiertos")) {
+    payload.encargos_abiertos = formData.get("encargosAbiertos") === "true";
+  }
+  if (formData.has("encargosMensaje")) {
+    payload.encargos_mensaje = String(formData.get("encargosMensaje") || "").trim();
+  }
+
   try {
     const { data: existing } = await supabase.from("configuracion_sitio").select("id").limit(1).single();
 
@@ -1438,6 +1557,77 @@ export async function saveConfiguracionSitioAction(
   revalidatePath("/");
   revalidatePath("/sobre-mi");
   revalidatePath("/admin/personalizacion");
+  return { success: true };
+}
+
+export async function actualizarDisponibilidadTiendaAction(params: {
+  stockCeramicaAbierto: boolean;
+  encargosCeramicaAbiertos: boolean;
+  stockIlustracionAbierto: boolean;
+  encargosIlustracionAbiertos: boolean;
+  cupoMensualTotal?: number;
+  cupoMensualCeramica?: number;
+  cupoMensualIlustracion?: number;
+  autoPausarStockAgotado?: boolean;
+}): Promise<{ success: boolean; error?: string }> {
+  const auth = await requireAdmin();
+  if ("error" in auth) return { success: false, error: auth.error };
+  const { supabase } = auth;
+
+  const payload: any = {
+    stock_ceramica_abierto: Boolean(params.stockCeramicaAbierto),
+    encargos_ceramica_abiertos: Boolean(params.encargosCeramicaAbiertos),
+    stock_ilustracion_abierto: Boolean(params.stockIlustracionAbierto),
+    encargos_ilustracion_abiertos: Boolean(params.encargosIlustracionAbiertos),
+    updated_at: new Date().toISOString(),
+  };
+
+  // Si se reabre manualmente la agenda, limpiar el registro de pausa por cupo mensual
+  if (params.encargosCeramicaAbiertos || params.encargosIlustracionAbiertos) {
+    payload.encargos_pausado_at = null;
+    payload.encargos_pausado_hasta = null;
+    payload.encargos_ceramica_pausado_mes = null;
+    payload.encargos_ilustracion_pausado_mes = null;
+  }
+  if (typeof params.cupoMensualTotal === "number" && !isNaN(params.cupoMensualTotal)) {
+    payload.cupo_mensual_total = Math.max(1, params.cupoMensualTotal);
+    payload.cupo_mensual_ceramica = Math.max(1, params.cupoMensualTotal);
+    payload.cupo_mensual_ilustracion = Math.max(1, params.cupoMensualTotal);
+  } else {
+    if (typeof params.cupoMensualCeramica === "number" && !isNaN(params.cupoMensualCeramica)) {
+      payload.cupo_mensual_ceramica = Math.max(1, params.cupoMensualCeramica);
+    }
+    if (typeof params.cupoMensualIlustracion === "number" && !isNaN(params.cupoMensualIlustracion)) {
+      payload.cupo_mensual_ilustracion = Math.max(1, params.cupoMensualIlustracion);
+    }
+  }
+  if (typeof params.autoPausarStockAgotado === "boolean") {
+    payload.auto_pausar_stock_agotado = params.autoPausarStockAgotado;
+  }
+
+  try {
+    const { data: existing } = await supabase.from("configuracion_sitio").select("id").limit(1).single();
+
+    if (existing) {
+      const { error } = await supabase.from("configuracion_sitio").update(payload).eq("id", existing.id);
+      if (error) throw error;
+    } else {
+      const { error } = await supabase.from("configuracion_sitio").insert(payload);
+      if (error) throw error;
+    }
+  } catch (err: any) {
+    console.error("actualizarDisponibilidadTiendaAction error:", err);
+    return { success: false, error: err?.message || "Error al actualizar la disponibilidad de la tienda." };
+  }
+
+  revalidatePath("/", "layout");
+  revalidatePath("/admin");
+  revalidatePath("/admin/personalizacion");
+  revalidatePath("/ceramica");
+  revalidatePath("/ilustracion");
+  revalidatePath("/encargos");
+  revalidatePath("/carrito");
+  revalidatePath("/obras");
   return { success: true };
 }
 
@@ -1724,11 +1914,72 @@ export async function crearEncargoAction(formData: FormData): Promise<{
 }> {
   const supabase = await createClient();
 
+  // Parse and validate itemsJson structure early to determine discipline & quantities
+  const itemsJsonRaw = formData.get("itemsJson") as string;
+  let itemsArray: any[] = [];
+  if (itemsJsonRaw) {
+    try {
+      const parsed = JSON.parse(itemsJsonRaw);
+      if (Array.isArray(parsed)) {
+        itemsArray = parsed;
+      }
+    } catch (e) { /* invalid JSON — use empty */ }
+  }
+
+  const firstItem = itemsArray[0];
+  const tipoCatalogo = (formData.get("tipoCatalogo") as any) || firstItem?.tipoCatalogo || "ceramica";
+  const rubroTarget = (firstItem?.tipoCatalogo ?? tipoCatalogo) === "ilustraciones" || (firstItem?.tipoCatalogo ?? tipoCatalogo) === "ilustracion"
+    ? "ilustraciones"
+    : "ceramica";
+
+  // Guard: Verificar configuración del sitio (cupos y disponibilidad)
+  const { data: configSitio } = await supabase
+    .from("configuracion_sitio")
+    .select("encargos_ceramica_abiertos, encargos_ilustracion_abiertos, cupo_mensual_total, cupo_mensual_ceramica, cupo_mensual_ilustracion")
+    .limit(1)
+    .single();
+
+  const now = new Date();
+  const mesActual = now.toLocaleDateString("en-CA", {
+    timeZone: "America/Argentina/Buenos_Aires",
+  }).slice(0, 7);
+
+  // Cupo mensual total unificado (Cerámica + Ilustración suman juntas al límite de producción artesanal)
+  const cupoMaxTotal = configSitio?.cupo_mensual_total ?? configSitio?.cupo_mensual_ceramica ?? 50;
+
+  let piezasAcumuladasTotal = 0;
+  try {
+    const { data: rpcCount } = await supabase.rpc("contar_piezas_encargo_mes", { p_tipo: null });
+    if (typeof rpcCount === "number") piezasAcumuladasTotal = rpcCount;
+    else throw new Error("rpc non-numeric");
+  } catch {
+    const hace30DiasStr = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const { data: itemsDB } = await supabase
+      .from("items_encargo")
+      .select("cantidad, encargos!inner(created_at, estado)")
+      .gte("encargos.created_at", hace30DiasStr)
+      .neq("encargos.estado", "cancelado");
+    if (itemsDB) {
+      piezasAcumuladasTotal = itemsDB.reduce((sum, it) => sum + (Number(it.cantidad) || 1), 0);
+    }
+  }
+
+  const encargosCeramicaOk = configSitio?.encargos_ceramica_abiertos ?? true;
+  const encargosIlustracionOk = configSitio?.encargos_ilustracion_abiertos ?? true;
+  const estaAbierto = rubroTarget === "ilustraciones" ? encargosIlustracionOk : encargosCeramicaOk;
+
+  // Regla de control: Si está pausado manualmente O si ya se alcanzó o superó el cupo total del taller
+  if (!estaAbierto || piezasAcumuladasTotal >= cupoMaxTotal) {
+    return {
+      success: false,
+      error: "¡Llegué al límite de producción mensual! ✨ Para cuidar cada detalle y la calidad artesanal, la agenda de encargos está en pausa temporal por 30 días mientras creo piezas nuevas en el taller. Te invito a conocer mi historia, ver mi portfolio de obras y seguirme en @milideas_arte para enterarte de la reapertura de cupos 🌿",
+    };
+  }
+
   const productoId = (formData.get("productoId") as string) || null;
   const nombreContacto = String(formData.get("nombreContacto") || "").trim();
   const whatsappContacto = String(formData.get("whatsappContacto") || "").trim();
   const emailContacto = String(formData.get("emailContacto") || "").trim() || null;
-  const tipoCatalogo = (formData.get("tipoCatalogo") as any) || "ceramica";
   const esPersonalizado = formData.get("esPersonalizado") === "true";
   const detallePersonalizacion = String(formData.get("detallePersonalizacion") || "").trim() || null;
   const medidaSeleccionada = String(formData.get("medidaSeleccionada") || "").trim() || null;
@@ -1759,20 +2010,6 @@ export async function crearEncargoAction(formData: FormData): Promise<{
       ciudad: String(formData.get("ciudad") || ""),
     };
   }
-
-  // SECURITY: Parse and validate itemsJson structure (C5)
-  const itemsJsonRaw = formData.get("itemsJson") as string;
-  let itemsArray: any[] = [];
-  if (itemsJsonRaw) {
-    try {
-      const parsed = JSON.parse(itemsJsonRaw);
-      if (Array.isArray(parsed)) {
-        itemsArray = parsed;
-      }
-    } catch (e) { /* invalid JSON — use empty */ }
-  }
-
-  const firstItem = itemsArray[0];
 
   // SECURITY: Recalculate totals server-side
   let serverPrecioEstimado = 0;
@@ -1896,7 +2133,40 @@ export async function crearEncargoAction(formData: FormData): Promise<{
     await dbClient.from("items_encargo").insert(itemsPayload);
   }
 
+  // Regla del último cliente: si este pedido hace que se alcance o supere el cupo mensual total del taller,
+  // se auto-pausa la agenda de ambas disciplinas para que los próximos clientes no puedan pedir hasta el mes que viene.
+  const piezasEnEstaOrden = itemsArray.length > 0
+    ? itemsArray.reduce((acc, it) => acc + (Number(it.cantidad) || 1), 0)
+    : 1;
+  const nuevoTotalPiezas = piezasAcumuladasTotal + piezasEnEstaOrden;
+
+  if (nuevoTotalPiezas >= cupoMaxTotal) {
+    try {
+      const { data: cfg } = await dbClient.from("configuracion_sitio").select("id").limit(1).single();
+      if (cfg?.id) {
+        await dbClient
+          .from("configuracion_sitio")
+          .update({
+            encargos_ceramica_abiertos: false,
+            encargos_ilustracion_abiertos: false,
+            encargos_pausado_at: new Date().toISOString(),
+            encargos_pausado_hasta: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+            encargos_ceramica_pausado_mes: mesActual,
+            encargos_ilustracion_pausado_mes: mesActual,
+          })
+          .eq("id", cfg.id);
+      }
+    } catch (err) {
+      console.error("[crearEncargoAction] Error al auto-pausar agenda por cupo mensual total:", err);
+    }
+  }
+
   revalidatePath("/admin/encargos");
+  revalidatePath("/encargos");
+  revalidatePath("/ceramica");
+  revalidatePath("/ilustracion");
+  revalidatePath("/catalogo");
+  revalidatePath("/", "layout");
 
   // Notificación de nuevo encargo para la administradora (en segundo plano, no bloqueante)
   if (data?.id) {
@@ -3655,6 +3925,69 @@ export async function getCurrentUserRoleAction(): Promise<{
     nombre: perfil?.nombre_completo || user.user_metadata?.nombre_completo || null,
   };
 }
+
+export async function registrarArrepentimientoAction(formData: {
+  nombre: string;
+  contacto: string;
+  email?: string;
+  pedidoNumero?: string;
+  producto: string;
+  motivo?: string;
+}): Promise<{ success: boolean; codigo?: string; fecha?: string; error?: string }> {
+  try {
+    const supabase = await createClient();
+
+    // Generar código de trámite formal único conforme a la Disposición 954/2025
+    const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+    const dateCode = new Date().toISOString().slice(2, 10).replace(/-/g, "");
+    const codigoTramite = `REV-${dateCode}-${randomSuffix}`;
+    const ahora = new Date().toLocaleString("es-AR", {
+      dateStyle: "long",
+      timeStyle: "short",
+    });
+
+    const { error: dbError } = await supabase.from("solicitudes_arrepentimiento").insert({
+      codigo_tramite: codigoTramite,
+      nombre: formData.nombre.trim(),
+      contacto: formData.contacto.trim(),
+      email: formData.email?.trim() || null,
+      pedido_numero: formData.pedidoNumero?.trim() || null,
+      producto: formData.producto.trim(),
+      motivo: formData.motivo?.trim() || null,
+      estado: "pendiente",
+    });
+
+    if (dbError) {
+      console.error("[registrarArrepentimientoAction] Error persistiendo en DB:", dbError);
+    }
+
+    // Notificar a la administradora por email en segundo plano
+    notificarArrepentimientoAdmin({
+      codigoTramite,
+      nombre: formData.nombre,
+      contacto: formData.contacto,
+      email: formData.email,
+      pedidoNumero: formData.pedidoNumero,
+      producto: formData.producto,
+      motivo: formData.motivo,
+    }).catch((err) => {
+      console.error("[registrarArrepentimientoAction] Error en notificación de email:", err);
+    });
+
+    return {
+      success: true,
+      codigo: codigoTramite,
+      fecha: ahora,
+    };
+  } catch (err: any) {
+    console.error("[registrarArrepentimientoAction] Error general:", err);
+    return {
+      success: false,
+      error: err.message || "Error al procesar la solicitud de arrepentimiento.",
+    };
+  }
+}
+
 
 
 

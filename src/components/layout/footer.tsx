@@ -30,44 +30,33 @@ export function Footer() {
         </div>
       </div>
 
-      {/* ─── 2. Renglón Minimalista (Copyright + Enlaces de Navegación) ─── */}
+      {/* ─── 2. Renglón Minimalista y Limpio ─── */}
       <div className="py-4">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs font-sans text-muted">
-          {/* Copyright a la izquierda */}
-          <p className="text-[11px] sm:text-xs inline-flex items-center gap-1.5">
-            <span>© {new Date().getFullYear()} Milideas — Sunchales, Santa Fe</span>
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 flex flex-col md:flex-row items-center justify-between gap-3 text-xs font-sans text-muted">
+          {/* Copyright */}
+          <p className="text-[11px] sm:text-xs inline-flex items-center gap-1.5 font-medium text-chocolate">
+            <span>© {new Date().getFullYear()} Milideas Arte® — Sunchales, Santa Fe</span>
             <BanderaArgentina className="w-3.5 h-2.5 inline-block" />
           </p>
 
-          {/* Enlaces de Navegación en el mismo renglón */}
-          <nav className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1 text-[11px] sm:text-xs">
-            <Link href="/sobre-mi" className="hover:text-chocolate transition-colors">
-              Sobre Mí & FAQ
-            </Link>
+          {/* Enlaces Requeridos: Contacto, Soporte, Términos, Privacidad y Botón de Arrepentimiento */}
+          <nav className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-[11px] sm:text-xs">
             <Link href="/contacto" className="hover:text-chocolate transition-colors">
               Contacto
-            </Link>
-            <Link href="/ceramica" className="hover:text-chocolate transition-colors">
-              Cerámica
-            </Link>
-            <Link href="/ilustracion" className="hover:text-chocolate transition-colors">
-              Ilustración
-            </Link>
-            <Link href="/obras" className="hover:text-chocolate transition-colors">
-              Obras & Proyectos
             </Link>
             <Link href="/soporte" className="hover:text-chocolate transition-colors">
               Soporte
             </Link>
-            <a
-              href="https://instagram.com/milideas_arte"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hover:text-chocolate transition-colors inline-flex items-center gap-1 text-terracota font-medium"
-            >
-              <span>@milideas_arte</span>
-              <span className="text-[10px]">↗</span>
-            </a>
+            <Link href="/terminos" className="hover:text-chocolate transition-colors">
+              Términos y Condiciones
+            </Link>
+            <Link href="/privacidad" className="hover:text-chocolate transition-colors">
+              Política de Privacidad
+            </Link>
+
+            <Link href="/arrepentimiento" className="hover:text-chocolate transition-colors">
+              Botón de arrepentimiento
+            </Link>
           </nav>
         </div>
       </div>

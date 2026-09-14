@@ -179,7 +179,7 @@ CREATE TABLE IF NOT EXISTS public.pedidos (
   nombre_contacto TEXT NOT NULL,
   whatsapp_contacto TEXT NOT NULL,
   email_contacto TEXT,
-  fecha_limite_pago TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '48 hours'),
+  fecha_limite_pago TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '24 hours'),
   recordatorio_24h_enviado BOOLEAN NOT NULL DEFAULT FALSE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -216,6 +216,15 @@ CREATE TABLE IF NOT EXISTS public.configuracion_sitio (
   vendedor_whatsapp TEXT DEFAULT '5493493664420',
   email_contacto TEXT DEFAULT 'contacto@milideasarte.com.ar',
   instagram_url TEXT DEFAULT 'https://instagram.com/milideas_arte',
+  stock_ceramica_abierto BOOLEAN DEFAULT TRUE,
+  encargos_ceramica_abiertos BOOLEAN DEFAULT TRUE,
+  stock_ilustracion_abierto BOOLEAN DEFAULT TRUE,
+  encargos_ilustracion_abiertos BOOLEAN DEFAULT TRUE,
+  cupo_mensual_ceramica INTEGER DEFAULT 50,
+  cupo_mensual_ilustracion INTEGER DEFAULT 50,
+  encargos_ceramica_pausado_mes TEXT DEFAULT NULL,
+  encargos_ilustracion_pausado_mes TEXT DEFAULT NULL,
+  auto_pausar_stock_agotado BOOLEAN DEFAULT TRUE,
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -455,7 +464,7 @@ BEGIN
     p_nombre_contacto,
     p_whatsapp_contacto,
     p_email_contacto,
-    NOW() + INTERVAL '48 hours'
+    NOW() + INTERVAL '24 hours'
   )
   RETURNING id INTO v_pedido_id;
 

@@ -42,6 +42,11 @@ const navItems = [
     icon: "🚚",
   },
   {
+    href: "/admin/disponibilidad",
+    label: "Disponibilidad & Cupos",
+    icon: "⏱️",
+  },
+  {
     href: "/admin/personalizacion",
     label: "Portada & Sitio",
     icon: "⚙️",

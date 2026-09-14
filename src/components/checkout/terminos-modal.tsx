@@ -30,8 +30,16 @@ export function TerminosModal({ open, onClose }: TerminosModalProps) {
         <div className="flex-1 overflow-y-auto pr-2 text-xs text-muted leading-relaxed whitespace-pre-wrap font-sans border border-border p-3 rounded-md bg-background mb-4">
           {text}
         </div>
-        <div className="flex justify-end">
-          <Button onClick={onClose} type="button" className="px-6">
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+          <a
+            href="/terminos"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-terracota hover:text-chocolate underline underline-offset-2"
+          >
+            Abrir documento legal completo en nueva pestaña ↗
+          </a>
+          <Button onClick={onClose} type="button" className="px-6 rounded-full">
             Entendido
           </Button>
         </div>

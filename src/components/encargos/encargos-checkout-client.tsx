@@ -9,6 +9,7 @@ import { calcularTarifaPorProvincia } from "@/lib/shipping";
 import { crearEncargoAction } from "@/lib/actions";
 import { useCartStore } from "@/stores/cart-store";
 import { useEncargosCartStore, ItemEncargoCart } from "@/stores/encargos-cart-store";
+import { useTiendaStatusStore } from "@/stores/tienda-status-store";
 import { EncargosSteps } from "@/components/encargos/encargos-steps";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -79,6 +80,17 @@ export function EncargosCheckoutClient({
 
   const stockItems = useCartStore((s) => s.items);
 
+  const stockCeramicaAbierto = useTiendaStatusStore((s) => s.stockCeramicaAbierto);
+  const encargosCeramicaAbiertos = useTiendaStatusStore((s) => s.encargosCeramicaAbiertos);
+  const stockIlustracionAbierto = useTiendaStatusStore((s) => s.stockIlustracionAbierto);
+  const encargosIlustracionAbiertos = useTiendaStatusStore((s) => s.encargosIlustracionAbiertos);
+
+  const tieneCeramica = items.some((it) => it.tipoCatalogo === "ceramica");
+  const tieneIlustracion = items.some((it) => it.tipoCatalogo === "ilustraciones");
+  const agendaBloqueada =
+    (tieneCeramica && !encargosCeramicaAbiertos) ||
+    (tieneIlustracion && !encargosIlustracionAbiertos);
+
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [isPending, startTransition] = useTransition();
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -144,6 +156,60 @@ export function EncargosCheckoutClient({
   }, [perfil, userEmail]);
 
   if (!isClient) return null;
+
+  if (!encargosCeramicaAbiertos && !encargosIlustracionAbiertos && step !== 4) {
+    return (
+      <div className="py-12 text-center space-y-6 max-w-xl mx-auto px-4">
+        <div className="rounded-3xl border border-amber-300 bg-amber-50/85 p-8 sm:p-10 space-y-4 shadow-sm animate-in fade-in">
+          <span className="text-5xl block">📝</span>
+          <h1 className="text-xl sm:text-2xl font-serif font-bold text-chocolate">
+            ¡Llegué al límite de producción mensual! ✨
+          </h1>
+          <p className="text-xs sm:text-sm text-stone-700 leading-relaxed font-sans">
+            Para cuidar cada detalle y la calidad artesanal, la agenda de encargos está en pausa temporal por 30 días mientras creo piezas nuevas en el taller. Te invito a conocer{" "}
+            <Link href="/sobre-mi" className="text-terracota underline font-medium hover:text-chocolate">
+              mi historia
+            </Link>{" "}
+            y seguirme en{" "}
+            <a
+              href="https://instagram.com/milideas_arte"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-terracota underline font-medium hover:text-chocolate"
+            >
+              @milideas_arte
+            </a>{" "}
+            para enterarte de la reapertura de cupos 🌿
+          </p>
+
+          <div className="pt-4 flex flex-col gap-2.5">
+            {(stockCeramicaAbierto || stockIlustracionAbierto) && (
+              <Link href="/ceramica/stock">
+                <Button className="w-full bg-terracota text-white hover:bg-terracota/90 rounded-full text-xs font-semibold py-3 cursor-pointer shadow-xs">
+                  Ver piezas en Stock para entrega inmediata →
+                </Button>
+              </Link>
+            )}
+
+            <Link href="/ceramica/portfolio">
+              <Button variant="outline" className="w-full border-border/80 text-chocolate hover:bg-arena/50 rounded-full text-xs font-semibold py-3 cursor-pointer">
+                Explorar Portfolio de Obras & Colecciones →
+              </Button>
+            </Link>
+
+            <a
+              href="https://instagram.com/milideas_arte"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs font-semibold text-terracota hover:text-chocolate pt-1 underline underline-offset-2"
+            >
+              Seguime en Instagram @milideas_arte para la próxima apertura de cupos ↗
+            </a>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (items.length === 0 && step !== 4) {
     return (
@@ -360,6 +426,37 @@ ${closingText}`;
       {step === 1 && (
         <div className="grid gap-8 lg:grid-cols-12 lg:items-start">
           <div className="lg:col-span-8 space-y-6">
+            {agendaBloqueada && (
+              <Card className="border-amber-300 bg-amber-50/90 p-4 space-y-2 shadow-2xs">
+                <div className="flex items-center gap-2">
+                  <span className="text-xl">🌿</span>
+                  <h4 className="font-serif font-bold text-amber-950 text-xs sm:text-sm">
+                    ¡Llegué al límite de producción mensual! ✨
+                  </h4>
+                </div>
+                <p className="text-xs text-stone-700 font-sans leading-relaxed">
+                  Para cuidar cada detalle y la calidad artesanal de cada pieza, la agenda de encargos está en pausa temporal y reabrirá el próximo mes. Te invito a conocer{" "}
+                  <Link href="/sobre-mi" className="text-terracota underline font-medium hover:text-chocolate">
+                    mi historia
+                  </Link>
+                  , ver mi{" "}
+                  <Link href="/ceramica/portfolio" className="text-terracota underline font-medium hover:text-chocolate">
+                    portfolio de obras
+                  </Link>{" "}
+                  y seguirme en{" "}
+                  <a
+                    href="https://instagram.com/milideas_arte"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-terracota underline font-medium hover:text-chocolate"
+                  >
+                    @milideas_arte
+                  </a>{" "}
+                  para enterarte de la próxima apertura de cupos 🌿
+                </p>
+              </Card>
+            )}
+
             {stockItems.length > 0 && (
               <Card className="border-terracota/30 bg-arena/30 p-4 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-xs">
                 <div className="flex items-center gap-2.5">
@@ -590,9 +687,10 @@ ${closingText}`;
 
               <Button
                 onClick={() => setStep(2)}
-                className="w-full py-3.5 text-sm font-semibold rounded-full bg-admin-accent text-white hover:bg-admin-accent-hover shadow-md transition-all cursor-pointer"
+                disabled={agendaBloqueada}
+                className="w-full py-3.5 text-sm font-semibold rounded-full bg-admin-accent text-white hover:bg-admin-accent-hover shadow-md transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Continuar a Tus Datos →
+                {agendaBloqueada ? "Agenda de Encargos en Pausa" : "Continuar a Tus Datos →"}
               </Button>
 
               <p className="text-[11px] text-center text-muted font-sans">

@@ -69,42 +69,61 @@ export default async function HomePage() {
       <div className="mx-auto w-full max-w-7xl px-3.5 sm:px-6 py-8 sm:py-12 space-y-10 sm:space-y-14">
 
         {/* ─── 2. DROP ACTIVO / PIEZAS EN STOCK PARA COMPRA INMEDIATA ─── */}
-        {piezasDisponibles.length > 0 && (
-        <FadeIn>
-          <section className="space-y-5">
-            <div className="flex flex-col items-center text-center gap-1 border-b border-border/60 pb-3">
-              <span className="text-xs font-semibold uppercase tracking-wider text-barro font-sans flex items-center justify-center gap-1.5">
-                <span className="text-terracota">✨</span> Lanzamiento Actual
-              </span>
-              <h2 className="text-xl sm:text-2xl font-medium text-chocolate font-serif">
-                Piezas listas en Stock
-              </h2>
-              <p className="text-xs text-barro font-sans">
-                Producción en pequeños lotes con entrega inmediata.
+        {piezasDisponibles.length > 0 ? (
+          <FadeIn>
+            <section className="space-y-5">
+              <div className="flex flex-col items-center text-center gap-1 border-b border-border/60 pb-3">
+                <span className="text-xs font-semibold uppercase tracking-wider text-barro font-sans flex items-center justify-center gap-1.5">
+                  <span className="text-terracota">✨</span> Lanzamiento Actual
+                </span>
+                <h2 className="text-xl sm:text-2xl font-medium text-chocolate font-serif">
+                  Piezas listas en Stock
+                </h2>
+                <p className="text-xs text-barro font-sans">
+                  Producción en pequeños lotes con entrega inmediata.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-5">
+                {piezasDisponibles.map((producto, idx) => (
+                  <ProductCard key={producto.id} producto={producto} priority={idx === 0} />
+                ))}
+              </div>
+
+              {/* Botón horizontal llamativo para explorar todo el stock */}
+              <div className="pt-1 sm:pt-2 flex justify-center">
+                <Link href="/ceramica/stock" className="w-full sm:w-auto">
+                  <Button
+                    variant="outline"
+                    className="w-full sm:w-auto rounded-full border-terracota/35 bg-surface/90 text-chocolate hover:bg-terracota hover:text-white px-6 sm:px-8 py-2.5 sm:py-3 text-xs sm:text-sm font-semibold shadow-xs transition-all hover:scale-[1.02] active:scale-98 flex items-center justify-center gap-2 font-sans cursor-pointer group"
+                  >
+                    <span>✨ Ver todo el Stock disponible</span>
+                    <span className="group-hover:translate-x-1 transition-transform font-bold">→</span>
+                  </Button>
+                </Link>
+              </div>
+            </section>
+          </FadeIn>
+        ) : (
+          <FadeIn>
+            <section className="rounded-3xl border border-border/60 bg-arena/25 p-6 sm:p-8 text-center space-y-3">
+              <span className="text-3xl">🏺</span>
+              <h3 className="text-base sm:text-lg font-serif font-medium text-chocolate">
+                No hay piezas en stock de entrega inmediata actualmente
+              </h3>
+              <p className="max-w-md mx-auto text-xs sm:text-sm text-barro font-sans leading-relaxed">
+                Todas las piezas del último lanzamiento fueron adquiridas. Podés ver los formatos disponibles en el{" "}
+                <Link href="/ceramica/catalogo" className="text-terracota underline font-medium hover:text-chocolate">
+                  Catálogo
+                </Link>{" "}
+                o explorar las obras en mi{" "}
+                <Link href="/ceramica/portfolio" className="text-terracota underline font-medium hover:text-chocolate">
+                  Portfolio
+                </Link> ✨
               </p>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-5">
-              {piezasDisponibles.map((producto, idx) => (
-                <ProductCard key={producto.id} producto={producto} priority={idx === 0} />
-              ))}
-            </div>
-
-            {/* Botón horizontal llamativo para explorar todo el stock */}
-            <div className="pt-1 sm:pt-2 flex justify-center">
-              <Link href="/ceramica/stock" className="w-full sm:w-auto">
-                <Button
-                  variant="outline"
-                  className="w-full sm:w-auto rounded-full border-terracota/35 bg-surface/90 text-chocolate hover:bg-terracota hover:text-white px-6 sm:px-8 py-2.5 sm:py-3 text-xs sm:text-sm font-semibold shadow-xs transition-all hover:scale-[1.02] active:scale-98 flex items-center justify-center gap-2 font-sans cursor-pointer group"
-                >
-                  <span>✨ Ver todo el Stock disponible</span>
-                  <span className="group-hover:translate-x-1 transition-transform font-bold">→</span>
-                </Button>
-              </Link>
-            </div>
-          </section>
-        </FadeIn>
-      )}
+            </section>
+          </FadeIn>
+        )}
 
       {/* ─── 3. LOS 2 PILARES CREATIVOS (CERÁMICA & ILUSTRACIÓN - EMOJIS EN LÍNEA) ─── */}
       <FadeIn delay={100}>

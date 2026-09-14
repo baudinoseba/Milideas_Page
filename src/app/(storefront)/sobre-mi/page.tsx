@@ -70,8 +70,25 @@ export default async function SobreMiPage() {
   const fotoPosY = config?.sobre_mi_foto_pos_y ?? 50;
   const fotoZoom = config?.sobre_mi_foto_zoom ?? 100;
 
+  const faqJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: FAQ_ITEMS.map((item) => ({
+      "@type": "Question",
+      name: item.pregunta,
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: item.respuesta,
+      },
+    })),
+  };
+
   return (
     <div className="space-y-12 sm:space-y-16 pb-16">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
+      />
       
       {/* ─── 1. HISTORIA DE LA ARTISTA (Mili Ferrero) ─── */}
       <FadeIn>
@@ -190,9 +207,13 @@ export default async function SobreMiPage() {
             </span>
             <span className="inline-flex items-center gap-1.5 font-medium">
               <span>📍</span>
-              <span>Sunchales, Santa Fe</span>
+              <span>Florentino Ameghino 1576, Sunchales, Santa Fe (CP S2322)</span>
             </span>
           </div>
+
+          <p className="text-[11px] text-muted font-sans pt-1">
+            Titular: Milagros Anita Ferrero · CUIL: 27-43717260-4 · Taller de Arte y Cerámica
+          </p>
 
           <div className="flex flex-wrap justify-center gap-3 pt-2">
             <a

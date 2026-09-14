@@ -22,6 +22,7 @@ import type {
   PortfolioColeccion,
   ObraProyecto,
   CategoriaObra,
+  EstadisticasDisponibilidad,
 } from "@/types";
 
 export async function getCategorias(tipoCatalogo?: TipoCatalogo): Promise<Categoria[]> {
@@ -362,6 +363,8 @@ export async function getConfiguracionSitio(): Promise<ConfiguracionSitio> {
     .limit(1)
     .single();
 
+  const now = new Date();
+
   if (error || !data) {
     return {
       id: "default",
@@ -370,9 +373,212 @@ export async function getConfiguracionSitio(): Promise<ConfiguracionSitio> {
       hero_subtitulo: "Cerámica de autor en ediciones limitadas. Cada lanzamiento es único y las piezas se agotan rápidamente.",
       hero_imagen_url: null,
       coleccion_destacada_id: null,
+      stock_ceramica_abierto: true,
+      encargos_ceramica_abiertos: true,
+      stock_ilustracion_abierto: true,
+      encargos_ilustracion_abiertos: true,
+      cupo_mensual_total: 50,
+      cupo_mensual_ceramica: 50,
+      cupo_mensual_ilustracion: 50,
+      encargos_pausado_at: null,
+      encargos_pausado_hasta: null,
+      auto_pausar_stock_agotado: true,
+      tienda_stock_abierta: true,
+      encargos_abiertos: true,
     };
   }
-  return data as ConfiguracionSitio;
+
+  const stockCeramica = data.stock_ceramica_abierto ?? true;
+  let encargosCeramica = data.encargos_ceramica_abiertos ?? true;
+  const stockIlustracion = data.stock_ilustracion_abierto ?? true;
+  let encargosIlustracion = data.encargos_ilustracion_abiertos ?? true;
+  const cupoTotal = data.cupo_mensual_total ?? data.cupo_mensual_ceramica ?? 50;
+
+  let necesitaUpdate = false;
+  const updatePayload: Record<string, any> = {};
+
+  // 1. Verificar si hay una pausa activa por 30 días fijada en encargos_pausado_hasta
+  if (data.encargos_pausado_hasta) {
+    const fechaHasta = new Date(data.encargos_pausado_hasta);
+    if (now < fechaHasta) {
+      // Período de 30 días vigente: las agendas deben estar cerradas
+      encargosCeramica = false;
+      encargosIlustracion = false;
+      if (data.encargos_ceramica_abiertos || data.encargos_ilustracion_abiertos) {
+        updatePayload.encargos_ceramica_abiertos = false;
+        updatePayload.encargos_ilustracion_abiertos = false;
+        necesitaUpdate = true;
+      }
+    } else {
+      // Ya transcurrieron los 30 días: Auto-reapertura automática del taller
+      encargosCeramica = true;
+      encargosIlustracion = true;
+      updatePayload.encargos_ceramica_abiertos = true;
+      updatePayload.encargos_ilustracion_abiertos = true;
+      updatePayload.encargos_pausado_at = null;
+      updatePayload.encargos_pausado_hasta = null;
+      necesitaUpdate = true;
+    }
+  }
+
+  // 2. Si las agendas figuran abiertas, verificar conteo real de los últimos 30 días
+  // para auto-pausar de inmediato si ya se alcanzó el tope (ej. 63 piezas >= 50 cupo)
+  if (encargosCeramica || encargosIlustracion) {
+    try {
+      let piezasUltimos30Dias = 0;
+      const { data: rpcCount } = await supabase.rpc("contar_piezas_encargo_mes", { p_tipo: null });
+      if (typeof rpcCount === "number") {
+        piezasUltimos30Dias = rpcCount;
+      } else {
+        const hace30DiasStr = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+        const { data: itemsDB } = await supabase
+          .from("items_encargo")
+          .select("cantidad, encargos!inner(created_at, estado)")
+          .gte("encargos.created_at", hace30DiasStr)
+          .neq("encargos.estado", "cancelado");
+        if (itemsDB) {
+          piezasUltimos30Dias = itemsDB.reduce((sum, it) => sum + (Number(it.cantidad) || 1), 0);
+        }
+      }
+
+      if (piezasUltimos30Dias >= cupoTotal) {
+        encargosCeramica = false;
+        encargosIlustracion = false;
+        updatePayload.encargos_ceramica_abiertos = false;
+        updatePayload.encargos_ilustracion_abiertos = false;
+        updatePayload.encargos_pausado_at = data.encargos_pausado_at || now.toISOString();
+        updatePayload.encargos_pausado_hasta =
+          data.encargos_pausado_hasta || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+        necesitaUpdate = true;
+      }
+    } catch {
+      // Ignorar error no bloqueante de verificación
+    }
+  }
+
+  // Sincronizar en base de datos si hubo auto-pausa o reapertura
+  // Esto desencadena Supabase Realtime para que todos los usuarios conectados vean el cambio al instante.
+  if (necesitaUpdate && data.id) {
+    try {
+      createAdminClient()
+        .from("configuracion_sitio")
+        .update(updatePayload)
+        .eq("id", data.id)
+        .then();
+    } catch {
+      // Background non-blocking sync
+    }
+  }
+
+  return {
+    ...data,
+    stock_ceramica_abierto: stockCeramica,
+    encargos_ceramica_abiertos: encargosCeramica,
+    stock_ilustracion_abierto: stockIlustracion,
+    encargos_ilustracion_abiertos: encargosIlustracion,
+    cupo_mensual_total: cupoTotal,
+    cupo_mensual_ceramica: data.cupo_mensual_ceramica ?? 50,
+    cupo_mensual_ilustracion: data.cupo_mensual_ilustracion ?? 50,
+    encargos_pausado_at: updatePayload.encargos_pausado_at || data.encargos_pausado_at || null,
+    encargos_pausado_hasta: updatePayload.encargos_pausado_hasta || data.encargos_pausado_hasta || null,
+    auto_pausar_stock_agotado: data.auto_pausar_stock_agotado ?? true,
+    tienda_stock_abierta: stockCeramica && stockIlustracion,
+    encargos_abiertos: encargosCeramica && encargosIlustracion,
+  } as ConfiguracionSitio;
+}
+
+export async function getEstadisticasDisponibilidad(): Promise<EstadisticasDisponibilidad> {
+  const supabase = await createClient();
+  const config = await getConfiguracionSitio();
+
+  const now = new Date();
+  const mesActual = now.toLocaleDateString("en-CA", {
+    timeZone: "America/Argentina/Buenos_Aires",
+  }).slice(0, 7);
+
+  let piezasCeramica = 0;
+  let piezasIlustracion = 0;
+  let stockCeramica = 0;
+  let stockIlustracion = 0;
+
+  // 1. Intentar llamar funciones RPC especializadas (últimos 30 días)
+  try {
+    const { data: cData } = await supabase.rpc("contar_piezas_encargo_mes", { p_tipo: "ceramica" });
+    if (typeof cData === "number") piezasCeramica = cData;
+  } catch {}
+
+  try {
+    const { data: iData } = await supabase.rpc("contar_piezas_encargo_mes", { p_tipo: "ilustraciones" });
+    if (typeof iData === "number") piezasIlustracion = iData;
+  } catch {}
+
+  try {
+    const { data: scData } = await supabase.rpc("calcular_stock_total_disponible", { p_tipo: "ceramica" });
+    if (typeof scData === "number") stockCeramica = scData;
+  } catch {}
+
+  try {
+    const { data: siData } = await supabase.rpc("calcular_stock_total_disponible", { p_tipo: "ilustraciones" });
+    if (typeof siData === "number") stockIlustracion = siData;
+  } catch {}
+
+  // 2. Fallback por queries normales si la RPC no está disponible aún (ventana de 30 días)
+  if (piezasCeramica === 0 && piezasIlustracion === 0) {
+    const hace30DiasStr = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const { data: items } = await supabase
+      .from("items_encargo")
+      .select("cantidad, tipo_catalogo, encargos!inner(created_at, estado)")
+      .gte("encargos.created_at", hace30DiasStr)
+      .neq("encargos.estado", "cancelado");
+
+    if (items && items.length > 0) {
+      for (const it of items) {
+        const cant = Number(it.cantidad) || 1;
+        if (it.tipo_catalogo === "ceramica") piezasCeramica += cant;
+        else piezasIlustracion += cant;
+      }
+    }
+  }
+
+  if (stockCeramica === 0 && stockIlustracion === 0) {
+    const { data: prods } = await supabase
+      .from("productos")
+      .select("stock_disponible, tipo_catalogo")
+      .eq("activo", true);
+    if (prods) {
+      for (const p of prods) {
+        const s = Number(p.stock_disponible) || 0;
+        if (p.tipo_catalogo === "ceramica") stockCeramica += s;
+        else stockIlustracion += s;
+      }
+    }
+  }
+
+  const cupoTotal = config.cupo_mensual_total ?? config.cupo_mensual_ceramica ?? 50;
+
+  let diasRestantesPausa: number | undefined;
+  if (config.encargos_pausado_hasta) {
+    const hastaTime = new Date(config.encargos_pausado_hasta).getTime();
+    const diff = hastaTime - Date.now();
+    if (diff > 0) {
+      diasRestantesPausa = Math.ceil(diff / (1000 * 60 * 60 * 24));
+    }
+  }
+
+  return {
+    piezasEncargadasMesCeramica: piezasCeramica,
+    piezasEncargadasMesIlustracion: piezasIlustracion,
+    piezasEncargadasMesTotal: piezasCeramica + piezasIlustracion,
+    cupoMensualTotal: cupoTotal,
+    cupoMensualCeramica: config.cupo_mensual_ceramica ?? 50,
+    cupoMensualIlustracion: config.cupo_mensual_ilustracion ?? 50,
+    stockFisicoCeramica: stockCeramica,
+    stockFisicoIlustracion: stockIlustracion,
+    mesActual,
+    encargosPausadoAt: config.encargos_pausado_at,
+    encargosPausadoHasta: config.encargos_pausado_hasta,
+    diasRestantesPausa,
+  };
 }
 
 export async function getTodasLasPiezasProduccion(produccionId: string): Promise<ProductoConImagenes[]> {

@@ -186,7 +186,37 @@ export type ConfiguracionSitio = {
   taller_provincia?: string | null;
   taller_codigo_postal?: string | null;
   vendedor_whatsapp?: string | null;
+  stock_ceramica_abierto?: boolean;
+  encargos_ceramica_abiertos?: boolean;
+  stock_ilustracion_abierto?: boolean;
+  encargos_ilustracion_abiertos?: boolean;
+  cupo_mensual_total?: number;
+  cupo_mensual_ceramica?: number;
+  cupo_mensual_ilustracion?: number;
+  encargos_pausado_at?: string | null;
+  encargos_pausado_hasta?: string | null;
+  encargos_ceramica_pausado_mes?: string | null;
+  encargos_ilustracion_pausado_mes?: string | null;
+  auto_pausar_stock_agotado?: boolean;
+  // Legacy / convenience fallbacks
+  tienda_stock_abierta?: boolean;
+  encargos_abiertos?: boolean;
   updated_at?: string;
+};
+
+export type EstadisticasDisponibilidad = {
+  piezasEncargadasMesCeramica: number;
+  piezasEncargadasMesIlustracion: number;
+  piezasEncargadasMesTotal: number;
+  cupoMensualTotal: number;
+  cupoMensualCeramica: number;
+  cupoMensualIlustracion: number;
+  stockFisicoCeramica: number;
+  stockFisicoIlustracion: number;
+  mesActual: string;
+  encargosPausadoAt?: string | null;
+  encargosPausadoHasta?: string | null;
+  diasRestantesPausa?: number;
 };
 
 export type ProductoConImagenes = Producto & {
