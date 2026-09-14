@@ -439,10 +439,19 @@ ${closingText}`;
                   </div>
 
                   {encargosBloqueados ? (
-                    <div className="rounded-2xl border border-amber-300 bg-amber-50/90 p-3.5 text-xs text-stone-700 space-y-1.5 mt-4">
+                    <div className="rounded-2xl border border-amber-300 bg-amber-50/90 p-3.5 text-xs text-stone-700 space-y-2 mt-4">
                       <p className="font-serif font-bold text-amber-950">¡Llegué al límite de producción mensual! ✨</p>
                       <p className="text-[11px] leading-relaxed">
-                        Para cuidar cada detalle y la calidad artesanal, la agenda de encargos está en pausa temporal por 30 días mientras creo piezas nuevas en el taller.
+                        Para cuidar cada detalle y la calidad artesanal, la agenda de encargos está en pausa temporal por 30 días mientras creo piezas nuevas en el taller. Te invito a seguirme en{" "}
+                        <a
+                          href="https://instagram.com/milideas_arte"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-terracota underline font-medium hover:text-chocolate"
+                        >
+                          @milideas_arte
+                        </a>{" "}
+                        para recibir novedades de cuándo habrá más encargos disponibles o nuevo stock 🌿
                       </p>
                       <span className="inline-block mt-1 font-semibold text-amber-900 bg-amber-100/80 px-2.5 py-1 rounded-full text-[10px] border border-amber-300">
                         ⏸️ Agenda pausada temporalmente

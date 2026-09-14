@@ -366,7 +366,7 @@ export function CheckoutForm({
 
     // Validate if store stock is open
     if (!tiendaStockAbierta) {
-      setError("El stock se encuentra en pausa mientras preparo nuevas piezas en el taller 🏺 Te invito a seguirme en @milideas_arte para enterarte del próximo lanzamiento.");
+      setError("El stock se encuentra en pausa mientras preparo nuevas piezas en el taller 🏺 Te invito a seguirme en Instagram como @milideas_arte para recibir novedades de cuándo habrá nuevo stock o cuándo habrá más encargos disponibles.");
       return;
     }
 

@@ -86,14 +86,14 @@ export async function crearPedidoAction(
   if (!stockCeramicaOk && productosDB.some((p) => p.tipo_catalogo === "ceramica")) {
     return {
       success: false,
-      error: "El stock de cerámica se encuentra en pausa mientras preparo nuevas piezas en el taller. Te invito a conocer mi portfolio de obras y seguirme en Instagram como @milideas_arte.",
+      error: "El stock de cerámica se encuentra en pausa mientras preparo nuevas piezas en el taller. Te invito a conocer mi portfolio de obras y seguirme en Instagram como @milideas_arte para recibir novedades de cuándo habrá nuevo stock o más encargos disponibles.",
     };
   }
 
   if (!stockIlustracionOk && productosDB.some((p) => p.tipo_catalogo === "ilustraciones")) {
     return {
       success: false,
-      error: "El stock de ilustraciones se encuentra en pausa mientras preparo nuevas láminas en el taller. Te invito a conocer mi portfolio de obras y seguirme en Instagram como @milideas_arte.",
+      error: "El stock de ilustraciones se encuentra en pausa mientras preparo nuevas láminas en el taller. Te invito a conocer mi portfolio de obras y seguirme en Instagram como @milideas_arte para recibir novedades de cuándo habrá nuevo stock o más encargos disponibles.",
     };
   }
 
@@ -1972,7 +1972,7 @@ export async function crearEncargoAction(formData: FormData): Promise<{
   if (!estaAbierto || piezasAcumuladasTotal >= cupoMaxTotal) {
     return {
       success: false,
-      error: "¡Llegué al límite de producción mensual! ✨ Para cuidar cada detalle y la calidad artesanal, la agenda de encargos está en pausa temporal por 30 días mientras creo piezas nuevas en el taller. Te invito a conocer mi historia, ver mi portfolio de obras y seguirme en @milideas_arte para enterarte de la reapertura de cupos 🌿",
+      error: "¡Llegué al límite de producción mensual! ✨ Para cuidar cada detalle y la calidad artesanal, la agenda de encargos está en pausa temporal por 30 días mientras creo piezas nuevas en el taller. Te invito a conocer mi historia, ver mi portfolio de obras y seguirme en @milideas_arte para recibir novedades de cuándo habrá más encargos disponibles o nuevo stock 🌿",
     };
   }
 

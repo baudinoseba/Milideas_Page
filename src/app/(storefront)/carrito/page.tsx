@@ -103,7 +103,7 @@ export default function CarritoPage() {
                   >
                     @milideas_arte
                   </a>{" "}
-                  ✨
+                  para recibir novedades de cuándo habrá nuevo stock o cuándo habrá más encargos disponibles ✨
                 </p>
               </div>
             ) : null}

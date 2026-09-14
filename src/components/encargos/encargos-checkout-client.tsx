@@ -179,7 +179,7 @@ export function EncargosCheckoutClient({
             >
               @milideas_arte
             </a>{" "}
-            para enterarte de la reapertura de cupos 🌿
+            para recibir novedades de cuándo habrá más encargos disponibles o nuevo stock 🌿
           </p>
 
           <div className="pt-4 flex flex-col gap-2.5">
@@ -203,7 +203,7 @@ export function EncargosCheckoutClient({
               rel="noopener noreferrer"
               className="text-xs font-semibold text-terracota hover:text-chocolate pt-1 underline underline-offset-2"
             >
-              Seguime en Instagram @milideas_arte para la próxima apertura de cupos ↗
+              Seguime en Instagram @milideas_arte para recibir novedades de cuándo habrá nuevo stock o cupos disponibles ↗
             </a>
           </div>
         </div>
@@ -452,7 +452,7 @@ ${closingText}`;
                   >
                     @milideas_arte
                   </a>{" "}
-                  para enterarte de la próxima apertura de cupos 🌿
+                  para recibir novedades de cuándo habrá más encargos disponibles o nuevo stock 🌿
                 </p>
               </Card>
             )}

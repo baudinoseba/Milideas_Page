@@ -112,14 +112,38 @@ export default async function HomePage() {
                 No hay piezas en stock de entrega inmediata actualmente
               </h3>
               <p className="max-w-md mx-auto text-xs sm:text-sm text-barro font-sans leading-relaxed">
-                Todas las piezas del último lanzamiento fueron adquiridas. Podés ver los formatos disponibles en el{" "}
-                <Link href="/ceramica/catalogo" className="text-terracota underline font-medium hover:text-chocolate">
-                  Catálogo
-                </Link>{" "}
-                o explorar las obras en mi{" "}
-                <Link href="/ceramica/portfolio" className="text-terracota underline font-medium hover:text-chocolate">
-                  Portfolio
-                </Link> ✨
+                Todas las piezas del último lanzamiento fueron adquiridas.{" "}
+                {config?.encargos_ceramica_abiertos ?? config?.encargos_abiertos ?? true ? (
+                  <>
+                    Podés ver los formatos disponibles en el{" "}
+                    <Link href="/ceramica/catalogo" className="text-terracota underline font-medium hover:text-chocolate">
+                      Catálogo
+                    </Link>{" "}
+                    o explorar las obras en mi{" "}
+                    <Link href="/ceramica/portfolio" className="text-terracota underline font-medium hover:text-chocolate">
+                      Portfolio
+                    </Link>
+                    .
+                  </>
+                ) : (
+                  <>
+                    y la agenda de encargos se encuentra temporalmente completa. Podés explorar las obras en mi{" "}
+                    <Link href="/ceramica/portfolio" className="text-terracota underline font-medium hover:text-chocolate">
+                      Portfolio
+                    </Link>
+                    .
+                  </>
+                )}{" "}
+                Te invito a seguirme en{" "}
+                <a
+                  href="https://instagram.com/milideas_arte"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-terracota underline font-semibold hover:text-chocolate"
+                >
+                  @milideas_arte
+                </a>{" "}
+                para recibir novedades de cuándo habrá nuevo stock o cuándo habrá más encargos disponibles ✨
               </p>
             </section>
           </FadeIn>

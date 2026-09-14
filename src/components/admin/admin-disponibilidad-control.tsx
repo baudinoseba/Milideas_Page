@@ -561,15 +561,15 @@ export function AdminDisponibilidadControl({
               &ldquo;El stock se encuentra en pausa mientras creo nuevas piezas en el taller 🏺 Te invito a conocer{" "}
               <Link href="/sobre-mi" className="text-terracota underline font-medium">mi historia</Link>, ver mi{" "}
               <Link href="/ceramica/portfolio" className="text-terracota underline font-medium">portfolio de obras</Link> y seguirme en{" "}
-              <a href="https://instagram.com/milideas_arte" target="_blank" rel="noopener noreferrer" className="text-terracota underline font-medium">@milideas_arte</a> ✨&rdquo;
+              <a href="https://instagram.com/milideas_arte" target="_blank" rel="noopener noreferrer" className="text-terracota underline font-medium">@milideas_arte</a> para recibir novedades de cuándo habrá nuevo stock o más encargos disponibles ✨&rdquo;
             </p>
           </div>
           <div className="bg-white/80 rounded-xl p-2.5 border border-stone-200/70 space-y-1">
             <span className="font-semibold text-terracota">📝 Al alcanzar Límite Mensual de Encargos:</span>
             <p className="italic">
-              &ldquo;¡Llegué al límite de producción mensual! ✨ Para cuidar cada detalle y la calidad artesanal, la agenda de encargos está en pausa temporal y reabrirá el próximo mes. Te invito a ver{" "}
+              &ldquo;¡Llegué al límite de producción mensual! ✨ Para cuidar cada detalle y la calidad artesanal, la agenda de encargos está en pausa temporal por 30 días. Te invito a ver{" "}
               <Link href="/ceramica/portfolio" className="text-terracota underline font-medium">mi portfolio</Link> y seguirme en{" "}
-              <a href="https://instagram.com/milideas_arte" target="_blank" rel="noopener noreferrer" className="text-terracota underline font-medium">@milideas_arte</a> 🌿&rdquo;
+              <a href="https://instagram.com/milideas_arte" target="_blank" rel="noopener noreferrer" className="text-terracota underline font-medium">@milideas_arte</a> para recibir novedades de cuándo habrá más encargos disponibles o nuevo stock 🌿&rdquo;
             </p>
           </div>
         </div>

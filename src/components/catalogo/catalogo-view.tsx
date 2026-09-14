@@ -270,7 +270,7 @@ export function CatalogoView({
                     >
                       @milideas_arte
                     </a>{" "}
-                    ✨
+                    para recibir novedades de cuándo habrá nuevo stock o cuándo habrá más encargos disponibles ✨
                   </p>
                 </div>
               </div>
@@ -319,16 +319,68 @@ export function CatalogoView({
                 No hay piezas en stock de entrega inmediata actualmente
               </h3>
               <p className="max-w-md text-xs sm:text-sm text-barro font-sans leading-relaxed">
-                Todas las piezas del último lanzamiento fueron adquiridas. Podés encargar cualquier formato desde el{" "}
-                <strong className="font-bold text-chocolate">Catálogo</strong> y coordinar el diseño que más te guste.
+                Todas las piezas del último lanzamiento fueron adquiridas.{" "}
+                {encargosAbiertos ? (
+                  <>
+                    Podés encargar cualquier formato desde el{" "}
+                    <button
+                      type="button"
+                      onClick={() => handleTabChange("catalogo")}
+                      className="text-terracota underline font-medium hover:text-chocolate cursor-pointer"
+                    >
+                      Catálogo
+                    </button>{" "}
+                    o explorar las obras en el{" "}
+                    <button
+                      type="button"
+                      onClick={() => handleTabChange("portfolio")}
+                      className="text-terracota underline font-medium hover:text-chocolate cursor-pointer"
+                    >
+                      Portfolio
+                    </button>
+                    .
+                  </>
+                ) : (
+                  <>
+                    y la agenda de encargos se encuentra temporalmente completa. Podés explorar las obras en el{" "}
+                    <button
+                      type="button"
+                      onClick={() => handleTabChange("portfolio")}
+                      className="text-terracota underline font-medium hover:text-chocolate cursor-pointer"
+                    >
+                      Portfolio
+                    </button>
+                    .
+                  </>
+                )}{" "}
+                Te invito a seguirme en{" "}
+                <a
+                  href="https://instagram.com/milideas_arte"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-terracota underline font-semibold hover:text-chocolate"
+                >
+                  @milideas_arte
+                </a>{" "}
+                para recibir novedades de cuándo habrá nuevo stock o cuándo habrá más encargos disponibles ✨
               </p>
-              <button
-                type="button"
-                onClick={() => handleTabChange("catalogo")}
-                className="mt-2 rounded-full bg-terracota text-white px-5 py-2 text-xs font-semibold hover:bg-terracota/90 transition-all cursor-pointer shadow-xs"
-              >
-                {rubro === "ceramica" ? "Ver Catálogo de Formatos →" : "Ver Catálogo de Ilustraciones →"}
-              </button>
+              {encargosAbiertos ? (
+                <button
+                  type="button"
+                  onClick={() => handleTabChange("catalogo")}
+                  className="mt-2 rounded-full bg-terracota text-white px-5 py-2 text-xs font-semibold hover:bg-terracota/90 transition-all cursor-pointer shadow-xs"
+                >
+                  {rubro === "ceramica" ? "Ver Catálogo de Formatos →" : "Ver Catálogo de Ilustraciones →"}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => handleTabChange("portfolio")}
+                  className="mt-2 rounded-full bg-chocolate text-white px-5 py-2 text-xs font-semibold hover:bg-chocolate/90 transition-all cursor-pointer shadow-xs"
+                >
+                  Explorar Portfolio de Obras →
+                </button>
+              )}
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 sm:gap-5">
@@ -375,7 +427,7 @@ export function CatalogoView({
                     >
                       @milideas_arte
                     </a>{" "}
-                    para enterarte de la reapertura de cupos 🌿
+                    para recibir novedades de cuándo habrá más encargos disponibles o nuevo stock 🌿
                   </p>
                 </div>
               </div>

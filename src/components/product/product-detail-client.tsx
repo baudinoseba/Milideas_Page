@@ -232,7 +232,7 @@ export function ProductDetailClient({ producto, configEncargos }: ProductDetailP
                   >
                     @milideas_arte
                   </a>{" "}
-                  ✨
+                  para recibir novedades de cuándo habrá nuevo stock o cuándo habrá más encargos disponibles ✨
                 </p>
               </div>
             </div>
@@ -344,7 +344,7 @@ export function ProductDetailClient({ producto, configEncargos }: ProductDetailP
                   >
                     @milideas_arte
                   </a>{" "}
-                  para enterarte de la próxima apertura de cupos! ✨
+                  para recibir novedades de cuándo habrá más encargos disponibles o nuevo stock ✨
                 </p>
               </div>
             </div>

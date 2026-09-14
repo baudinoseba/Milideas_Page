@@ -119,7 +119,7 @@ export function EncargoModal({
               >
                 @milideas_arte
               </a>{" "}
-              para enterarte de la próxima apertura de cupos! ✨
+              para recibir novedades de cuándo habrá más encargos disponibles o nuevo stock! ✨
             </p>
             <div className="pt-2">
               <Button

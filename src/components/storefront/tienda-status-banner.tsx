@@ -45,7 +45,7 @@ export function TiendaStatusBanner() {
                 Taller en producción ✨
               </span>{" "}
               <span className="text-stone-700">
-                Las compras directas y la agenda de encargos están en pausa temporal mientras creo piezas nuevas en el taller.
+                Las compras directas y la agenda de encargos están en pausa temporal mientras creo piezas nuevas en el taller. ¡Seguime en Instagram para recibir novedades de cuándo habrá nuevo stock o más encargos disponibles!
               </span>
             </div>
           </div>
@@ -99,7 +99,7 @@ export function TiendaStatusBanner() {
             <span className="text-base">🏺</span>
             <span className="text-stone-700 font-sans">
               <strong className="text-chocolate font-medium">Cerámica en producción ✨</strong>{" "}
-              El stock y encargos de cerámica están en pausa mientras creo piezas nuevas en el taller.
+              El stock y encargos de cerámica están en pausa mientras creo piezas nuevas en el taller. ¡Revisá @milideas_arte para recibir novedades de cuándo habrá nuevo stock o reapertura de cupos!
             </span>
           </div>
 
@@ -145,7 +145,7 @@ export function TiendaStatusBanner() {
             <span className="text-base">🎨</span>
             <span className="text-stone-700 font-sans">
               <strong className="text-chocolate font-medium">Ilustración en pausa ✨</strong>{" "}
-              La sección de láminas y dibujos está en pausa temporal mientras preparo nuevas obras.
+              La sección de láminas y dibujos está en pausa temporal mientras preparo nuevas obras. ¡Revisá Instagram para enterarte de cuándo habrá nuevo stock o encargos disponibles!
             </span>
           </div>
 
@@ -209,8 +209,8 @@ export function TiendaStatusBanner() {
                 className="text-terracota underline underline-offset-2 font-medium"
               >
                 @milideas_arte
-              </a>
-              .
+              </a>{" "}
+              para recibir novedades de cuándo habrá nuevo stock o cuándo habrá más encargos disponibles ✨
             </span>
           </div>
 
@@ -273,7 +273,7 @@ export function TiendaStatusBanner() {
             >
               @milideas_arte
             </a>{" "}
-            para enterarte de la reapertura de cupos 🌿.
+            para recibir novedades de cuándo habrá más encargos disponibles o nuevo stock 🌿
           </span>
         </div>
 
